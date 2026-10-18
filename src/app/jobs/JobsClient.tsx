@@ -31,6 +31,7 @@ function JobsDirectoryContent({ initialJobs }: { initialJobs: import("@/lib/type
   const selectedLocation = params.get("location") || "All";
   const selectedWorkMode = params.get("workMode") || "All";
   const selectedDepartment = params.get("department") || "All";
+  const selectedRegion = params.get("region") || "All";
   const minExp = Math.max(0, Number(params.get("expMin")) || 0);
   const sortBy = params.get("sort") === "salary" ? "salary" : "latest";
   function updateFilter(key: string, value: string, defaultValue = "All") {
@@ -43,6 +44,7 @@ function JobsDirectoryContent({ initialJobs }: { initialJobs: import("@/lib/type
   const setSelectedLocation = (value: string) => updateFilter("location", value);
   const setSelectedWorkMode = (value: string) => updateFilter("workMode", value);
   const setSelectedDepartment = (value: string) => updateFilter("department", value);
+  const setSelectedRegion = (value: string) => updateFilter("region", value);
   const setMinExp = (value: number) => updateFilter("expMin", String(value), "0");
   const setSortBy = (value: string) => updateFilter("sort", value, "latest");
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
@@ -131,6 +133,7 @@ function JobsDirectoryContent({ initialJobs }: { initialJobs: import("@/lib/type
   }, [jobs]);
 
   const activeFiltersCount = (searchTerm ? 1 : 0) +
+    (selectedRegion !== "All" ? 1 : 0) +
     (selectedLocation !== "All" ? 1 : 0) +
     (selectedWorkMode !== "All" ? 1 : 0) +
     (selectedDepartment !== "All" ? 1 : 0) +
@@ -145,13 +148,13 @@ function JobsDirectoryContent({ initialJobs }: { initialJobs: import("@/lib/type
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
               <span className="text-xs font-bold text-blue-600 uppercase tracking-wider">
-                INTERNATIONAL JOB DIRECTORY
+                ATSAI TECHNOLOGIES | RECRUITMENT SOFTWARE &amp; HR TECHNOLOGY SOLUTIONS
               </span>
               <h1 className="text-3xl sm:text-4xl font-extrabold text-[#0b1728] mt-1 tracking-tight">
-                Find your next opportunity.
+                Explore Job Openings Across India
               </h1>
               <p className="text-slate-600 text-sm mt-1 max-w-2xl">
-                Explore published jobs across industries and countries. Review each employer, location, requirements and application route. ATSAI does not charge candidates application fees.
+                Explore verified career opportunities across Bengaluru, Pune, Mumbai, Hyderabad, Delhi NCR, and Remote India. Review requirements, compensation, and track applications smoothly with ATSAI.
               </p>
             </div>
 
@@ -173,6 +176,12 @@ function JobsDirectoryContent({ initialJobs }: { initialJobs: import("@/lib/type
                 placeholder="Search by job title, skill, company or keyword…"
                 className="w-full pl-3 pr-2 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none"
               />
+              {selectedRegion !== "All" && (
+                <span className="inline-flex items-center gap-1 bg-blue-50 text-blue-700 border border-blue-200 px-2.5 py-1 rounded-full">
+                  Region: {selectedRegion}
+                  <button onClick={() => setSelectedRegion("All")}><X className="w-3 h-3 hover:text-blue-900" /></button>
+                </span>
+              )}
               {searchTerm && (
                 <button
                   type="button"
@@ -207,6 +216,32 @@ function JobsDirectoryContent({ initialJobs }: { initialJobs: import("@/lib/type
                 </select>
               </div>
             </div>
+          </div>
+
+          {/* India Metro Hub Quick-Filter Tabs */}
+          <div className="mt-4 flex flex-wrap items-center gap-2">
+            <span className="text-xs font-semibold text-slate-500 mr-1 hidden sm:inline">Metro Hubs:</span>
+            {[
+              { id: "All", label: "🇮🇳 All India", count: jobs.filter(j => isJobOpen(j, now)).length },
+              { id: "Bengaluru", label: "Bengaluru (Tech)", count: jobs.filter(j => isJobOpen(j, now) && j.location.city.toLowerCase().includes("bengaluru")).length },
+              { id: "Maharashtra", label: "Pune & Mumbai", count: jobs.filter(j => isJobOpen(j, now) && (j.location.city.toLowerCase().includes("pune") || j.location.city.toLowerCase().includes("mumbai"))).length },
+              { id: "Hyderabad", label: "Hyderabad", count: jobs.filter(j => isJobOpen(j, now) && j.location.city.toLowerCase().includes("hyderabad")).length },
+              { id: "DelhiNCR", label: "Delhi NCR (Gurugram/Noida)", count: jobs.filter(j => isJobOpen(j, now) && (j.location.city.toLowerCase().includes("gurugram") || j.location.city.toLowerCase().includes("noida") || j.location.city.toLowerCase().includes("delhi"))).length },
+              { id: "Remote", label: "🌐 Remote (India)", count: jobs.filter(j => isJobOpen(j, now) && j.workMode.toLowerCase() === "remote").length },
+            ].map((hub) => (
+              <button
+                key={hub.id}
+                type="button"
+                onClick={() => setSelectedRegion(hub.id)}
+                className={`px-3 py-1.5 rounded-xl text-xs transition-all ${
+                  selectedRegion === hub.id
+                    ? "bg-blue-600 text-white shadow-xs font-semibold"
+                    : "bg-white text-slate-700 border border-slate-200 hover:border-blue-300 hover:bg-slate-50 font-medium"
+                }`}
+              >
+                {hub.label} <span className="opacity-75">({hub.count})</span>
+              </button>
+            ))}
           </div>
 
           {/* Active Filter Chips */}
@@ -463,7 +498,7 @@ function JobsDirectoryContent({ initialJobs }: { initialJobs: import("@/lib/type
                         <div className="mt-4 flex flex-wrap items-center gap-2 text-xs text-slate-600">
                           <span className="inline-flex items-center gap-1 bg-slate-50 border border-slate-200 px-2.5 py-1 rounded-md font-medium">
                             <MapPin className="w-3.5 h-3.5 text-slate-400" />
-                            {job.location.city}, {job.location.state}
+                            {job.location.city && job.location.country && !job.location.city.toLowerCase().includes(job.location.country.toLowerCase()) ? `${job.location.city} · ${job.location.country}` : (job.location.city || job.location.country || "Global")}
                           </span>
                           <span className="inline-flex items-center gap-1 bg-slate-50 border border-slate-200 px-2.5 py-1 rounded-md font-medium">
                             <Clock className="w-3.5 h-3.5 text-slate-400" />
