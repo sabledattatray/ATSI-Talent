@@ -1,5 +1,6 @@
 async function verify() {
-  const base = "http://127.0.0.1:3001";
+  const base = process.argv[2] || "http://127.0.0.1:3001";
+  console.log(`Checking target: ${base}`);
   const slugs = [
     "what-is-an-applicant-tracking-system",
     "how-to-create-an-ats-friendly-resume",
