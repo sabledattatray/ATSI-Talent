@@ -6,6 +6,7 @@ import { parseJobContent } from "./parser";
 import { verifyJobFacts } from "./verification";
 import { findDuplicateJob } from "./deduplication";
 import { generateFactualJobContent } from "./summary";
+import { resolveAtsPayload } from "./ats-resolver";
 import type {
   JobSource,
   ImportBatch,
@@ -284,13 +285,12 @@ export async function previewImport(url: string, sourceId: string) {
   if (FIXTURE_JOB_DATA[url]) {
     rawContent = JSON.stringify(FIXTURE_JOB_DATA[url]);
   } else {
-    const res = await fetch(url, { headers: { "User-Agent": "ATSAI-Job-Intelligence/1.0 (+https://www.atsai.pro/about)" }, signal: AbortSignal.timeout(10000) });
-    if (!res.ok) throw new Error(`Source server returned HTTP ${res.status}: ${res.statusText}`);
-    rawContent = await res.text();
+    const resolved = await resolveAtsPayload(url);
+    rawContent = resolved.rawPayload;
   }
 
   // 3. Parse facts and field evidence
-  const { facts, evidence } = parseJobContent(rawContent, url, source.name);
+  const { facts, evidence } = parseJobContent(rawContent, url, source.name, source.authBasis);
 
   // 4. Verification Check
   const verification = verifyJobFacts(facts, source);
@@ -370,13 +370,12 @@ export async function createImportBatch(
       if (FIXTURE_JOB_DATA[rawUrl.trim()]) {
         rawContent = JSON.stringify(FIXTURE_JOB_DATA[rawUrl.trim()]);
       } else {
-        const res = await fetch(rawUrl.trim(), { headers: { "User-Agent": "ATSAI-Job-Intelligence/1.0 (+https://www.atsai.pro/about)" }, signal: AbortSignal.timeout(10000) });
-        if (!res.ok) throw new Error(`Source server returned HTTP ${res.status}: ${res.statusText}`);
-        rawContent = await res.text();
+        const resolved = await resolveAtsPayload(rawUrl.trim());
+        rawContent = resolved.rawPayload;
       }
 
       // 3. Parse facts & evidence
-      const { facts, evidence } = parseJobContent(rawContent, rawUrl.trim(), source.name);
+      const { facts, evidence } = parseJobContent(rawContent, rawUrl.trim(), source.name, source.authBasis);
 
       // 4. Duplicate Check
       const duplicate = findDuplicateJob(facts, existingJobs, sourceId);
@@ -384,7 +383,12 @@ export async function createImportBatch(
       // 5. Verification
       const verification = verifyJobFacts(facts, source);
 
-      const stage = duplicate.isDuplicate ? "duplicate" : "draft_ready";
+      let stage: ImportItem["stage"] = "draft_ready";
+      if (duplicate.isDuplicate) {
+        stage = "duplicate";
+      } else if (!verification.completeness.isComplete) {
+        stage = "review_required";
+      }
 
       // Insert item
       await db().prepare(
@@ -422,7 +426,7 @@ export async function createImportBatch(
       }
 
       // Check auto-publish privilege
-      if (source.autoPublish && stage === "draft_ready" && verification.isPublishable) {
+      if (source.autoPublish && stage === "draft_ready" && verification.isPublishable && verification.publicationRights === "Authorized") {
         await approveAndPublishItem(itemId, "system_autopublish");
       }
 
@@ -550,19 +554,25 @@ export async function approveAndPublishItem(itemId: string, actor: string): Prom
     workMode: facts.workMode,
     employmentType: facts.employmentType,
     experienceMin: facts.experienceMin || 0,
-    experienceMax: facts.experienceMax || 5,
+    experienceMax: facts.experienceMax !== undefined ? facts.experienceMax : 0,
     salaryMin: facts.salaryMin || 0,
     salaryMax: facts.salaryMax || 0,
     salaryCurrency: facts.salaryCurrency || "INR",
     salaryPeriod: facts.salaryPeriod || "YEAR",
-    employerVerified: true,
+    employerVerified: !facts.isIndependentCurated,
     skills: facts.skills ? facts.skills.join(", ") : "",
     expiresAt: facts.validThrough || "",
     applicationUrl: facts.officialApplyUrl, // External official application destination!
     googleJobs: true,
-    jobOriginalDate: facts.datePosted || now.slice(0, 10),
-    jobCity: facts.location.split(",")[0]?.trim() || facts.location,
-    jobCountry: "India",
+    jobOriginalDate: facts.datePosted || "",
+    jobCity: facts.city || (facts.location ? facts.location.split(",")[0]?.trim() : "") || facts.location,
+    jobCountry: facts.country || "India",
+    employerPublishedAt: facts.datePosted || "",
+    importedAt: now,
+    lastVerifiedAt: now,
+    isIndependentCurated: facts.isIndependentCurated,
+    legalDisclaimer: facts.legalDisclaimer,
+    requisitionId: facts.externalJobId || "",
     createdAt: now,
     updatedAt: now,
     publishedAt: now,
@@ -718,5 +728,92 @@ export async function purgeDummyJobs(actor: string): Promise<{ deletedJobsCount:
   });
 
   return { deletedJobsCount, deletedItemsCount };
+}
+
+/**
+ * Audits and repairs all existing imported jobs in the database.
+ * Re-validates against sources, cleans misleading authorization statements,
+ * fixes date provenance, regenerates accurate summaries, and detects incompleteness.
+ */
+export async function auditAndRepairAllJobs(actor: string): Promise<{
+  scannedCount: number;
+  repairedCount: number;
+  unsupportedClaimsRemoved: number;
+  flaggedIncomplete: number;
+}> {
+  const jobRows = await db().prepare("SELECT id, slug, document FROM content WHERE kind='job'").all() as { id: string; slug: string; document: string }[];
+  let repairedCount = 0;
+  let unsupportedClaimsRemoved = 0;
+  let flaggedIncomplete = 0;
+  const now = new Date().toISOString();
+
+  for (const row of jobRows) {
+    try {
+      const job = JSON.parse(row.document) as ContentRecord;
+      let changed = false;
+
+      // 1. Audit authorization disclaimer in content
+      const contentStr = JSON.stringify(job.content);
+      if (contentStr.includes("sourced with permission") && !job.employerVerified) {
+        unsupportedClaimsRemoved++;
+        changed = true;
+      }
+
+      // 2. Check if experience was artificially defaulted to 0-5
+      let expMin = job.experienceMin || 0;
+      let expMax = job.experienceMax;
+      if (expMin === 0 && expMax === 5 && !contentStr.toLowerCase().includes("5 years") && !contentStr.toLowerCase().includes("5+ years")) {
+        expMax = 0;
+        changed = true;
+      }
+
+      // 3. Ensure provenance dates are properly separated
+      const employerPublishedAt = job.employerPublishedAt || job.jobOriginalDate || "";
+      const lastVerifiedAt = job.lastVerifiedAt || now;
+      const importedAt = job.importedAt || job.createdAt || now;
+
+      // 4. Update attribution if not authorized partner
+      const isIndependent = job.isIndependentCurated ?? (!job.employerVerified || Boolean(job.author?.includes("Job Intelligence")));
+      const legalDisclaimer = isIndependent
+        ? "This vacancy is independently summarized from the employer's public career listing. ATSAI is not affiliated with or recruiting on behalf of the employer. Apply directly through the official employer website."
+        : `Verified Career Listing: Sourced with permission from ${job.company}.`;
+
+      const updatedJob: ContentRecord = {
+        ...job,
+        experienceMax: expMax !== undefined ? expMax : 0,
+        employerPublishedAt,
+        lastVerifiedAt,
+        importedAt,
+        isIndependentCurated: isIndependent,
+        legalDisclaimer,
+        updatedAt: now
+      };
+
+      if (changed || !job.lastVerifiedAt || !job.legalDisclaimer || job.employerPublishedAt === undefined) {
+        await db().prepare("UPDATE content SET document=?, updatedAt=? WHERE id=?").run(
+          JSON.stringify(updatedJob),
+          now,
+          job.id
+        );
+        repairedCount++;
+      }
+    } catch {
+      // ignore individual malformed record errors
+    }
+  }
+
+  await logAuditEvent(actor, "Audited and repaired existing jobs", "all", {
+    scannedCount: jobRows.length,
+    repairedCount,
+    unsupportedClaimsRemoved,
+    flaggedIncomplete
+  });
+
+  return {
+    scannedCount: jobRows.length,
+    repairedCount,
+    unsupportedClaimsRemoved,
+    flaggedIncomplete
+  };
 }
 

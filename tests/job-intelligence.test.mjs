@@ -376,3 +376,172 @@ test("Job Intelligence Service: End-to-end import, deduplication, review queue, 
   assert.ok(overview.publishedCount >= 1);
   assert.ok(overview.activeSourcesCount >= 1);
 });
+
+test("Job Intelligence ATS Detection: Recognizes Greenhouse, Lever, Ashby, Workday URLs", () => {
+  const { load } = createTestContext();
+  const ats = load("src/lib/job-intelligence/ats-resolver.ts");
+
+  assert.equal(ats.detectAtsProvider("https://boards.greenhouse.io/stripe/jobs/12345"), "greenhouse");
+  assert.equal(ats.detectAtsProvider("https://jobs.lever.co/netflix/67890"), "lever");
+  assert.equal(ats.detectAtsProvider("https://jobs.ashbyhq.com/openai/abcde"), "ashby");
+  assert.equal(ats.detectAtsProvider("https://mycompany.myworkdayjobs.com/en-US/careers/job/123"), "workday");
+  assert.equal(ats.detectAtsProvider("https://careers.example.com/jobs/cloud-architect"), "generic");
+});
+
+test("Job Intelligence HTML Section Parser: Parses sections, bullet points, and stated experience", () => {
+  const { load } = createTestContext();
+  const htmlParser = load("src/lib/job-intelligence/html-parser.ts");
+
+  const sampleHtml = `
+    <div>
+      <p>Acme Corp is seeking a Senior Cloud Engineer to scale global systems.</p>
+      <h2>What You'll Do</h2>
+      <ul>
+        <li>Architect distributed microservices on Kubernetes.</li>
+        <li>Implement automated CI/CD deployment pipelines.</li>
+        <li>Monitor high-availability multi-region services.</li>
+      </ul>
+      <h2>What You Bring</h2>
+      <ul>
+        <li>5+ years of experience with distributed systems and Go.</li>
+        <li>Deep understanding of Linux networking and container runtimes.</li>
+        <li>Bachelor's degree in Computer Science or related quantitative field.</li>
+      </ul>
+      <h2>Nice to Have</h2>
+      <ul>
+        <li>Experience with Terraform and eBPF.</li>
+      </ul>
+      <h2>Benefits</h2>
+      <ul>
+        <li>Comprehensive health insurance and wellness stipend.</li>
+      </ul>
+    </div>
+  `;
+
+  const sections = htmlParser.extractHtmlSections(sampleHtml);
+  assert.ok(sections.responsibilities.length >= 3, "Must extract 3 responsibilities");
+  assert.ok(sections.responsibilities[0].includes("Architect distributed microservices"));
+  assert.ok(sections.qualifications.length >= 2, "Must extract qualifications");
+  assert.ok(sections.preferredQualifications.length >= 1, "Must extract nice to have");
+  assert.ok(sections.benefits.length >= 1, "Must extract benefits");
+
+  const exp = htmlParser.extractExperienceFromText(sampleHtml);
+  assert.equal(exp.statedExperience, "5+ years");
+  assert.equal(exp.experienceMin, 5);
+
+  const edu = htmlParser.extractEducationFromText(sampleHtml);
+  assert.ok(edu.includes("Bachelor"), "Must extract education requirement");
+});
+
+test("Job Intelligence 3-Score Validation Gate: Enforces independent Authenticity, Completeness 0-100%, and Publication Rights", () => {
+  const { load } = createTestContext();
+  const verifier = load("src/lib/job-intelligence/verification.ts");
+
+  // Thin job (only title, company, location, apply URL)
+  const thinJob = {
+    title: "Software Engineer",
+    company: "Thin Listings Inc",
+    location: "Bengaluru, India",
+    workMode: "Hybrid",
+    employmentType: "Full-time",
+    officialApplyUrl: "https://careers.example.com/apply/thin",
+    salaryDisclosed: false,
+    responsibilities: [],
+    qualifications: [],
+    summary: "A role at Thin Listings Inc."
+  };
+
+  const externalSource = {
+    id: "src-external",
+    name: "External Public Career Board",
+    status: "active",
+    authBasis: "manual_reference_only",
+    domainAllowlist: ["*"],
+    autoPublish: false
+  };
+
+  const thinCheck = verifier.verifyJobFacts(thinJob, externalSource);
+
+  // 1. Authenticity: External public board is Unverified
+  assert.equal(thinCheck.authenticityStatus, "Unverified");
+
+  // 2. Completeness: Thin page must NOT receive 100/100 and must be incomplete!
+  assert.ok(thinCheck.completeness.score < 65, "Thin listing must score below 65%");
+  assert.equal(thinCheck.completeness.isComplete, false, "Thin listing must not be marked complete");
+  assert.ok(thinCheck.completeness.missingFields.length > 0, "Missing fields must be populated");
+
+  // 3. Publication Rights: Incomplete external job must require Review, never Auto-Publish
+  assert.equal(thinCheck.publicationRights, "Review");
+  assert.equal(thinCheck.isPublishable, false);
+
+  // Comprehensive verified job
+  const richJob = {
+    title: "Staff Systems Engineer",
+    company: "Partner Enterprise",
+    location: "Hyderabad, India",
+    workMode: "Remote",
+    employmentType: "Full-time",
+    officialApplyUrl: "https://careers.example.com/apply/staff",
+    salaryDisclosed: true,
+    salaryMin: 4000000,
+    salaryMax: 6000000,
+    salaryCurrency: "INR",
+    salaryPeriod: "YEAR",
+    responsibilities: [
+      "Design distributed fault-tolerant storage systems.",
+      "Lead cross-functional reliability engineering reviews.",
+      "Drive zero-downtime maintenance operations."
+    ],
+    qualifications: [
+      "8+ years of production systems engineering.",
+      "Proficiency in Rust, Go, and Linux internals.",
+      "BS or MS in Computer Science."
+    ],
+    skills: ["Rust", "Go", "Kubernetes", "Distributed Systems"],
+    summary: "Partner Enterprise is hiring a Staff Systems Engineer to oversee resilient platform infrastructure.",
+    datePosted: "2026-10-18"
+  };
+
+  const partnerSource = {
+    id: "src-partner",
+    name: "Partner Enterprise Official",
+    status: "active",
+    authBasis: "direct_owner",
+    domainAllowlist: ["*"],
+    autoPublish: true
+  };
+
+  const richCheck = verifier.verifyJobFacts(richJob, partnerSource);
+  assert.equal(richCheck.authenticityStatus, "Verified");
+  assert.ok(richCheck.completeness.score >= 80, "Complete rich job must score >= 80%");
+  assert.equal(richCheck.completeness.isComplete, true);
+  assert.equal(richCheck.publicationRights, "Authorized");
+  assert.equal(richCheck.isPublishable, true);
+});
+
+test("Job Intelligence Legal Attribution & Disclaimers: Never claims permission without authorization", () => {
+  const { load } = createTestContext();
+  const parser = load("src/lib/job-intelligence/parser.ts");
+
+  // Unauthorized / public career reference
+  const publicAttribution = parser.getLegalAttribution("HackerRank", "manual_reference_only");
+  assert.equal(publicAttribution.isIndependentCurated, true);
+  assert.ok(publicAttribution.attribution.includes("independently summarized from the employer's public career listing"));
+  assert.ok(!publicAttribution.attribution.includes("sourced with permission"));
+
+  // Explicit written permission
+  const partnerAttribution = parser.getLegalAttribution("Google", "written_permission");
+  assert.equal(partnerAttribution.isIndependentCurated, false);
+  assert.ok(partnerAttribution.attribution.includes("Sourced with permission from Google"));
+});
+
+test("Job Intelligence Audit & Repair: Audits existing jobs and normalizes provenance", async () => {
+  const { load } = createTestContext();
+  const service = load("src/lib/job-intelligence/service.ts");
+
+  const repairResult = await service.auditAndRepairAllJobs("Test Runner");
+  assert.ok(typeof repairResult.scannedCount === "number");
+  assert.ok(typeof repairResult.repairedCount === "number");
+  assert.ok(typeof repairResult.unsupportedClaimsRemoved === "number");
+});
+

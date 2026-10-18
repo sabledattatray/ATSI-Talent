@@ -1,6 +1,27 @@
-export type SourceType = "api" | "feed" | "manual_assist";
+export type SourceType = "api" | "feed" | "manual_assist" | "careers_page";
 export type AuthBasis = "direct_owner" | "written_permission" | "license" | "published_api_terms" | "manual_reference_only";
 export type SourceStatus = "active" | "paused" | "revoked";
+
+export type AuthenticityStatus = "Verified" | "Unverified";
+export type PublicationRights = "Authorized" | "Review" | "Blocked";
+
+export interface CompletenessCheck {
+  code: string;
+  field: string;
+  label: string;
+  present: boolean;
+  score: number;
+  maxScore: number;
+  detail: string;
+}
+
+export interface CompletenessResult {
+  score: number; // 0–100%
+  isComplete: boolean; // meets threshold for useful publishing
+  missingFields: string[];
+  warnings: string[];
+  checks: CompletenessCheck[];
+}
 
 export interface JobSource {
   id: string;
@@ -30,6 +51,7 @@ export type ImportStage =
   | "deduplicating"
   | "verifying"
   | "draft_ready"
+  | "review_required"
   | "published"
   | "duplicate"
   | "failed"
@@ -39,9 +61,13 @@ export interface ExtractedJobFacts {
   externalJobId?: string;
   title: string;
   company: string;
+  companyCareersUrl?: string;
   department?: string;
   category: string;
   location: string;
+  city?: string;
+  state?: string;
+  country?: string;
   workMode: "On-site" | "Hybrid" | "Remote" | "Unknown";
   employmentType: "Full-time" | "Part-time" | "Contract" | "Internship" | "Temporary";
   salaryDisclosed: boolean;
@@ -51,16 +77,31 @@ export interface ExtractedJobFacts {
   salaryPeriod?: "YEAR" | "MONTH" | "WEEK" | "DAY" | "HOUR";
   experienceMin?: number;
   experienceMax?: number;
+  experienceStated?: string;
+  experience?: string;
   education?: string;
   skills: string[];
   descriptionSummary: string;
+  summary?: string;
+  fullDescriptionHtml?: string;
   responsibilities: string[];
   qualifications: string[];
-  datePosted?: string;
-  validThrough?: string;
+  preferredQualifications: string[];
+  benefits: string[];
+  applicationInstructions?: string;
+  datePosted?: string; // employer's original publication date
+  updatedAt?: string; // employer's last updated date
+  validThrough?: string; // application deadline
   officialApplyUrl: string;
   sourceUrl: string;
   sourceAttribution: string;
+  authBasis?: AuthBasis;
+  isIndependentCurated?: boolean;
+  legalDisclaimer?: string;
+  importedAt?: string;
+  lastVerifiedAt?: string;
+  rawSourcePayload?: string;
+  atsProvider?: "greenhouse" | "lever" | "ashby" | "workday" | "smartrecruiters" | "generic";
 }
 
 export interface VerificationCheck {
@@ -77,6 +118,10 @@ export interface VerificationCheck {
 export interface VerificationResult {
   score: number;
   isPublishable: boolean;
+  // Three independent scores per PRD
+  authenticityStatus: AuthenticityStatus;
+  completeness: CompletenessResult;
+  publicationRights: PublicationRights;
   checks: VerificationCheck[];
   hardBlocks: string[];
   warnings: string[];

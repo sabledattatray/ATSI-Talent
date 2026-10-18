@@ -13,7 +13,8 @@ import {
   approveAndPublishItem,
   rejectItem,
   mergeDuplicate,
-  purgeDummyJobs
+  purgeDummyJobs,
+  auditAndRepairAllJobs
 } from "@/lib/job-intelligence/service";
 
 type Context = { params: Promise<{ action: string[] }> };
@@ -146,6 +147,14 @@ export async function POST(request: Request, context: Context) {
         return response({ error: "Only the platform owner can purge dummy jobs." }, 403);
       }
       const result = await purgeDummyJobs(user.name);
+      return response({ ok: true, ...result });
+    }
+
+    if (action[0] === "repair-all-jobs") {
+      if (user.role !== "owner") {
+        return response({ error: "Only the platform owner can audit and repair jobs." }, 403);
+      }
+      const result = await auditAndRepairAllJobs(user.name);
       return response({ ok: true, ...result });
     }
 

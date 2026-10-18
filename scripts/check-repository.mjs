@@ -11,7 +11,7 @@ const patterns = [
 ];
 const errors = [];
 for (const file of files) {
-  if (/(^|\/)(?:node_modules|data|\.git|\.next[^/]*)(?:\/|$)/.test(file) || /(?:^|\/)\.env(?:\.|$)/.test(file) && file !== ".env.example" || /\.(?:sqlite(?:3)?(?:-wal|-shm)?|db(?:-wal|-shm)?|pem|key|p12|pfx)$/i.test(file)) errors.push(`${file}: private or generated file must not be published`);
+  if (/(?:^data(?:\/|$)|(^|\/)(?:node_modules|\.git|\.next[^/]*)(?:\/|$))/.test(file) || /(?:^|\/)\.env(?:\.|$)/.test(file) && file !== ".env.example" || /\.(?:sqlite(?:3)?(?:-wal|-shm)?|db(?:-wal|-shm)?|pem|key|p12|pfx)$/i.test(file)) errors.push(`${file}: private or generated file must not be published`);
   let stat; try { stat = statSync(file); } catch { continue; }
   if (!stat.isFile()) continue;
   if (stat.size > 50 * 1024 * 1024) errors.push(`${file}: exceeds the repository's 50 MB file budget`);

@@ -11,6 +11,8 @@ export type ContentRecord = {
   salaryCurrency?: string; salaryPeriod?: "YEAR" | "MONTH" | "WEEK" | "DAY" | "HOUR"; employerVerified?: boolean;
   skills: string; expiresAt: string; applicationUrl: string;
   googleJobs?: boolean; jobOriginalDate?: string; jobCity?: string; jobRegion?: string; jobCountry?: string;
+  employerPublishedAt?: string; importedAt?: string; lastVerifiedAt?: string;
+  isIndependentCurated?: boolean; legalDisclaimer?: string; requisitionId?: string;
   createdAt: string; updatedAt: string; publishedAt: string | null; version: number;
 };
 export type MediaRecord = { id: string; name: string; type: string; size: number; createdAt: string; url: string };
