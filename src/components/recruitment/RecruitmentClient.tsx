@@ -597,23 +597,48 @@ export function CandidatePortal({ initial, defaultTab }: { initial: Dashboard; d
 
       {/* Metrics Grid */}
       <div className="talent-stats">
-        <article>
-          <span>Applications</span>
+        <article className="talent-stat-card">
+          <div className="talent-stat-head">
+            <span>Applications</span>
+            <div className="talent-stat-icon talent-stat-blue">
+              <BriefcaseBusiness size={15} />
+            </div>
+          </div>
           <strong>{data.applications.length}</strong>
         </article>
-        <article>
-          <span>Saved opportunities</span>
+
+        <article className="talent-stat-card">
+          <div className="talent-stat-head">
+            <span>Saved Jobs</span>
+            <div className="talent-stat-icon talent-stat-purple">
+              <Bookmark size={15} />
+            </div>
+          </div>
           <strong>{data.savedJobs.length}</strong>
         </article>
-        <article>
-          <span>Profile Completeness</span>
+
+        <article className="talent-stat-card">
+          <div className="talent-stat-head">
+            <span>Profile Score</span>
+            <div className={`talent-stat-icon ${completeness.score >= 80 ? "talent-stat-green" : completeness.score >= 50 ? "talent-stat-blue" : "talent-stat-amber"}`}>
+              <Sparkles size={15} />
+            </div>
+          </div>
           <strong style={{ color: completeness.score >= 80 ? "#059669" : completeness.score >= 50 ? "#2563eb" : "#d97706" }}>
             {completeness.score}%
           </strong>
         </article>
-        <article>
-          <span>Notice / Availability</span>
-          <strong>{noticePeriod || "Not specified"}</strong>
+
+        <article className="talent-stat-card">
+          <div className="talent-stat-head">
+            <span>Availability</span>
+            <div className="talent-stat-icon talent-stat-cyan">
+              <Clock size={15} />
+            </div>
+          </div>
+          <strong className="talent-stat-text-val" title={noticePeriod || "Not specified"}>
+            {noticePeriod || "Not specified"}
+          </strong>
         </article>
       </div>
 

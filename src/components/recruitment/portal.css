@@ -170,6 +170,100 @@
   .talent-modal-grid{grid-template-columns:1fr}
 }
 
+/* Premium Responsive 4-Metric Stats Grid */
+.talent-stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  margin: 24px 0 22px;
+}
+.talent-stat-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  padding: 16px 18px;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.03);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  position: relative;
+  overflow: hidden;
+}
+.talent-stat-card:hover {
+  border-color: #cbd5e1;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.06);
+}
+.talent-stat-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.talent-stat-head span {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #64748b;
+  display: block;
+}
+.talent-stat-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.talent-stat-blue {
+  background: #eff6ff;
+  color: #2563eb;
+  border: 1px solid #dbeafe;
+}
+.talent-stat-purple {
+  background: #f5f3ff;
+  color: #7c3aed;
+  border: 1px solid #ede9fe;
+}
+.talent-stat-green {
+  background: #ecfdf5;
+  color: #059669;
+  border: 1px solid #d1fae5;
+}
+.talent-stat-amber {
+  background: #fffbeb;
+  color: #d97706;
+  border: 1px solid #fef3c7;
+}
+.talent-stat-cyan {
+  background: #f0f9ff;
+  color: #0284c7;
+  border: 1px solid #e0f2fe;
+}
+.talent-stat-card strong {
+  display: block;
+  font-size: 25px;
+  font-weight: 750;
+  color: #0f172a;
+  letter-spacing: -0.6px;
+  line-height: 1.1;
+  margin: 0;
+}
+.talent-stat-text-val {
+  font-size: 15px !important;
+  font-weight: 650 !important;
+  color: #1e293b !important;
+  letter-spacing: -0.2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.3 !important;
+}
+
 /* Responsive Tabs Container for Candidate Dashboard */
 .talent-tabs-wrapper {
   position: relative;
@@ -423,6 +517,43 @@
     margin-left: 3px !important;
     padding: 1px 5px !important;
     font-size: 9.5px !important;
+  }
+
+  /* Compact 2x2 Stats Grid for Mobile */
+  .talent-stats {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 9px !important;
+    margin: 12px 0 16px !important;
+  }
+  .talent-stat-card {
+    padding: 10px 12px !important;
+    border-radius: 12px !important;
+    min-height: 68px !important;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.02) !important;
+  }
+  .talent-stat-head {
+    margin-bottom: 5px !important;
+  }
+  .talent-stat-head span {
+    font-size: 9.5px !important;
+    letter-spacing: 0.3px !important;
+  }
+  .talent-stat-icon {
+    width: 24px !important;
+    height: 24px !important;
+    border-radius: 6px !important;
+  }
+  .talent-stat-icon svg {
+    width: 12px !important;
+    height: 12px !important;
+  }
+  .talent-stat-card strong {
+    font-size: 19px !important;
+    line-height: 1.1 !important;
+  }
+  .talent-stat-text-val {
+    font-size: 12px !important;
+    line-height: 1.25 !important;
   }
 }
 
