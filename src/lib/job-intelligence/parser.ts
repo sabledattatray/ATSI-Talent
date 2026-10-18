@@ -271,18 +271,44 @@ function parseHtmlFallback(html: string, sourceUrl: string, sourceName: string):
   });
 
   const companyMatch = html.match(/<meta[^>]*property=["']og:site_name["'][^>]*content=["']([^"']+)["']/i);
-  const company = companyMatch ? companyMatch[1].trim() : sourceName;
+  let company = companyMatch ? companyMatch[1].trim() : "";
+  if (!company) {
+    const fullTitleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i);
+    if (fullTitleMatch) {
+      const atMatch = fullTitleMatch[1].match(/\bat\s+([A-Za-z0-9\s&.,-]+?)(?:\s+Careers|\s*[-|·]|$)/i);
+      if (atMatch && atMatch[1].trim()) {
+        company = atMatch[1].trim();
+      }
+    }
+  }
+  if (!company) {
+    const urlSub = sourceUrl.match(/(?:boards\.greenhouse\.io|job-boards\.greenhouse\.io|jobs\.lever\.co|jobs\.ashbyhq\.com)\/([a-zA-Z0-9_-]+)/i);
+    if (urlSub) {
+      const rawSlug = urlSub[1].replace(/[-_]/g, " ");
+      company = rawSlug.charAt(0).toUpperCase() + rawSlug.slice(1);
+    }
+  }
+  if (!company) company = sourceName;
+
   evidence.push({
     field: "company",
     extractedValue: company,
-    sourceSnippet: `og:site_name: "${company}"`,
+    sourceSnippet: `Extracted company: "${company}"`,
     extractionMethod: "meta",
-    confidence: 0.85
+    confidence: 0.88
   });
 
   const descMatch = html.match(/<meta[^>]*name=["']description["'][^>]*content=["']([^"']+)["']/i) ||
                     html.match(/<meta[^>]*property=["']og:description["'][^>]*content=["']([^"']+)["']/i);
   const descriptionSummary = descMatch ? descMatch[1].trim() : "";
+
+  let location = "India";
+  if (descMatch) {
+    const locInDesc = descMatch[1].match(/\b(?:in|at)\s+([A-Za-z\s,]+)$/i);
+    if (locInDesc) {
+      location = locInDesc[1].trim();
+    }
+  }
 
   return {
     facts: {

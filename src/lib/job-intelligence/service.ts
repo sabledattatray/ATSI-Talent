@@ -48,6 +48,36 @@ export const FIXTURE_JOB_DATA: Record<string, any> = {
     validThrough: "2026-12-31",
     officialApplyUrl: "https://careers.example.com/apply/cloud-architect",
     sourceUrl: "https://careers.example.com/jobs/cloud-architect"
+  },
+  "https://careers.example.com/jobs/staff-ai-researcher": {
+    externalJobId: "REQ-2026-AI-104",
+    title: "Staff AI & Machine Learning Scientist",
+    company: "Example Cloud Technologies",
+    location: "Pune, Maharashtra, India",
+    workMode: "Remote",
+    employmentType: "Full-time",
+    salaryMin: 3800000,
+    salaryMax: 5500000,
+    salaryCurrency: "INR",
+    salaryPeriod: "YEAR",
+    experienceMin: 6,
+    experienceMax: 10,
+    skills: ["PyTorch", "LLMs", "RAG Systems", "Python", "Vector Databases", "CUDA"],
+    descriptionSummary: "Example Cloud Technologies is seeking a Staff AI & Machine Learning Scientist to lead the development of our enterprise generative AI reasoning pipelines, specialized retrieval architectures, and fine-tuned models.",
+    responsibilities: [
+      "Design and train high-performance domain-specific transformer architectures and inference pipelines.",
+      "Implement state-of-the-art retrieval-augmented generation (RAG) systems with low latency.",
+      "Collaborate with data engineering teams to curate clean pre-training datasets and safety guardrails."
+    ],
+    qualifications: [
+      "Master's or PhD in Computer Science, Artificial Intelligence, or related quantitative discipline.",
+      "6+ years of production experience scaling deep learning models and LLM applications.",
+      "Deep expertise in PyTorch, quantization, vLLM, and distributed GPU acceleration."
+    ],
+    datePosted: "2026-10-18",
+    validThrough: "2026-12-31",
+    officialApplyUrl: "https://careers.example.com/apply/staff-ai-researcher",
+    sourceUrl: "https://careers.example.com/jobs/staff-ai-researcher"
   }
 };
 
@@ -67,7 +97,7 @@ export async function ensureDefaultSources(): Promise<void> {
     "ATSAI Enterprise Partner Fixtures",
     "Example Cloud Technologies",
     "https://careers.example.com",
-    JSON.stringify(["careers.example.com", "*.example.com", "atsai.test"]),
+    JSON.stringify(["careers.example.com", "*.example.com", "atsai.test", "boards.greenhouse.io", "job-boards.greenhouse.io", "*.greenhouse.io", "jobs.lever.co", "*.lever.co", "jobs.ashbyhq.com", "careers.google.com"]),
     "api",
     "direct_owner",
     "MOU-2026-PARTNER-VERIFIED",
