@@ -35,7 +35,7 @@ export default function HomeClient({initialJobs}:{initialJobs:JobListing[]}){
 
           return (
             <Link
-              className="platform-job group block p-4 sm:p-5 bg-white border border-slate-200/90 hover:border-blue-400 rounded-2xl shadow-xs hover:shadow-md transition-all duration-200"
+              className="platform-job group flex flex-col justify-between p-4 sm:p-5 bg-white border border-slate-200/90 hover:border-blue-400 rounded-2xl shadow-xs hover:shadow-md transition-all duration-200"
               href={`/jobs/${j.slug}`}
               key={j.id}
             >
@@ -101,31 +101,31 @@ export default function HomeClient({initialJobs}:{initialJobs:JobListing[]}){
                       {j.department}
                     </span>
                   </div>
-
-                  {/* Card Footer: Salary + View Action */}
-                  <div className="flex items-center justify-between gap-3 mt-3 pt-2 border-t border-slate-100">
-                    <div className="flex items-baseline gap-1.5 text-xs sm:text-sm font-bold text-slate-800">
-                      <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
-                        Pay:
-                      </span>
-                      <span>
-                        {hasComp ? comp : "Competitive pay · Disclosed on interview"}
-                      </span>
-                    </div>
-
-                    <span className="inline-flex items-center gap-1 text-xs font-semibold text-blue-600 group-hover:text-blue-700 shrink-0">
-                      <span>View role</span>
-                      <ArrowUpRight size={13} className="transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
-                    </span>
-                  </div>
                 </div>
+              </div>
+
+              {/* Card Footer: Salary + View Action (Full Width) */}
+              <div className="flex items-center justify-between gap-2 mt-3.5 pt-2.5 border-t border-slate-100">
+                <div className="flex items-baseline gap-1 text-xs sm:text-[13px] font-bold text-slate-800 whitespace-nowrap min-w-0">
+                  <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 shrink-0">
+                    Pay:
+                  </span>
+                  <span className="whitespace-nowrap">
+                    {hasComp ? comp.replace(/\s*\/\s*/g, "\u00A0/\u00A0") : "Competitive pay · Disclosed on interview"}
+                  </span>
+                </div>
+
+                <span className="inline-flex items-center gap-1 text-xs font-semibold text-blue-600 group-hover:text-blue-700 shrink-0 whitespace-nowrap">
+                  <span>View role</span>
+                  <ArrowUpRight size={13} className="transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+                </span>
               </div>
             </Link>
           );
         })}
 
         {jobs.length > 0 && jobs.length < 3 && (
-          <div className="platform-job platform-job-invite group block p-4 sm:p-5 bg-gradient-to-br from-purple-50/70 to-indigo-50/50 border border-dashed border-purple-200 hover:border-purple-400 rounded-2xl shadow-xs hover:shadow-md transition-all duration-200">
+          <div className="platform-job platform-job-invite group flex flex-col justify-between p-4 sm:p-5 bg-gradient-to-br from-purple-50/70 to-indigo-50/50 border border-dashed border-purple-200 hover:border-purple-400 rounded-2xl shadow-xs hover:shadow-md transition-all duration-200">
             <div className="flex items-start gap-3.5">
               <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-purple-100/70 border border-purple-200 flex items-center justify-center text-purple-700 shrink-0 shadow-2xs group-hover:scale-105 transition-transform">
                 <Sparkles size={20} strokeWidth={1.8} />
@@ -150,20 +150,20 @@ export default function HomeClient({initialJobs}:{initialJobs:JobListing[]}){
                   <Globe2 size={12} className="text-purple-500 shrink-0" />
                   <span className="truncate">Pan-India verified employers hiring weekly</span>
                 </div>
-
-                <div className="flex items-center justify-between gap-3 mt-3 pt-2 border-t border-purple-100">
-                  <span className="text-xs font-medium text-slate-600 hidden sm:inline">
-                    Direct candidate matching
-                  </span>
-                  <Link
-                    href="/candidate/signup"
-                    className="inline-flex items-center gap-1 text-xs font-semibold text-purple-700 hover:text-purple-900 ml-auto"
-                  >
-                    <span>Join talent pool</span>
-                    <ArrowRight size={13} />
-                  </Link>
-                </div>
               </div>
+            </div>
+
+            <div className="flex items-center justify-between gap-3 mt-3.5 pt-2.5 border-t border-purple-100">
+              <span className="text-xs font-medium text-slate-600 hidden sm:inline">
+                Direct candidate matching
+              </span>
+              <Link
+                href="/candidate/signup"
+                className="inline-flex items-center gap-1 text-xs font-semibold text-purple-700 hover:text-purple-900 ml-auto"
+              >
+                <span>Join talent pool</span>
+                <ArrowRight size={13} />
+              </Link>
             </div>
           </div>
         )}

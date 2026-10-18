@@ -11,7 +11,7 @@ export function descriptionHtml(node: RichNode): string {
   return tag ? `<${tag}>${children}</${tag}>` : children;
 }
 export function organizationGraph() { return { "@context": "https://schema.org", "@graph": [
-  { "@type": "Organization", "@id": `${SITE_URL}/#organization`, name: BRAND_NAME, alternateName: "ATS AI", url: SITE_URL, logo: { "@type": "ImageObject", url: absoluteUrl("/brand/atsai-symbol-1024.png") }, email: "contact@atsai.pro", areaServed: "Worldwide" },
+  { "@type": "Organization", "@id": `${SITE_URL}/#organization`, name: BRAND_NAME, alternateName: "ATS AI", url: SITE_URL, logo: { "@type": "ImageObject", url: absoluteUrl("/brand/atsai-symbol-1024.png") }, email: "support@atsai.pro", areaServed: "Worldwide" },
   { "@type": "WebSite", "@id": `${SITE_URL}/#website`, url: SITE_URL, name: BRAND_NAME, alternateName: "ATSAI", inLanguage: "en-IN", publisher: { "@id": `${SITE_URL}/#organization` }, creator: { "@type": "Person", name: "Datta Sable", url: "https://dattasable.com" } },
 ] }; }
 export function breadcrumbs(items: { name: string; path: string }[]) { return { "@context": "https://schema.org", "@type": "BreadcrumbList", itemListElement: [{ name: "Home", path: "/" }, ...items].map((item,index) => ({ "@type": "ListItem", position: index+1, name: item.name, item: absoluteUrl(item.path) })) }; }

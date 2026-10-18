@@ -96,7 +96,7 @@ export const PAGE_SEO: Record<string, { title: string; description: string; keyw
 
   "/blog": { title: "Career Advice, Recruitment & Hiring Insights", description: "Read ATSAI articles on careers, job applications, analytics skills and hiring. Explore practical guidance for job seekers and employers.", keywords: ["career advice", "recruitment insights", "hiring advice"] },
 
-  "/contact": { title: "Contact ATSAI for Recruitment & Career Enquiries", description: "Contact ATSAI Talent Solutions about hiring, job opportunities or your account. Email contact@atsai.pro or send a message through our contact form.", keywords: ["contact ATSAI", "recruitment enquiry", "hiring enquiry"] },
+  "/contact": { title: "Contact ATSAI for Recruitment & Career Enquiries", description: "Contact ATSAI Talent Solutions about hiring, job opportunities or your account. Email support@atsai.pro or send a message through our contact form.", keywords: ["contact ATSAI", "recruitment enquiry", "hiring enquiry"] },
 
   "/faq": { title: "Job Applications, Candidate Accounts & Hiring FAQs", description: "Find answers about ATSAI candidate accounts, applications, resume links, hiring briefs and contacting the team. Candidate registration and applications are free.", keywords: ["ATSAI FAQ", "job application help", "candidate account help"] },
 

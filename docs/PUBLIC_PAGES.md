@@ -1,6 +1,6 @@
 # Public pages and recruitment workflows
 
-Public information pages use the existing ATSAI brand and shared responsive form styles. Contact and About retain the approved contact@atsai.pro address and Pune/Mumbai location. Staff authentication is unchanged at /admin/login.
+Public information pages use the existing ATSAI brand and shared responsive form styles. Contact and About retain the approved support@atsai.pro address and Pune/Mumbai location. Staff authentication is unchanged at /admin/login.
 
 ## Candidate access
 
