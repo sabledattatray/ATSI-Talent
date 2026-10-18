@@ -1825,11 +1825,66 @@ export function RecruitmentInbox() {
   const [data, setData] = useState<Inbox | null>(null);
   const [tab, setTab] = useState("applications");
   const [error, setError] = useState("");
+  const [actionSuccess, setActionSuccess] = useState("");
   const [busy, setBusy] = useState(false);
   const [search, setSearch] = useState("");
   const [stageFilter, setStageFilter] = useState("all");
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [expandedInquiryId, setExpandedInquiryId] = useState<string | null>(null);
+
+  // Modals state for Edit and Delete
+  const [deleteTarget, setDeleteTarget] = useState<{
+    kind: "application" | "inquiry" | "candidate" | "recruiter";
+    id: string;
+    title: string;
+  } | null>(null);
+
+  const [editApp, setEditApp] = useState<{
+    id: string;
+    jobTitle: string;
+    candidateName: string;
+    candidateEmail: string;
+    headline: string;
+    skills: string;
+    experience: number;
+    location: string;
+    phone: string;
+    noticePeriod: string;
+    coverLetter: string;
+    resumeUrl: string;
+    portfolioUrl: string;
+  } | null>(null);
+
+  const [editInquiry, setEditInquiry] = useState<{
+    id: string;
+    name: string;
+    email: string;
+    phone: string;
+    company: string;
+    subject: string;
+    message: string;
+    status: "new" | "in-progress" | "resolved";
+  } | null>(null);
+
+  const [editCandidate, setEditCandidate] = useState<{
+    id: string;
+    name: string;
+    email: string;
+    headline: string;
+    skills: string;
+    experience: number;
+    location: string;
+    phone: string;
+    resumeUrl: string;
+  } | null>(null);
+
+  const [editRecruiter, setEditRecruiter] = useState<{
+    id: string;
+    name: string;
+    email: string;
+    title: string;
+    active: boolean;
+  } | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -1856,6 +1911,95 @@ export function RecruitmentInbox() {
       setData(await api("admin"));
     } catch (error) {
       setError((error as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function confirmDelete() {
+    if (!deleteTarget) return;
+    setBusy(true);
+    setError("");
+    try {
+      await api("admin/delete", { kind: deleteTarget.kind, id: deleteTarget.id });
+      setData(await api("admin"));
+      setActionSuccess(`${deleteTarget.kind.charAt(0).toUpperCase() + deleteTarget.kind.slice(1)} deleted successfully.`);
+      setTimeout(() => setActionSuccess(""), 4000);
+      setDeleteTarget(null);
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function submitEditApp(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (!editApp) return;
+    setBusy(true);
+    setError("");
+    try {
+      await api("admin/edit-application", editApp);
+      setData(await api("admin"));
+      setActionSuccess("Application details updated successfully.");
+      setTimeout(() => setActionSuccess(""), 4000);
+      setEditApp(null);
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function submitEditInquiry(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (!editInquiry) return;
+    setBusy(true);
+    setError("");
+    try {
+      await api("admin/edit-inquiry", editInquiry);
+      setData(await api("admin"));
+      setActionSuccess("Inquiry updated successfully.");
+      setTimeout(() => setActionSuccess(""), 4000);
+      setEditInquiry(null);
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function submitEditCandidate(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (!editCandidate) return;
+    setBusy(true);
+    setError("");
+    try {
+      await api("admin/edit-candidate", editCandidate);
+      setData(await api("admin"));
+      setActionSuccess("Candidate profile updated successfully.");
+      setTimeout(() => setActionSuccess(""), 4000);
+      setEditCandidate(null);
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function submitEditRecruiter(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (!editRecruiter) return;
+    setBusy(true);
+    setError("");
+    try {
+      await api("admin/edit-recruiter", editRecruiter);
+      setData(await api("admin"));
+      setActionSuccess("Recruiter entry updated successfully.");
+      setTimeout(() => setActionSuccess(""), 4000);
+      setEditRecruiter(null);
+    } catch (err) {
+      setError((err as Error).message);
     } finally {
       setBusy(false);
     }
@@ -1913,7 +2057,7 @@ export function RecruitmentInbox() {
         <div>
           <h2 style={{ margin: "0 0 6px", fontSize: 24, fontWeight: 700, color: "#0f172a" }}>Recruitment Inbox</h2>
           <p style={{ margin: 0, fontSize: 14, color: "#64748b" }}>
-            Review candidate applications, manage hiring decisions, and track status notifications in real time.
+            Review candidate applications, manage hiring decisions, edit records, and remove test or completed items.
           </p>
         </div>
       </div>
@@ -1930,7 +2074,7 @@ export function RecruitmentInbox() {
         ))}
       </div>
 
-      <Notice error={error} />
+      <Notice error={error} message={actionSuccess} />
       {!data && !error && <p>Loading recruitment inbox…</p>}
 
       {data && (
@@ -1966,6 +2110,36 @@ export function RecruitmentInbox() {
                       </div>
                       <div className="talent-app-actions" onClick={e => e.stopPropagation()}>
                         {status(item.id, "inquiry", item.status)}
+                        <button
+                          type="button"
+                          className="talent-action-btn"
+                          title="Edit inquiry"
+                          onClick={() => setEditInquiry({
+                            id: item.id,
+                            name: item.name,
+                            email: item.email,
+                            phone: item.phone || "",
+                            company: item.company || "",
+                            subject: item.subject,
+                            message: item.message,
+                            status: (item.status as "new" | "in-progress" | "resolved") || "new"
+                          })}
+                        >
+                          <Edit3 size={13} />
+                          <span>Edit</span>
+                        </button>
+                        <button
+                          type="button"
+                          className="talent-action-btn talent-action-btn-danger"
+                          title="Delete inquiry"
+                          onClick={() => setDeleteTarget({
+                            kind: "inquiry",
+                            id: item.id,
+                            title: `Inquiry "${item.subject}" from ${item.name}`
+                          })}
+                        >
+                          <Trash2 size={13} />
+                        </button>
                         <button
                           type="button"
                           className="talent-app-toggle-btn"
@@ -2070,6 +2244,28 @@ export function RecruitmentInbox() {
                 const theme = STAGE_THEMES[item.status] || { bg: "#eff6ff", text: "#1d4ed8", border: "#bfdbfe" };
                 const initials = (item.name || "C").split(" ").map(w => w[0]).filter(Boolean).slice(0, 2).join("").toUpperCase();
 
+                const openEditApp = () => setEditApp({
+                  id: item.id,
+                  jobTitle: item.jobTitle,
+                  candidateName: item.name,
+                  candidateEmail: item.email,
+                  headline: p.headline || "",
+                  skills: p.skills || "",
+                  experience: p.experience ?? 0,
+                  location: p.location || "",
+                  phone: p.phone || "",
+                  noticePeriod: p.noticePeriod || "",
+                  coverLetter: document.coverLetter || "",
+                  resumeUrl: p.resumeUrl || "",
+                  portfolioUrl: p.portfolioUrl || "",
+                });
+
+                const openDeleteApp = () => setDeleteTarget({
+                  kind: "application",
+                  id: item.id,
+                  title: `Application for ${item.name} (${item.jobTitle}) [APP-${item.id.slice(0, 8).toUpperCase()}]`
+                });
+
                 return (
                   <article key={item.id} className={`talent-app-card ${isExpanded ? "expanded" : ""}`}>
                     <div 
@@ -2113,20 +2309,37 @@ export function RecruitmentInbox() {
                         </div>
                       </div>
 
-                      <div className="talent-app-actions">
+                      <div className="talent-app-actions" onClick={e => e.stopPropagation()}>
                         <span 
                           className="talent-app-stage-pill"
                           style={{ background: theme.bg, color: theme.text, border: `1px solid ${theme.border}` }}
                         >
                           {STAGE_LABELS[item.status as Stage] || item.status}
                         </span>
+
+                        <button
+                          type="button"
+                          className="talent-action-btn"
+                          title="Edit application details"
+                          onClick={openEditApp}
+                        >
+                          <Edit3 size={13} />
+                          <span>Edit</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          className="talent-action-btn talent-action-btn-danger"
+                          title="Delete application"
+                          onClick={openDeleteApp}
+                        >
+                          <Trash2 size={13} />
+                        </button>
+
                         <button 
                           type="button" 
                           className="talent-app-toggle-btn"
-                          onClick={e => {
-                            e.stopPropagation();
-                            setExpandedId(isExpanded ? null : item.id);
-                          }}
+                          onClick={() => setExpandedId(isExpanded ? null : item.id)}
                         >
                           <span>{isExpanded ? "Collapse" : "Manage"}</span>
                           {isExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
@@ -2162,6 +2375,26 @@ export function RecruitmentInbox() {
                         <div style={{ background: "#ffffff", border: "1px solid #e2e8f0", borderRadius: 12, padding: "16px 18px", marginTop: 12 }}>
                           <ApplicationStatusEditor application={item} scope="admin" onUpdated={async () => setData(await api("admin"))} />
                           <EmailDelivery key={item.updatedAt} applicationId={item.id} scope="admin" />
+                        </div>
+
+                        {/* Bottom Action Bar for Easy Edit / Delete */}
+                        <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", gap: 10, marginTop: 14, paddingTop: 12, borderTop: "1px dashed #e2e8f0" }}>
+                          <button
+                            type="button"
+                            className="talent-action-btn"
+                            onClick={openEditApp}
+                          >
+                            <Edit3 size={13} />
+                            <span>Edit application details</span>
+                          </button>
+                          <button
+                            type="button"
+                            className="talent-action-btn talent-action-btn-danger"
+                            onClick={openDeleteApp}
+                          >
+                            <Trash2 size={13} />
+                            <span>Delete application</span>
+                          </button>
                         </div>
                       </div>
                     )}
@@ -2209,11 +2442,45 @@ export function RecruitmentInbox() {
                         </a>
                       </div>
                     )}
+
+                    <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 14, paddingTop: 10, borderTop: "1px solid #f1f5f9" }}>
+                      <button
+                        type="button"
+                        className="talent-action-btn"
+                        onClick={() => setEditCandidate({
+                          id: item.id,
+                          name: item.name,
+                          email: item.email,
+                          headline: profile.headline || "",
+                          skills: profile.skills || "",
+                          experience: profile.experience ?? 0,
+                          location: profile.location || "",
+                          phone: profile.phone || "",
+                          resumeUrl: profile.resumeUrl || "",
+                        })}
+                      >
+                        <Edit3 size={13} />
+                        <span>Edit</span>
+                      </button>
+                      <button
+                        type="button"
+                        className="talent-action-btn talent-action-btn-danger"
+                        onClick={() => setDeleteTarget({
+                          kind: "candidate",
+                          id: item.id,
+                          title: `Candidate account for ${item.name} (${item.email})`
+                        })}
+                      >
+                        <Trash2 size={13} />
+                        <span>Delete</span>
+                      </button>
+                    </div>
                   </article>
                 );
               })}
             </div>
           )}
+
           {tab === "recruiters" && (
             <>
               <h3>Public recruiter directory</h3>
@@ -2224,6 +2491,7 @@ export function RecruitmentInbox() {
                   event.preventDefault();
                   const form = event.currentTarget;
                   void update("recruiter", Object.fromEntries(new FormData(form)));
+                  form.reset();
                 }}
               >
                 <div className="talent-form-grid">
@@ -2240,19 +2508,547 @@ export function RecruitmentInbox() {
                     <p>{item.email} · {item.title}</p>
                     <small>ID: {item.id}</small>
                   </div>
-                  <button
-                    className="talent-button talent-secondary"
-                    disabled={busy}
-                    onClick={() => void update("recruiter-status", { id: item.id, active: !item.active })}
-                  >
-                    {item.active ? "Deactivate" : "Activate"}
-                  </button>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <button
+                      className="talent-button talent-secondary"
+                      style={{ minHeight: 36, padding: "7px 12px", fontSize: 12 }}
+                      disabled={busy}
+                      onClick={() => void update("recruiter-status", { id: item.id, active: !item.active })}
+                    >
+                      {item.active ? "Deactivate" : "Activate"}
+                    </button>
+                    <button
+                      type="button"
+                      className="talent-action-btn"
+                      title="Edit recruiter"
+                      onClick={() => setEditRecruiter({
+                        id: item.id,
+                        name: item.name,
+                        email: item.email,
+                        title: item.title,
+                        active: Boolean(item.active)
+                      })}
+                    >
+                      <Edit3 size={13} />
+                      <span>Edit</span>
+                    </button>
+                    <button
+                      type="button"
+                      className="talent-action-btn talent-action-btn-danger"
+                      title="Delete recruiter"
+                      onClick={() => setDeleteTarget({
+                        kind: "recruiter",
+                        id: item.id,
+                        title: `Recruiter ${item.name} (${item.title})`
+                      })}
+                    >
+                      <Trash2 size={13} />
+                      <span>Delete</span>
+                    </button>
+                  </div>
                 </article>
               ))}
             </>
           )}
         </>
       )}
+
+      {/* DELETE CONFIRMATION MODAL */}
+      {deleteTarget && (
+        <div className="talent-modal-backdrop" onClick={() => setDeleteTarget(null)}>
+          <div className="talent-modal-box" style={{ maxWidth: 480 }} onClick={e => e.stopPropagation()}>
+            <div className="talent-modal-head">
+              <div>
+                <h3 className="talent-modal-title" style={{ color: "#dc2626" }}>Delete Confirmation</h3>
+                <p className="talent-modal-sub">Are you sure you want to permanently delete this item?</p>
+              </div>
+              <button type="button" className="talent-modal-close" onClick={() => setDeleteTarget(null)}>
+                <X size={16} />
+              </button>
+            </div>
+
+            <div style={{ background: "#fef2f2", border: "1px solid #fee2e2", borderRadius: 10, padding: "12px 14px", marginBottom: 18 }}>
+              <p style={{ margin: 0, fontSize: 13, color: "#991b1b", fontWeight: 600 }}>
+                {deleteTarget.title}
+              </p>
+              <p style={{ margin: "6px 0 0", fontSize: 12, color: "#b91c1c" }}>
+                This will permanently remove the record and cannot be undone.
+              </p>
+            </div>
+
+            <div className="talent-modal-actions">
+              <button
+                type="button"
+                className="talent-action-btn"
+                disabled={busy}
+                onClick={() => setDeleteTarget(null)}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="talent-button talent-danger-btn"
+                style={{ minHeight: 38, padding: "8px 16px", fontSize: 13 }}
+                disabled={busy}
+                onClick={() => void confirmDelete()}
+              >
+                {busy ? "Deleting…" : "Delete permanently"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* EDIT APPLICATION MODAL */}
+      {editApp && (
+        <div className="talent-modal-backdrop" onClick={() => setEditApp(null)}>
+          <div className="talent-modal-box talent-modal-box-wide" onClick={e => e.stopPropagation()}>
+            <div className="talent-modal-head">
+              <div>
+                <h3 className="talent-modal-title">Edit Application</h3>
+                <p className="talent-modal-sub">APP-{editApp.id.slice(0, 8).toUpperCase()} · {editApp.candidateName}</p>
+              </div>
+              <button type="button" className="talent-modal-close" onClick={() => setEditApp(null)}>
+                <X size={16} />
+              </button>
+            </div>
+
+            <form onSubmit={submitEditApp}>
+              <div className="talent-modal-grid">
+                <div className="talent-modal-field">
+                  <label>Candidate full name</label>
+                  <input
+                    required
+                    value={editApp.candidateName}
+                    onChange={e => setEditApp({ ...editApp, candidateName: e.target.value })}
+                  />
+                </div>
+                <div className="talent-modal-field">
+                  <label>Candidate email</label>
+                  <input
+                    type="email"
+                    required
+                    value={editApp.candidateEmail}
+                    onChange={e => setEditApp({ ...editApp, candidateEmail: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              <div className="talent-modal-grid">
+                <div className="talent-modal-field">
+                  <label>Job title / Applied role</label>
+                  <input
+                    required
+                    value={editApp.jobTitle}
+                    onChange={e => setEditApp({ ...editApp, jobTitle: e.target.value })}
+                  />
+                </div>
+                <div className="talent-modal-field">
+                  <label>Professional headline</label>
+                  <input
+                    placeholder="e.g. Senior MIS & Data Analyst"
+                    value={editApp.headline}
+                    onChange={e => setEditApp({ ...editApp, headline: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              <div className="talent-modal-grid">
+                <div className="talent-modal-field">
+                  <label>Location</label>
+                  <input
+                    placeholder="e.g. Maharashtra, India"
+                    value={editApp.location}
+                    onChange={e => setEditApp({ ...editApp, location: e.target.value })}
+                  />
+                </div>
+                <div className="talent-modal-field">
+                  <label>Phone number</label>
+                  <input
+                    type="tel"
+                    placeholder="+91..."
+                    value={editApp.phone}
+                    onChange={e => setEditApp({ ...editApp, phone: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              <div className="talent-modal-grid">
+                <div className="talent-modal-field">
+                  <label>Years of experience</label>
+                  <input
+                    type="number"
+                    min={0}
+                    max={60}
+                    value={editApp.experience}
+                    onChange={e => setEditApp({ ...editApp, experience: Number(e.target.value) || 0 })}
+                  />
+                </div>
+                <div className="talent-modal-field">
+                  <label>Notice period</label>
+                  <input
+                    placeholder="e.g. Immediate, 30 days"
+                    value={editApp.noticePeriod}
+                    onChange={e => setEditApp({ ...editApp, noticePeriod: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              <div className="talent-modal-field">
+                <label>Skills (comma separated)</label>
+                <input
+                  placeholder="e.g. SQL, Power BI, Python, Risk Analytics"
+                  value={editApp.skills}
+                  onChange={e => setEditApp({ ...editApp, skills: e.target.value })}
+                />
+              </div>
+
+              <div className="talent-modal-grid">
+                <div className="talent-modal-field">
+                  <label>Resume link (URL)</label>
+                  <input
+                    type="text"
+                    placeholder="https://..."
+                    value={editApp.resumeUrl}
+                    onChange={e => setEditApp({ ...editApp, resumeUrl: e.target.value })}
+                  />
+                </div>
+                <div className="talent-modal-field">
+                  <label>Portfolio link (URL)</label>
+                  <input
+                    type="text"
+                    placeholder="https://..."
+                    value={editApp.portfolioUrl}
+                    onChange={e => setEditApp({ ...editApp, portfolioUrl: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              <div className="talent-modal-field">
+                <label>Candidate note / Cover letter</label>
+                <textarea
+                  rows={4}
+                  value={editApp.coverLetter}
+                  onChange={e => setEditApp({ ...editApp, coverLetter: e.target.value })}
+                />
+              </div>
+
+              <div className="talent-modal-actions">
+                <button
+                  type="button"
+                  className="talent-action-btn"
+                  disabled={busy}
+                  onClick={() => setEditApp(null)}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="talent-button"
+                  style={{ minHeight: 38, padding: "8px 18px", fontSize: 13 }}
+                  disabled={busy}
+                >
+                  {busy ? "Saving…" : "Save changes"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* EDIT INQUIRY MODAL */}
+      {editInquiry && (
+        <div className="talent-modal-backdrop" onClick={() => setEditInquiry(null)}>
+          <div className="talent-modal-box" onClick={e => e.stopPropagation()}>
+            <div className="talent-modal-head">
+              <div>
+                <h3 className="talent-modal-title">Edit Inquiry</h3>
+                <p className="talent-modal-sub">ATS-{editInquiry.id.slice(0, 8).toUpperCase()}</p>
+              </div>
+              <button type="button" className="talent-modal-close" onClick={() => setEditInquiry(null)}>
+                <X size={16} />
+              </button>
+            </div>
+
+            <form onSubmit={submitEditInquiry}>
+              <div className="talent-modal-grid">
+                <div className="talent-modal-field">
+                  <label>Name</label>
+                  <input
+                    required
+                    value={editInquiry.name}
+                    onChange={e => setEditInquiry({ ...editInquiry, name: e.target.value })}
+                  />
+                </div>
+                <div className="talent-modal-field">
+                  <label>Email</label>
+                  <input
+                    type="email"
+                    required
+                    value={editInquiry.email}
+                    onChange={e => setEditInquiry({ ...editInquiry, email: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              <div className="talent-modal-grid">
+                <div className="talent-modal-field">
+                  <label>Phone (optional)</label>
+                  <input
+                    type="tel"
+                    value={editInquiry.phone}
+                    onChange={e => setEditInquiry({ ...editInquiry, phone: e.target.value })}
+                  />
+                </div>
+                <div className="talent-modal-field">
+                  <label>Company (optional)</label>
+                  <input
+                    value={editInquiry.company}
+                    onChange={e => setEditInquiry({ ...editInquiry, company: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              <div className="talent-modal-grid">
+                <div className="talent-modal-field">
+                  <label>Subject</label>
+                  <input
+                    required
+                    value={editInquiry.subject}
+                    onChange={e => setEditInquiry({ ...editInquiry, subject: e.target.value })}
+                  />
+                </div>
+                <div className="talent-modal-field">
+                  <label>Status</label>
+                  <select
+                    value={editInquiry.status}
+                    onChange={e => setEditInquiry({ ...editInquiry, status: e.target.value as "new" | "in-progress" | "resolved" })}
+                  >
+                    <option value="new">New</option>
+                    <option value="in-progress">In progress</option>
+                    <option value="resolved">Resolved</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="talent-modal-field">
+                <label>Message</label>
+                <textarea
+                  required
+                  rows={5}
+                  value={editInquiry.message}
+                  onChange={e => setEditInquiry({ ...editInquiry, message: e.target.value })}
+                />
+              </div>
+
+              <div className="talent-modal-actions">
+                <button
+                  type="button"
+                  className="talent-action-btn"
+                  disabled={busy}
+                  onClick={() => setEditInquiry(null)}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="talent-button"
+                  style={{ minHeight: 38, padding: "8px 18px", fontSize: 13 }}
+                  disabled={busy}
+                >
+                  {busy ? "Saving…" : "Save changes"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* EDIT CANDIDATE MODAL */}
+      {editCandidate && (
+        <div className="talent-modal-backdrop" onClick={() => setEditCandidate(null)}>
+          <div className="talent-modal-box" onClick={e => e.stopPropagation()}>
+            <div className="talent-modal-head">
+              <div>
+                <h3 className="talent-modal-title">Edit Candidate Profile</h3>
+                <p className="talent-modal-sub">{editCandidate.email}</p>
+              </div>
+              <button type="button" className="talent-modal-close" onClick={() => setEditCandidate(null)}>
+                <X size={16} />
+              </button>
+            </div>
+
+            <form onSubmit={submitEditCandidate}>
+              <div className="talent-modal-grid">
+                <div className="talent-modal-field">
+                  <label>Candidate full name</label>
+                  <input
+                    required
+                    value={editCandidate.name}
+                    onChange={e => setEditCandidate({ ...editCandidate, name: e.target.value })}
+                  />
+                </div>
+                <div className="talent-modal-field">
+                  <label>Professional headline</label>
+                  <input
+                    placeholder="e.g. Senior MIS & Data Analyst"
+                    value={editCandidate.headline}
+                    onChange={e => setEditCandidate({ ...editCandidate, headline: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              <div className="talent-modal-grid">
+                <div className="talent-modal-field">
+                  <label>Location</label>
+                  <input
+                    placeholder="e.g. Maharashtra, India"
+                    value={editCandidate.location}
+                    onChange={e => setEditCandidate({ ...editCandidate, location: e.target.value })}
+                  />
+                </div>
+                <div className="talent-modal-field">
+                  <label>Phone number</label>
+                  <input
+                    type="tel"
+                    value={editCandidate.phone}
+                    onChange={e => setEditCandidate({ ...editCandidate, phone: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              <div className="talent-modal-grid">
+                <div className="talent-modal-field">
+                  <label>Years of experience</label>
+                  <input
+                    type="number"
+                    min={0}
+                    max={60}
+                    value={editCandidate.experience}
+                    onChange={e => setEditCandidate({ ...editCandidate, experience: Number(e.target.value) || 0 })}
+                  />
+                </div>
+                <div className="talent-modal-field">
+                  <label>Resume / Portfolio URL</label>
+                  <input
+                    placeholder="https://..."
+                    value={editCandidate.resumeUrl}
+                    onChange={e => setEditCandidate({ ...editCandidate, resumeUrl: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              <div className="talent-modal-field">
+                <label>Skills (comma separated)</label>
+                <input
+                  placeholder="e.g. SQL, MIS, Python, Reporting"
+                  value={editCandidate.skills}
+                  onChange={e => setEditCandidate({ ...editCandidate, skills: e.target.value })}
+                />
+              </div>
+
+              <div className="talent-modal-actions">
+                <button
+                  type="button"
+                  className="talent-action-btn"
+                  disabled={busy}
+                  onClick={() => setEditCandidate(null)}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="talent-button"
+                  style={{ minHeight: 38, padding: "8px 18px", fontSize: 13 }}
+                  disabled={busy}
+                >
+                  {busy ? "Saving…" : "Save changes"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* EDIT RECRUITER MODAL */}
+      {editRecruiter && (
+        <div className="talent-modal-backdrop" onClick={() => setEditRecruiter(null)}>
+          <div className="talent-modal-box" onClick={e => e.stopPropagation()}>
+            <div className="talent-modal-head">
+              <div>
+                <h3 className="talent-modal-title">Edit Public Recruiter</h3>
+                <p className="talent-modal-sub">ID: {editRecruiter.id}</p>
+              </div>
+              <button type="button" className="talent-modal-close" onClick={() => setEditRecruiter(null)}>
+                <X size={16} />
+              </button>
+            </div>
+
+            <form onSubmit={submitEditRecruiter}>
+              <div className="talent-modal-grid">
+                <div className="talent-modal-field">
+                  <label>Name</label>
+                  <input
+                    required
+                    value={editRecruiter.name}
+                    onChange={e => setEditRecruiter({ ...editRecruiter, name: e.target.value })}
+                  />
+                </div>
+                <div className="talent-modal-field">
+                  <label>Work email</label>
+                  <input
+                    type="email"
+                    required
+                    value={editRecruiter.email}
+                    onChange={e => setEditRecruiter({ ...editRecruiter, email: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              <div className="talent-modal-field">
+                <label>Role / Title</label>
+                <input
+                  required
+                  value={editRecruiter.title}
+                  onChange={e => setEditRecruiter({ ...editRecruiter, title: e.target.value })}
+                />
+              </div>
+
+              <div className="talent-modal-field" style={{ flexDirection: "row", alignItems: "center", gap: 10, marginTop: 10 }}>
+                <input
+                  type="checkbox"
+                  id="recruiter-active-check"
+                  checked={editRecruiter.active}
+                  onChange={e => setEditRecruiter({ ...editRecruiter, active: e.target.checked })}
+                />
+                <label htmlFor="recruiter-active-check" style={{ margin: 0, cursor: "pointer" }}>
+                  Active & publicly searchable in directory
+                </label>
+              </div>
+
+              <div className="talent-modal-actions">
+                <button
+                  type="button"
+                  className="talent-action-btn"
+                  disabled={busy}
+                  onClick={() => setEditRecruiter(null)}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="talent-button"
+                  style={{ minHeight: 38, padding: "8px 18px", fontSize: 13 }}
+                  disabled={busy}
+                >
+                  {busy ? "Saving…" : "Save changes"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       <div className="talent-auth-bottom">
         <Mail size={15} />
         <small>Up to 300 recent requests, applications, and accounts are shown. Email replies open your own email app.</small>

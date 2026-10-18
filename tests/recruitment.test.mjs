@@ -664,3 +664,93 @@ B.Com | Example University
  assert.equal(parsed.workHistory.length,1);assert.equal(parsed.educationHistory.length,1);
  assert.equal(parsed.educationHistory[0].degree,"B.Com");assert.equal(parsed.educationHistory[0].graduationYear,"2015");
 });
+
+test("admin can edit and delete applications, inquiries, candidates, and recruiters",async()=>{
+ const e=environment("production");
+ await e.owner();
+
+ // Create an inquiry
+ const inqRes = await e.call("inquiries", { kind: "contact", name: "Inquiry Sender", email: "inquiry@test.local", phone: "123456", company: "Test Corp", subject: "Test Subject", message: "This is a detailed message from inquiry sender.", consent: true });
+ assert.equal(inqRes.status, 201);
+ const adminData = await (await e.call("admin")).json();
+ const inquiryId = adminData.inquiries[0].id;
+ assert.ok(inquiryId);
+
+ // Edit inquiry
+ const editInqRes = await e.call("admin/edit-inquiry", { id: inquiryId, name: "Updated Sender", email: "inquiry@test.local", phone: "987654", company: "Updated Corp", subject: "Updated Subject", message: "Updated message with more details.", status: "in-progress" });
+ assert.equal(editInqRes.status, 200);
+ const updatedInq = (await (await e.call("admin")).json()).inquiries.find(i => i.id === inquiryId);
+ assert.equal(updatedInq.name, "Updated Sender");
+ assert.equal(updatedInq.status, "in-progress");
+
+ // Create candidate & application
+ await e.call("auth/signup", person);
+ const j = await job(e);
+ const appRes = await e.call("apply", { jobId: j.id, coverLetter: "Initial cover letter for analytics role.", consent: true });
+ assert.equal(appRes.status, 201);
+
+ const freshAdmin = await (await e.call("admin")).json();
+ const app = freshAdmin.applications[0];
+ assert.ok(app);
+
+ // Edit application
+ const editAppRes = await e.call("admin/edit-application", {
+   id: app.id,
+   jobTitle: "Senior Analytics Lead",
+   candidateName: "Updated Candidate Name",
+   candidateEmail: "candidate@example.test",
+   headline: "Lead Analytics Architect",
+   skills: "Python, SQL, Snowflake",
+   experience: 7,
+   location: "Mumbai, India",
+   phone: "+91 9999999999",
+   noticePeriod: "Immediate",
+   coverLetter: "Updated candidate letter with more qualifications.",
+   resumeUrl: "https://example.com/resume.pdf",
+   portfolioUrl: "https://example.com/portfolio"
+ });
+ assert.equal(editAppRes.status, 200);
+
+ const reloadedAdmin = await (await e.call("admin")).json();
+ const reloadedApp = reloadedAdmin.applications.find(a => a.id === app.id);
+ assert.equal(reloadedApp.jobTitle, "Senior Analytics Lead");
+ const doc = JSON.parse(reloadedApp.document);
+ assert.equal(doc.profile.headline, "Lead Analytics Architect");
+ assert.equal(doc.profile.skills, "Python, SQL, Snowflake");
+ assert.equal(doc.coverLetter, "Updated candidate letter with more qualifications.");
+
+ // Delete application
+ const delAppRes = await e.call("admin/delete", { kind: "application", id: app.id });
+ assert.equal(delAppRes.status, 200);
+ const afterAppDelete = await (await e.call("admin")).json();
+ assert.equal(afterAppDelete.applications.some(a => a.id === app.id), false);
+
+ // Delete inquiry
+ const delInqRes = await e.call("admin/delete", { kind: "inquiry", id: inquiryId });
+ assert.equal(delInqRes.status, 200);
+ const afterInqDelete = await (await e.call("admin")).json();
+ assert.equal(afterInqDelete.inquiries.some(i => i.id === inquiryId), false);
+
+ // Recruiter: add, edit, delete
+ const recAdd = await e.call("admin/recruiter", { name: "Recruiter Alice", email: "alice@test.local", title: "Talent Partner" });
+ assert.equal(recAdd.status, 201);
+ const recruiterId = (await recAdd.json()).id;
+
+ const recEdit = await e.call("admin/edit-recruiter", { id: recruiterId, name: "Alice Smith", email: "alice@test.local", title: "Senior Talent Partner", active: true });
+ assert.equal(recEdit.status, 200);
+
+ const recDel = await e.call("admin/delete", { kind: "recruiter", id: recruiterId });
+ assert.equal(recDel.status, 200);
+ const afterRecDel = await (await e.call("admin")).json();
+ assert.equal(afterRecDel.recruiters.some(r => r.id === recruiterId), false);
+
+ // Candidate: edit, delete
+ const candId = reloadedAdmin.candidates[0].id;
+ const candEdit = await e.call("admin/edit-candidate", { id: candId, name: "Alice Candidate", headline: "Lead BI", skills: "SQL", experience: 5, location: "Pune", phone: "+91 888", resumeUrl: "https://resume.test" });
+ assert.equal(candEdit.status, 200);
+
+ const candDel = await e.call("admin/delete", { kind: "candidate", id: candId });
+ assert.equal(candDel.status, 200);
+ const afterCandDel = await (await e.call("admin")).json();
+ assert.equal(afterCandDel.candidates.some(c => c.id === candId), false);
+});

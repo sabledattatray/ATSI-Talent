@@ -242,6 +242,188 @@ export async function recruitmentRequest(request: Request, route: string): Promi
         await audit(owner.email, "Recruiter visibility updated", value.id);
         return result({ ok: true });
       }
+      if (route === "admin/delete") {
+        const value = z.object({
+          id: text(80).min(1),
+          kind: z.enum(["application", "inquiry", "candidate", "recruiter"]),
+        }).parse(body);
+
+        if (value.kind === "application") {
+          await transaction(async () => {
+            await db().prepare("DELETE FROM ats_notifications WHERE applicationId=?").run(value.id);
+            await db().prepare("DELETE FROM ats_interviews WHERE applicationId=?").run(value.id);
+            await db().prepare("DELETE FROM ats_events WHERE applicationId=?").run(value.id);
+            const changed = await db().prepare("DELETE FROM candidate_applications WHERE id=?").run(value.id);
+            if (!changed.changes) throw Object.assign(new Error("Application not found."), { status: 404 });
+            await audit(owner.email, "Application deleted", value.id);
+          });
+          return result({ ok: true, message: "Application deleted successfully." });
+        }
+
+        if (value.kind === "inquiry") {
+          await transaction(async () => {
+            const changed = await db().prepare("DELETE FROM public_inquiries WHERE id=?").run(value.id);
+            if (!changed.changes) throw Object.assign(new Error("Inquiry not found."), { status: 404 });
+            await audit(owner.email, "Inquiry deleted", value.id);
+          });
+          return result({ ok: true, message: "Inquiry deleted successfully." });
+        }
+
+        if (value.kind === "candidate") {
+          await transaction(async () => {
+            const apps = await db().prepare("SELECT id FROM candidate_applications WHERE candidateId=?").all(value.id) as { id: string }[];
+            for (const a of apps) {
+              await db().prepare("DELETE FROM ats_notifications WHERE applicationId=?").run(a.id);
+              await db().prepare("DELETE FROM ats_interviews WHERE applicationId=?").run(a.id);
+              await db().prepare("DELETE FROM ats_events WHERE applicationId=?").run(a.id);
+            }
+            await db().prepare("DELETE FROM candidate_applications WHERE candidateId=?").run(value.id);
+            await db().prepare("DELETE FROM candidate_sessions WHERE candidateId=?").run(value.id);
+            await db().prepare("DELETE FROM candidate_saved_jobs WHERE candidateId=?").run(value.id);
+            await db().prepare("DELETE FROM ats_resumes WHERE candidateId=?").run(value.id);
+            const changed = await db().prepare("DELETE FROM candidate_accounts WHERE id=?").run(value.id);
+            if (!changed.changes) throw Object.assign(new Error("Candidate not found."), { status: 404 });
+            await audit(owner.email, "Candidate account deleted", value.id);
+          });
+          return result({ ok: true, message: "Candidate account deleted successfully." });
+        }
+
+        if (value.kind === "recruiter") {
+          await transaction(async () => {
+            const changed = await db().prepare("DELETE FROM public_recruiters WHERE id=?").run(value.id);
+            if (!changed.changes) throw Object.assign(new Error("Recruiter not found."), { status: 404 });
+            await audit(owner.email, "Public recruiter deleted", value.id);
+          });
+          return result({ ok: true, message: "Recruiter deleted successfully." });
+        }
+      }
+      if (route === "admin/edit-application") {
+        const schema = z.object({
+          id: text(80).min(1),
+          jobTitle: text(160).min(2),
+          candidateName: text(80).min(2).optional(),
+          candidateEmail: email.optional(),
+          headline: text(160).default(""),
+          skills: text(2500).default(""),
+          experience: z.coerce.number().min(0).max(60).default(0),
+          location: text(160).default(""),
+          phone: text(35).default(""),
+          noticePeriod: text(60).default(""),
+          coverLetter: text(6000).default(""),
+          resumeUrl: text(1500).default(""),
+          portfolioUrl: text(1500).default(""),
+        });
+        const val = schema.parse(body);
+
+        await transaction(async () => {
+          const app = await db().prepare("SELECT * FROM candidate_applications WHERE id=?").get(val.id) as Application | undefined;
+          if (!app) throw Object.assign(new Error("Application not found."), { status: 404 });
+
+          let doc: { profile: CandidateProfile; name?: string; email?: string; coverLetter?: string; consentAt?: string } = {
+            profile: { phone: "", location: "", skills: "", experience: 0, resumeUrl: "" },
+            coverLetter: "",
+          };
+          try { doc = JSON.parse(app.document); } catch {}
+
+          doc.coverLetter = val.coverLetter;
+          if (!doc.profile) doc.profile = { phone: "", location: "", skills: "", experience: 0, resumeUrl: "" };
+          doc.profile.phone = val.phone;
+          doc.profile.location = val.location;
+          doc.profile.headline = val.headline;
+          doc.profile.skills = val.skills;
+          doc.profile.experience = val.experience;
+          doc.profile.noticePeriod = val.noticePeriod;
+          doc.profile.resumeUrl = val.resumeUrl;
+          doc.profile.portfolioUrl = val.portfolioUrl;
+
+          if (val.candidateName) doc.name = val.candidateName;
+          if (val.candidateEmail) doc.email = val.candidateEmail;
+
+          const now = new Date().toISOString();
+          await db().prepare("UPDATE candidate_applications SET jobTitle=?, document=?, updatedAt=? WHERE id=?").run(val.jobTitle, JSON.stringify(doc), now, val.id);
+
+          if (val.candidateName) {
+            await db().prepare("UPDATE candidate_accounts SET name=? WHERE id=?").run(val.candidateName, app.candidateId);
+          }
+
+          await audit(owner.email, "Application updated", val.id);
+        });
+
+        return result({ ok: true, message: "Application updated successfully." });
+      }
+      if (route === "admin/edit-inquiry") {
+        const schema = z.object({
+          id: text(80).min(1),
+          name: text(80).min(2),
+          email,
+          phone: text(35).default(""),
+          company: text(160).default(""),
+          subject: text(180).min(3),
+          message: text(6000).min(5),
+          status: z.enum(["new", "in-progress", "resolved"]),
+        });
+        const val = schema.parse(body);
+
+        await transaction(async () => {
+          const now = new Date().toISOString();
+          const changed = await db().prepare(
+            "UPDATE public_inquiries SET name=?, email=?, phone=?, company=?, subject=?, message=?, status=?, updatedAt=? WHERE id=?"
+          ).run(val.name, val.email, val.phone, val.company, val.subject, val.message, val.status, now, val.id);
+          if (!changed.changes) throw Object.assign(new Error("Inquiry not found."), { status: 404 });
+          await audit(owner.email, "Inquiry updated", val.id);
+        });
+
+        return result({ ok: true, message: "Inquiry updated successfully." });
+      }
+      if (route === "admin/edit-candidate") {
+        const schema = z.object({
+          id: text(80).min(1),
+          name: text(80).min(2),
+          headline: text(160).default(""),
+          skills: text(2500).default(""),
+          experience: z.coerce.number().min(0).max(60).default(0),
+          location: text(160).default(""),
+          phone: text(35).default(""),
+          resumeUrl: text(1500).default(""),
+        });
+        const val = schema.parse(body);
+
+        await transaction(async () => {
+          const cand = await db().prepare("SELECT profile FROM candidate_accounts WHERE id=?").get(val.id) as { profile: string } | undefined;
+          if (!cand) throw Object.assign(new Error("Candidate not found."), { status: 404 });
+          let prof: Partial<CandidateProfile> = {};
+          try { prof = JSON.parse(cand.profile); } catch {}
+          prof.headline = val.headline;
+          prof.skills = val.skills;
+          prof.experience = val.experience;
+          prof.location = val.location;
+          prof.phone = val.phone;
+          prof.resumeUrl = val.resumeUrl;
+
+          await db().prepare("UPDATE candidate_accounts SET name=?, profile=? WHERE id=?").run(val.name, JSON.stringify(prof), val.id);
+          await audit(owner.email, "Candidate account updated", val.id);
+        });
+
+        return result({ ok: true, message: "Candidate updated successfully." });
+      }
+      if (route === "admin/edit-recruiter") {
+        const schema = z.object({
+          id: text(80).min(1),
+          name: text(80).min(2),
+          email,
+          title: text(120).min(2),
+          active: z.boolean(),
+        });
+        const val = schema.parse(body);
+
+        await transaction(async () => {
+          const changed = await db().prepare("UPDATE public_recruiters SET name=?, email=?, title=?, active=? WHERE id=?").run(val.name, val.email, val.title, val.active ? 1 : 0, val.id);
+          if (!changed.changes) throw Object.assign(new Error("Recruiter not found."), { status: 404 });
+          await audit(owner.email, "Public recruiter updated", val.id);
+        });
+
+        return result({ ok: true, message: "Recruiter updated successfully." });
+      }
       return result({ error: "Not found." }, 404);
     }
     const user = await requireCandidate();
