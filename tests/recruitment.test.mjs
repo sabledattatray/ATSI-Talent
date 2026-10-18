@@ -29,7 +29,11 @@ function environment(mode="development") {
     const request=new Request("https://atsai.test/api/admin/auth/signup",{method:"POST",headers:{origin:"https://atsai.test","content-type":"application/json"},body:JSON.stringify({name:"Owner Fixture",email:"owner@example.test",password:"Owner-test-password-2026",setupToken:"fixture-owner-setup-secret-at-least-32-characters"})});
     assert.equal((await load("src/app/api/admin/[...path]/route.ts").POST(request,{params:Promise.resolve({path:["auth","signup"]})})).status,201);
   }
-  return {load,call,callFormData,owner,jar,options};
+  async function callATS(route,body,method=body===undefined?"GET":"POST",origin="https://atsai.test") {
+    const request=new Request(`https://atsai.test/api/ats/${route}`,{method,headers:{origin,"content-type":"application/json"},body:method==="GET"?undefined:JSON.stringify(body)});
+    return load("src/lib/ats.ts").atsRequest(request,route);
+  }
+  return {load,call,callATS,callFormData,owner,jar,options};
 }
 const person={name:"Candidate Fixture",email:"candidate@example.test",password:"Candidate-test-password-2026",consent:true};
 async function job(e,overrides={}) {
@@ -341,4 +345,107 @@ test("table separators and ongoing education preserve field boundaries", () => {
   const parsed=parseResumeText("Jane Doe\nData Analyst\nTECHNICAL SKILLS & TOOLS\nSQL\tExcel\tPower BI\nEXPERIENCE\nData Analyst\tAcme Ltd\tJan 2020 - Dec 2021\nBuilt useful dashboards.\nEDUCATION\nMBA in Finance | Example University | 2025 - Present");
   assert.equal(parsed.workHistory[0].title,"Data Analyst");assert.equal(parsed.workHistory[0].company,"Acme Ltd");
   assert.equal(parsed.skills,"SQL, Excel, Power BI");assert.equal(parsed.educationHistory[0].graduationYear,"");
+});
+
+const companyOwner={name:"Employer Alpha",email:"alpha@example.test",password:"Employer-fixture-password-2026",company:"Alpha Health",country:"GB",website:"https://alpha.example.test",consent:true};
+const globalJob={id:"",version:0,title:"Registered Nurse",description:"Support patients and provide evidence-based nursing care in a multidisciplinary team.",excerpt:"Join our nursing team and provide thoughtful, professional patient care.",category:"Healthcare",location:"London, United Kingdom",jobCountry:"GB",jobCity:"London",jobRegion:"England",workMode:"On-site",employmentType:"Full-time",salaryCurrency:"GBP",salaryPeriod:"YEAR",salaryMin:35000,salaryMax:45000,experienceMin:1,experienceMax:10,skills:"Nursing, Patient care",expiresAt:"",status:"published"};
+
+test("company workspaces isolate jobs, applicants and interview actions from other companies",async()=>{
+  const e=environment();assert.equal((await e.callATS("workspace")).status,401);
+  assert.equal((await e.callATS("auth/signup",companyOwner)).status,201);
+  assert.equal((await e.callATS("jobs/save",globalJob)).status,200);
+  const a=await(await e.callATS("workspace")).json();assert.equal(a.jobs.length,1);const job=a.jobs[0];
+  assert.equal(job.company,"Alpha Health");assert.equal(job.salaryCurrency,"GBP");assert.equal(job.jobCountry,"GB");assert.equal(job.employerVerified,false);
+  assert.equal(e.load("src/lib/admin/public.ts").toJobListing(job).location.country,"GB");
+  assert.equal(e.load("src/lib/admin/public.ts").toJobListing(job).salaryCurrency,"GBP");
+  assert.equal(e.load("src/lib/structured-data.ts").jobPosting(job).baseSalary.currency,"GBP");
+  assert.equal((await e.call("auth/signup",person)).status,201);
+  assert.equal((await e.call("apply",{jobId:job.id,consent:true})).status,201);
+  const workspace=await(await e.callATS("workspace")).json();const application=workspace.applications[0];assert.equal(application.name,person.name);
+  assert.equal((await e.callATS("auth/signup",{...companyOwner,email:"beta@example.test",company:"Beta Education"})).status,201);
+  const b=await(await e.callATS("workspace")).json();assert.equal(b.jobs.length,0);assert.equal(b.applications.length,0);assert.equal(b.events.length,0);
+  assert.equal((await e.callATS("jobs/save",{...globalJob,id:job.id,version:job.version,title:"Stolen role"})).status,404);
+  assert.equal((await e.callATS("applications/note",{id:application.id,message:"Unauthorized"})).status,404);
+  assert.equal((await e.callATS("applications/stage",{id:application.id,status:"review",updatedAt:application.updatedAt})).status,404);
+  assert.equal((await e.callATS("interviews/save",{applicationId:application.id,title:"Private interview",startsAt:new Date(Date.now()+86400000).toISOString(),timeZone:"Europe/London",location:"https://meeting.example.test"})).status,404);
+  assert.equal((await e.callATS("auth/login",companyOwner)).status,200);
+  assert.equal((await(await e.callATS("workspace")).json()).applications.length,1);
+});
+
+test("ATS tracking persists decisions, keeps notes private, handles stale edits and blocks withdrawn applications",async()=>{
+  const e=environment();await e.callATS("auth/signup",companyOwner);await e.callATS("jobs/save",globalJob);
+  const job=(await(await e.callATS("workspace")).json()).jobs[0];await e.call("auth/signup",person);await e.call("apply",{jobId:job.id,consent:true});
+  let app=(await(await e.callATS("workspace")).json()).applications[0];
+  assert.equal((await e.callATS("applications/note",{id:app.id,message:"Internal assessment — not for the candidate"})).status,201);
+  assert.equal((await e.callATS("applications/stage",{id:app.id,status:"review",updatedAt:app.updatedAt,message:"Your application is being reviewed."})).status,200);
+  assert.equal((await e.callATS("applications/stage",{id:app.id,status:"offer",updatedAt:"stale-version"})).status,409);
+  const tracking=await(await e.call("tracking?id="+app.id)).json();assert.equal(tracking.status,"review");assert.ok(tracking.events.some(ev=>ev.message.includes("being reviewed")));assert.ok(!JSON.stringify(tracking).includes("Internal assessment"));
+  const schedule={applicationId:app.id,title:"Clinical team interview",startsAt:new Date(Date.now()+86400000).toISOString(),timeZone:"Europe/London",location:"https://meet.example.test/room"};
+  assert.equal((await e.callATS("interviews/save",{...schedule,timeZone:"Not/AZone"})).status,400);
+  assert.equal((await e.callATS("interviews/save",schedule)).status,201);
+  let candidate=await(await e.call("tracking?id="+app.id)).json();assert.equal(candidate.interviews.length,1);assert.equal(candidate.interviews[0].timeZone,"Europe/London");
+  assert.equal((await e.callATS("interviews/cancel",{id:candidate.interviews[0].id})).status,200);
+  candidate=await(await e.call("tracking?id="+app.id)).json();assert.equal(candidate.interviews[0].status,"cancelled");
+  assert.equal((await e.call("withdraw",{id:app.id})).status,200);
+  app=(await(await e.callATS("workspace")).json()).applications[0];
+  assert.equal((await e.callATS("applications/stage",{id:app.id,status:"hired",updatedAt:app.updatedAt})).status,409);
+  assert.equal((await e.callATS("interviews/save",schedule)).status,409);
+  assert.equal((await(await e.call("tracking?id="+app.id)).json()).status,"withdrawn");
+  await e.call("auth/signup",{...person,email:"other-candidate@example.test"});assert.equal((await e.call("tracking?id="+app.id)).status,404);
+});
+
+test("company invitations enforce email, expiry, ownership and session revocation",async()=>{
+  const e=environment();await e.callATS("auth/signup",companyOwner);
+  const {token}=await(await e.callATS("team/invite",{email:"recruiter@example.test"})).json();assert.ok(token);
+  const invitee={name:"Recruiter Fixture",email:"recruiter@example.test",password:"Recruiter-fixture-password-2026",invite:token,consent:true};
+  assert.equal((await e.callATS("auth/accept",{...invitee,email:"wrong@example.test"})).status,403);
+  assert.equal((await e.callATS("auth/accept",invitee)).status,201);
+  const recruiter=(await(await e.callATS("workspace")).json()).user;assert.equal(recruiter.role,"recruiter");assert.equal(recruiter.company,companyOwner.company);
+  assert.equal((await e.callATS("team/invite",{email:"unauthorized@example.test"})).status,403);
+  assert.equal((await e.callATS("jobs/save",globalJob)).status,200);
+  assert.equal((await e.callATS("auth/accept",invitee)).status,403);
+  await e.callATS("auth/login",companyOwner);assert.equal((await e.callATS("team/remove",{id:recruiter.id})).status,200);
+  assert.equal((await e.callATS("auth/login",invitee)).status,401);
+  const me=(await(await e.callATS("me")).json()).user;
+  assert.equal((await e.callATS("team/remove",{id:me.id})).status,400);
+  assert.equal((await e.callATS("password",{currentPassword:companyOwner.password,password:"Updated-employer-password-2026"})).status,200);
+  await e.callATS("auth/logout",{});assert.equal((await e.callATS("workspace")).status,401);
+  assert.equal((await e.callATS("auth/login",companyOwner)).status,401);
+  assert.equal((await e.callATS("auth/login",{...companyOwner,password:"Updated-employer-password-2026"})).status,200);
+});
+
+test("international jobs preserve currencies, pay periods and publication version checks",async()=>{
+  const e=environment();await e.callATS("auth/signup",companyOwner);
+  assert.equal((await e.callATS("jobs/save",{...globalJob,title:"Early Years Educator",category:"Education",employmentType:"Part-time",salaryCurrency:"EUR",salaryPeriod:"HOUR",salaryMin:20,salaryMax:30})).status,200);
+  let job=(await(await e.callATS("workspace")).json()).jobs[0];assert.equal(e.load("src/lib/structured-data.ts").jobPosting(job).baseSalary.value.unitText,"HOUR");
+  assert.equal((await e.callATS("jobs/save",{...globalJob,id:job.id,version:0})).status,409);
+  assert.equal((await e.callATS("jobs/save",{...globalJob,id:job.id,version:job.version,status:"archived"})).status,200);
+  assert.equal((await e.load("src/lib/admin/db.ts").records("job",true)).length,0);
+  assert.equal((await e.callATS("jobs/save",{...globalJob,salaryMin:50000,salaryMax:100})).status,400);
+  assert.equal((await e.callATS("jobs/save",{...globalJob,salaryCurrency:"ZZZ"})).status,400);
+  assert.equal((await e.callATS("jobs/save",globalJob,"POST","https://hostile.test")).status,403);
+});
+
+test("private resumes enforce candidate ownership, application-based employer access and withdrawal",async()=>{
+  const e=environment();await e.callATS("auth/signup",companyOwner);await e.callATS("jobs/save",globalJob);
+  const job=(await(await e.callATS("workspace")).json()).jobs[0];await e.call("auth/signup",person);
+  const bytes=pdfFixture(["Candidate Fixture","Registered Nurse","SKILLS: Nursing, Patient care","SUMMARY","Experienced nurse committed to safe patient care."]);
+  const upload=await e.call("parse-resume",{filename:"nursing-resume.pdf",base64:bytes.toString("base64")});assert.equal(upload.status,200);
+  const {parsed}=await upload.json();assert.match(parsed.resumeUrl,/^\/api\/ats\/resume\//);
+  assert.equal((await e.call("profile",{name:person.name,resumeUrl:parsed.resumeUrl})).status,200);
+  const path=parsed.resumeUrl.replace("/api/ats/","");
+  assert.deepEqual(Buffer.from(await(await e.callATS(path)).arrayBuffer()),bytes);
+  assert.equal((await e.call("apply",{jobId:job.id,consent:true})).status,201);
+  const app=(await(await e.callATS("workspace")).json()).applications[0];
+  await e.call("auth/logout",{});assert.equal((await e.callATS(path)).status,200);
+  await e.callATS("auth/signup",{...companyOwner,email:"outside-company@example.test",company:"Other Company"});assert.equal((await e.callATS(path)).status,404);
+  await e.call("auth/signup",{...person,email:"outside-candidate@example.test"});assert.equal((await e.callATS(path)).status,404);
+  assert.equal((await e.call("profile",{name:"Other Candidate",resumeUrl:parsed.resumeUrl})).status,400);
+  await e.call("auth/login",person);assert.equal((await e.call("withdraw",{id:app.id})).status,200);
+  await e.call("auth/logout",{});await e.callATS("auth/login",companyOwner);assert.equal((await e.callATS(path)).status,404);
+  await e.call("auth/login",person);assert.equal((await e.callATS(path)).status,200);
+  const files=await(await e.callATS("resumes")).json();assert.equal(files.files.length,1);
+  assert.equal((await e.callATS("resumes/delete",{id:files.files[0].id})).status,200);
+  assert.equal((await e.callATS(path)).status,404);
+  assert.equal((await(await e.call("dashboard")).json()).user.profile.resumeUrl,"");
 });

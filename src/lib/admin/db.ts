@@ -22,6 +22,17 @@ const schema = [
   "CREATE TABLE IF NOT EXISTS candidate_saved_jobs (candidateId TEXT NOT NULL REFERENCES candidate_accounts(id) ON DELETE CASCADE,jobId TEXT NOT NULL REFERENCES content(id),PRIMARY KEY(candidateId,jobId))",
   "CREATE TABLE IF NOT EXISTS public_inquiries (id TEXT PRIMARY KEY,kind TEXT NOT NULL,name TEXT NOT NULL,email TEXT NOT NULL,phone TEXT NOT NULL,company TEXT NOT NULL,subject TEXT NOT NULL,message TEXT NOT NULL,status TEXT NOT NULL,createdAt TEXT NOT NULL,updatedAt TEXT NOT NULL)",
   "CREATE TABLE IF NOT EXISTS public_recruiters (id TEXT PRIMARY KEY,name TEXT NOT NULL,email TEXT NOT NULL UNIQUE,title TEXT NOT NULL,active INTEGER NOT NULL)",
+  "CREATE TABLE IF NOT EXISTS ats_resumes (id TEXT PRIMARY KEY,candidateId TEXT NOT NULL REFERENCES candidate_accounts(id) ON DELETE CASCADE,name TEXT NOT NULL,type TEXT NOT NULL,bytes BLOB NOT NULL,hash TEXT NOT NULL,createdAt TEXT NOT NULL,UNIQUE(candidateId,hash))",
+  "CREATE TABLE IF NOT EXISTS ats_organizations (id TEXT PRIMARY KEY,name TEXT NOT NULL,country TEXT NOT NULL,website TEXT NOT NULL,createdAt TEXT NOT NULL)",
+  "CREATE TABLE IF NOT EXISTS ats_employers (id TEXT PRIMARY KEY,organizationId TEXT NOT NULL REFERENCES ats_organizations(id),name TEXT NOT NULL,email TEXT NOT NULL UNIQUE,password TEXT NOT NULL,role TEXT NOT NULL CHECK(role IN ('owner','recruiter')),createdAt TEXT NOT NULL)",
+  "CREATE TABLE IF NOT EXISTS ats_sessions (hash TEXT PRIMARY KEY,userId TEXT NOT NULL REFERENCES ats_employers(id) ON DELETE CASCADE,expiresAt INTEGER NOT NULL)",
+  "CREATE TABLE IF NOT EXISTS ats_jobs (jobId TEXT PRIMARY KEY REFERENCES content(id),organizationId TEXT NOT NULL REFERENCES ats_organizations(id))",
+  "CREATE TABLE IF NOT EXISTS ats_invites (hash TEXT PRIMARY KEY,organizationId TEXT NOT NULL REFERENCES ats_organizations(id),email TEXT NOT NULL,expiresAt INTEGER NOT NULL)",
+  "CREATE TABLE IF NOT EXISTS ats_events (id TEXT PRIMARY KEY,applicationId TEXT NOT NULL REFERENCES candidate_applications(id) ON DELETE CASCADE,kind TEXT NOT NULL,stage TEXT NOT NULL,message TEXT NOT NULL,visibility TEXT NOT NULL CHECK(visibility IN ('candidate','team')),actor TEXT NOT NULL,createdAt TEXT NOT NULL)",
+  "CREATE TABLE IF NOT EXISTS ats_interviews (id TEXT PRIMARY KEY,applicationId TEXT NOT NULL REFERENCES candidate_applications(id) ON DELETE CASCADE,organizationId TEXT NOT NULL REFERENCES ats_organizations(id),title TEXT NOT NULL,startsAt TEXT NOT NULL,timeZone TEXT NOT NULL,location TEXT NOT NULL,status TEXT NOT NULL,createdAt TEXT NOT NULL)",
+  "CREATE INDEX IF NOT EXISTS ats_job_organization ON ats_jobs(organizationId)",
+  "CREATE INDEX IF NOT EXISTS ats_events_application ON ats_events(applicationId,createdAt)",
+  "CREATE INDEX IF NOT EXISTS ats_interviews_organization ON ats_interviews(organizationId,startsAt)",
   "CREATE INDEX IF NOT EXISTS candidate_application_owner ON candidate_applications(candidateId,createdAt)",
   "CREATE INDEX IF NOT EXISTS candidate_session_expiry ON candidate_sessions(expiresAt)",
   "CREATE INDEX IF NOT EXISTS content_visibility ON content(kind,status)",
@@ -125,7 +136,7 @@ export async function records(kind?: string, published = false): Promise<Content
 }
 export async function settings(): Promise<SiteSettings> {
   const row = await db().prepare("SELECT document FROM settings WHERE id=1").get() as { document: string } | undefined;
-  return row ? JSON.parse(row.document) : { siteName: "ATS AI Talent Solutions", tagline: "Connecting talent. Empowering careers.", contactEmail: "contact@atsai.pro", siteUrl: "https://www.atsai.pro", defaultAuthor: "ATS AI Editorial" };
+  return row ? JSON.parse(row.document) : { siteName: "ATSAI Technologies", tagline: "Recruitment Software & HR Technology Solutions", contactEmail: "contact@atsai.pro", siteUrl: "https://www.atsai.pro", defaultAuthor: "ATS AI Editorial" };
 }
 export async function media(): Promise<MediaRecord[]> {
   return (await db().prepare("SELECT id,name,type,size,createdAt FROM media ORDER BY createdAt DESC").all() as Omit<MediaRecord, "url">[]).map(m => ({ ...m, url: `/api/media/${m.id}` }));

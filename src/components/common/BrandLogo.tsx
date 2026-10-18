@@ -23,18 +23,16 @@ export function BrandLogo({ theme = "light", size = "md", className = "", href =
   const dark = theme === "dark";
   const layout = artwork.layout;
   const content = <svg xmlns="http://www.w3.org/2000/svg" viewBox={artwork.viewBox} fill="none"
-    width="404" height="112" role="img" aria-label="ATS AI Talent Solutions">
+    width="404" height="112" role="img" aria-label="ATSAI Technologies">
     <g transform={`translate(0 ${layout.markY})`}><Emblem /></g>
     <g transform={`translate(${layout.wordmarkX} ${layout.wordmarkY}) scale(${layout.wordmarkWidth / artwork.wordmark.width} ${layout.wordmarkHeight / artwork.wordmark.height})`}>
       <path d={artwork.wordmark.path} fill={dark ? "#F7FAFF" : "#142C49"} />
       <path d={artwork.wordmark.accentPath} transform={`translate(${artwork.wordmark.accentX} 0)`} fill={dark ? "#82AEFF" : "#2864EA"} />
     </g>
-    <path d={artwork.descriptor.path}
-      transform={`translate(${layout.descriptorX} ${layout.descriptorY}) scale(${layout.descriptorWidth / artwork.descriptor.width} ${layout.descriptorHeight / artwork.descriptor.height})`}
-      fill={dark ? "#B0C1D8" : "#4B627E"} />
+    <text x={layout.descriptorX} y={layout.descriptorY + 12} fontFamily="Arial, sans-serif" fontSize="15" letterSpacing="5" fill={dark ? "#B0C1D8" : "#4B627E"}>TECHNOLOGIES</text>
   </svg>;
   const classes = `atsai-brand-logo atsai-brand-logo--${size} ${className}`;
-  return href ? <Link href={href} className={classes} aria-label="ATS AI Talent Solutions home">{content}</Link>
+  return href ? <Link href={href} className={classes} aria-label="ATSAI Technologies home">{content}</Link>
     : <span className={classes}>{content}</span>;
 }
 

@@ -1,7 +1,7 @@
 export type UserRole = "candidate" | "employer" | "recruiter" | "admin";
 
 export type JobWorkMode = "Remote" | "Hybrid" | "On-site";
-export type JobEmploymentType = "Full-time" | "Contract" | "Part-time" | "Executive";
+export type JobEmploymentType = "Full-time" | "Contract" | "Part-time" | "Executive" | "Temporary" | "Internship" | "Volunteer";
 export type JobStatus = "Draft" | "Review" | "Approved" | "Published" | "Paused" | "Closed" | "Expired";
 
 export interface JobQuestion {
@@ -36,6 +36,7 @@ export interface JobListing {
   salaryMin?: number;
   salaryMax?: number;
   salaryCurrency: string;
+  salaryPeriod?: string;
   isSalaryDisclosed: boolean;
   summary: string;
   responsibilities: string[];

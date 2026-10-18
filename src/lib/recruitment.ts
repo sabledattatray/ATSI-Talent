@@ -1,4 +1,5 @@
 import "server-only";
+import { storeCandidateResume } from "@/lib/resume-storage";
 import { randomBytes, randomUUID } from "node:crypto";
 import { cookies } from "next/headers";
 import { z } from "zod";
@@ -22,7 +23,7 @@ const httpsUrl = (label: string) => text(1500).default("").refine(value => { if 
 const mediaOrHttpsUrl = (label: string) => text(1500).default("").refine(value => { if (!value) return true; if (value.startsWith("/api/media/")) return true; try { return new URL(value).protocol === "https:"; } catch { return false; } }, `Use a complete HTTPS or uploaded ${label} link.`);
 const workItemSchema = z.object({ id: text(50).default(""), title: text(120).default(""), company: text(120).default(""), location: text(120).default(""), startDate: text(50).default(""), endDate: text(50).default(""), current: z.boolean().default(false), description: text(2500).default("") });
 const educationItemSchema = z.object({ id: text(50).default(""), degree: text(120).default(""), field: text(120).default(""), institution: text(160).default(""), graduationYear: text(30).default("") });
-const profileSchema = z.object({ name: text(80).min(2), photoUrl: mediaOrHttpsUrl("photo"), phone: text(35).default(""), location: text(160).default(""), headline: text(160).default(""), bio: text(4000).default(""), skills: text(2500).default(""), experience: z.coerce.number().min(0).max(60).default(0), certifications: text(2500).default(""), targetRole: text(120).default(""), employmentType: text(60).default(""), preferredLocation: text(160).default(""), noticePeriod: text(60).default(""), expectedSalary: text(80).default(""), openToRelocation: z.boolean().default(false), resumeUrl: httpsUrl("resume"), linkedinUrl: httpsUrl("LinkedIn"), githubUrl: httpsUrl("GitHub"), portfolioUrl: httpsUrl("portfolio or website"), workHistory: z.array(workItemSchema).max(25).default([]), educationHistory: z.array(educationItemSchema).max(20).default([]) });
+const profileSchema = z.object({ name: text(80).min(2), photoUrl: mediaOrHttpsUrl("photo"), phone: text(35).default(""), location: text(160).default(""), headline: text(160).default(""), bio: text(4000).default(""), skills: text(2500).default(""), experience: z.coerce.number().min(0).max(60).default(0), certifications: text(2500).default(""), targetRole: text(120).default(""), employmentType: text(60).default(""), preferredLocation: text(160).default(""), noticePeriod: text(60).default(""), expectedSalary: text(80).default(""), openToRelocation: z.boolean().default(false), resumeUrl: text(1500).default("").refine(value => !value || /^https:\/\/[^\s]+$/.test(value) || /^\/api\/ats\/resume\/[a-f0-9-]{36}$/.test(value), "Use an HTTPS resume link or your private uploaded resume."), linkedinUrl: httpsUrl("LinkedIn"), githubUrl: httpsUrl("GitHub"), portfolioUrl: httpsUrl("portfolio or website"), workHistory: z.array(workItemSchema).max(25).default([]), educationHistory: z.array(educationItemSchema).max(20).default([]) });
 const inquirySchema = z.object({ kind: z.enum(["contact", "employer", "report", "privacy", "account"]), name: text(80).min(2), email, phone: text(35).default(""), company: text(160).default(""), subject: text(180).min(3), message: text(6000).min(20), consent: z.literal(true), website: text(0).optional() });
 const emptyProfile: CandidateProfile = { photoUrl: "", phone: "", location: "", headline: "", bio: "", skills: "", experience: 0, certifications: "", targetRole: "", employmentType: "", preferredLocation: "", noticePeriod: "", expectedSalary: "", openToRelocation: false, resumeUrl: "", linkedinUrl: "", githubUrl: "", portfolioUrl: "", workHistory: [], educationHistory: [] };
 export async function candidateUser(): Promise<Candidate | null> {
@@ -74,6 +75,14 @@ export async function recruitmentRequest(request: Request, route: string): Promi
   new URL(request.url);
   try {
     if (request.method === "GET") {
+      if (route === "tracking") {
+        const user = await requireCandidate(); const id = new URL(request.url).searchParams.get("id") || "";
+        const app = await db().prepare("SELECT status FROM candidate_applications WHERE id=? AND candidateId=?").get(id, user.id) as { status: string } | undefined;
+        if (!app) return result({ error: "Application not found." }, 404);
+        const events = await db().prepare("SELECT id,applicationId,kind,stage,message,createdAt FROM ats_events WHERE applicationId=? AND visibility='candidate' ORDER BY createdAt DESC").all(id);
+        const interviews = await db().prepare("SELECT id,applicationId,title,startsAt,timeZone,location,status,createdAt FROM ats_interviews WHERE applicationId=? ORDER BY startsAt").all(id);
+        return result({ status: app.status, events, interviews });
+      }
       if (route === "me") return result({ user: await candidateUser() });
       if (route === "dashboard") return result(await candidateDashboard(await requireCandidate()));
       if (route === "verify") {
@@ -106,6 +115,7 @@ export async function recruitmentRequest(request: Request, route: string): Promi
       const contentType = request.headers.get("content-type") || "";
       let extractedText = "";
       let filename = "";
+      let resumeBytes: Buffer | undefined;
 
       if (contentType.includes("multipart/form-data")) {
         const formData = await request.formData();
@@ -114,6 +124,7 @@ export async function recruitmentRequest(request: Request, route: string): Promi
         if (file.size > 8 * 1024 * 1024) return result({ error: "File exceeds maximum size of 8 MB." }, 413);
         filename = file.name;
         const bytes = Buffer.from(await file.arrayBuffer());
+        resumeBytes = bytes;
         extractedText = await extractTextFromBuffer(bytes, file.name);
       } else {
         if (Number(request.headers.get("content-length")) > 12_000_000) return result({ error: "Resume request is too large." }, 413);
@@ -125,6 +136,7 @@ export async function recruitmentRequest(request: Request, route: string): Promi
         filename = parsedJson.filename || "";
         if (parsedJson.base64) {
           const bytes = Buffer.from(parsedJson.base64, "base64");
+          resumeBytes = bytes;
           extractedText = await extractTextFromBuffer(bytes, filename);
         } else {
           extractedText = parsedJson.text || "";
@@ -138,6 +150,7 @@ export async function recruitmentRequest(request: Request, route: string): Promi
       if (typeof extractedText !== "string" || extractedText.length > 150_000) return result({ error: "Please provide resume text of 150,000 characters or fewer." }, 413);
       if (extractedText.replace(/[^\p{L}\p{N}]/gu, "").length < 30) return result({ error: "Please provide more readable resume text." }, 422);
       const parsed = parseResumeText(extractedText);
+      if (resumeBytes) parsed.resumeUrl = await storeCandidateResume(candidate.id, resumeBytes, filename);
       return result({ ok: true, parsed, filename });
     }
     if (route === "photo") {
@@ -201,6 +214,7 @@ export async function recruitmentRequest(request: Request, route: string): Promi
           const table = value.kind === "inquiry" ? "public_inquiries" : "candidate_applications";
           const changed = await db().prepare(`UPDATE ${table} SET status=?,updatedAt=? WHERE id=?${value.kind === "application" ? " AND status!='withdrawn'" : ""}`).run(value.status, new Date().toISOString(), value.id);
           if (!changed.changes) throw Object.assign(new Error("This record is unavailable or has been withdrawn."), { status: 409 });
+          if (value.kind === "application") await db().prepare("INSERT INTO ats_events VALUES (?,?,?,?,?,?,?,?)").run(randomUUID(), value.id, "stage", value.status, `Application moved to ${value.status}.`, "candidate", owner.email, new Date().toISOString());
           await audit(owner.email, "Recruitment status updated", `${value.kind} ${value.id}: ${value.status}`);
         });
         return result({ ok: true });
@@ -223,6 +237,10 @@ export async function recruitmentRequest(request: Request, route: string): Promi
     const user = await requireCandidate();
     if (route === "profile") {
       const value = profileSchema.parse(body); const { name, ...profile } = value;
+      if (profile.resumeUrl.startsWith("/api/ats/resume/")) {
+        const file = await db().prepare("SELECT id FROM ats_resumes WHERE id=? AND candidateId=?").get(profile.resumeUrl.split("/").at(-1)!, user.id);
+        if (!file) return result({ error: "Choose a resume uploaded to your own account." }, 400);
+      }
       await db().prepare("UPDATE candidate_accounts SET name=?,profile=? WHERE id=?").run(name, JSON.stringify(profile), user.id);
       return result({ ok: true });
     }
@@ -254,13 +272,19 @@ export async function recruitmentRequest(request: Request, route: string): Promi
         await limit(`candidate-apply:${user.id}`, 25);
         const id = randomUUID(); const now = new Date().toISOString();
         await db().prepare("INSERT INTO candidate_applications VALUES (?,?,?,?,?,?,?,?,?)").run(id, user.id, job.id, job.title, job.company, "submitted", JSON.stringify({ profile: user.profile, name: user.name, email: user.email, coverLetter: value.coverLetter, consentAt: now }), now, now);
+        await db().prepare("INSERT INTO ats_events VALUES (?,?,?,?,?,?,?,?)").run(randomUUID(), id, "submitted", "submitted", "Your application was received.", "candidate", user.id, now);
         return result({ ok: true, reference: `APP-${id.slice(0,8).toUpperCase()}` }, 201);
       });
     }
     if (route === "withdraw") {
       const value = z.object({ id: text(80).min(1) }).parse(body);
-      const changed = await db().prepare("UPDATE candidate_applications SET status='withdrawn',updatedAt=? WHERE id=? AND candidateId=? AND status NOT IN ('hired','rejected','withdrawn')").run(new Date().toISOString(), value.id, user.id);
-      return changed.changes ? result({ ok: true }) : result({ error: "This application cannot be withdrawn." }, 409);
+      return await transaction(async () => {
+        const now = new Date().toISOString();
+        const changed = await db().prepare("UPDATE candidate_applications SET status='withdrawn',updatedAt=? WHERE id=? AND candidateId=? AND status NOT IN ('hired','rejected','withdrawn')").run(now, value.id, user.id);
+        if (!changed.changes) return result({ error: "This application cannot be withdrawn." }, 409);
+        await db().prepare("INSERT INTO ats_events VALUES (?,?,?,?,?,?,?,?)").run(randomUUID(), value.id, "withdrawn", "withdrawn", "You withdrew this application.", "candidate", user.id, now);
+        return result({ ok: true });
+      });
     }
     return result({ error: "Not found." }, 404);
   } catch (error) { return recruitmentError(error); }

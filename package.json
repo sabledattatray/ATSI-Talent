@@ -10,7 +10,8 @@
     "test": "node --test tests/*.test.mjs",
     "typecheck": "next typegen && tsc --noEmit",
     "check:repository": "node scripts/check-repository.mjs",
-    "check:seo": "node scripts/check-seo.mjs"
+    "check:seo": "node scripts/check-seo.mjs",
+    "check:ats": "node scripts/check-ats.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.9.1",
@@ -25,6 +26,7 @@
     "@tiptap/react": "^3.32.0",
     "@tiptap/starter-kit": "^3.32.0",
     "clsx": "^2.1.1",
+    "i18n-iso-countries": "^7.14.0",
     "lucide-react": "^1.58.0",
     "next": "16.4.2",
     "pdf-parse": "^2.4.5",

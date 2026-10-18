@@ -8,6 +8,7 @@ export type ContentRecord = {
   seoTitle: string; seoDescription: string; author: string; featured: boolean;
   company: string; location: string; workMode: string; employmentType: string;
   experienceMin: number; experienceMax: number; salaryMin: number; salaryMax: number;
+  salaryCurrency?: string; salaryPeriod?: "YEAR" | "MONTH" | "WEEK" | "DAY" | "HOUR"; employerVerified?: boolean;
   skills: string; expiresAt: string; applicationUrl: string;
   googleJobs?: boolean; jobOriginalDate?: string; jobCity?: string; jobRegion?: string; jobCountry?: string;
   createdAt: string; updatedAt: string; publishedAt: string | null; version: number;

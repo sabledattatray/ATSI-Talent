@@ -15,7 +15,7 @@ function app(environment = "development") {
   const records = new Map();
   const events = new EventTarget();
   const context = vm.createContext({ console, structuredClone, crypto: nativeRequire("node:crypto").webcrypto,
-    Buffer, process: { cwd: () => path.resolve(__dirname, ".."), env: { NODE_ENV: environment, ATSAI_DATABASE_PATH: ":memory:" } }, Date, URL, Request, Response, Event,
+    Buffer, process: { cwd: () => path.resolve(__dirname, ".."), env: { NODE_ENV: environment, NEXT_PUBLIC_ATSAI_DEMO: environment === "development" ? "true" : "false", ATSAI_DATABASE_PATH: ":memory:" } }, Date, URL, Request, Response, Event,
     window: events, sessionStorage: { getItem: key => records.get(key) ?? null, setItem: (key,value) => records.set(key,value) },
   });
   const cache = new Map();
@@ -96,7 +96,7 @@ test("job API rejects invalid ranges and non-integer filters",async()=>{
 });
 test("production job API is empty and status has no invented metrics",async()=>{
   const {load}=app("production");const response=await load("src/app/api/v1/jobs/route.ts").GET(new Request("http://localhost/api/v1/jobs"));assert.equal((await response.json()).data.length,0);
-  const status=await load("src/app/api/v1/status/route.ts").GET().json();assert.equal(status.status,"available");assert.equal(status.services.authentication,"candidate-and-admin-sessions");assert.equal(status.services.database,"local-sqlite");assert.equal(status.services.recruitmentSubmissions,"database-inbox");assert.equal(status.uptime,undefined);
+  const status=await load("src/app/api/v1/status/route.ts").GET().json();assert.equal(status.status,"available");assert.equal(status.services.authentication,"candidate-employer-and-admin-sessions");assert.equal(status.services.database,"local-sqlite");assert.equal(status.services.recruitmentSubmissions,"company-applicant-tracking");assert.equal(status.uptime,undefined);
 });
 
 test("sitemap lists canonical public routes and excludes duplicate resources", async () => {

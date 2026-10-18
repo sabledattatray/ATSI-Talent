@@ -1,3 +1,4 @@
+import { compareCompensation } from "@/lib/ats-types";
 import { publicJobs } from "@/lib/admin/public";
 import { isJobOpen, matchesKeyword } from "@/lib/jobs";
 import { DEMO_MODE } from "@/lib/runtime";
@@ -22,6 +23,6 @@ export async function GET(request: Request) {
     && (!f.workMode || f.workMode === "All" || job.workMode === f.workMode)
     && (f.expMin === undefined || job.experienceMaxYears >= f.expMin)
     && (f.expMax === undefined || job.experienceMinYears <= f.expMax));
-  jobs.sort(f.sort === "salary" ? (a,b) => (b.isSalaryDisclosed ? b.salaryMax || 0 : 0) - (a.isSalaryDisclosed ? a.salaryMax || 0 : 0) : (a,b) => Date.parse(b.publishedAt) - Date.parse(a.publishedAt));
+  jobs.sort(f.sort === "salary" ? compareCompensation : (a,b) => Date.parse(b.publishedAt) - Date.parse(a.publishedAt));
   return NextResponse.json({ data: jobs.map(job => ({ ...job, employerName: job.isEmployerConfidential ? "Confidential Employer" : job.employerName })), meta: { total: jobs.length, demo: DEMO_MODE } });
 }

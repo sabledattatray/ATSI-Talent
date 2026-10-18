@@ -3,8 +3,8 @@
 import { BrandLogo } from "@/components/common/BrandLogo";
 import { DEMO_MODE } from "@/lib/runtime";
 import {
-  ArrowRight, ArrowUpRight, BarChart3, BriefcaseBusiness, Building2,
-  ChevronDown, CircleHelp, Code2, FileText, Fingerprint, Layers3,
+  ArrowRight, ArrowUpRight, BriefcaseBusiness, Building2,
+  ChevronDown, CircleHelp, FileText, Layers3,
   LifeBuoy, Menu, ShieldCheck, Sparkles, UserRound, UsersRound, X,
 } from "lucide-react";
 import Link from "next/link";
@@ -14,11 +14,11 @@ import "./Header.css";
 
 type Panel = "services" | "company" | "workspace";
 const services = [
-  { title: "Permanent recruitment", description: "The right people for your next chapter.", href: "/services/permanent-recruitment", icon: UsersRound },
-  { title: "IT & data recruitment", description: "Specialists in technology and analytics.", href: "/services/it-and-data-recruitment", icon: Code2 },
-  { title: "BFSI & finance", description: "Talent for complex financial environments.", href: "/services/bfsi-and-finance-recruitment", icon: BarChart3 },
-  { title: "Executive search", description: "Leadership that moves your business forward.", href: "/services/executive-search", icon: Fingerprint },
-  { title: "Contract staffing", description: "Explore flexible, project-based hiring.", href: "/services/contract-staffing", icon: Layers3 },
+  { title: "Applicant tracking", description: "Manage every application through to decision.", href: "/services", icon: Layers3 },
+  { title: "Company workspaces", description: "Bring jobs, people and your hiring team together.", href: "/employers", icon: Building2 },
+  { title: "International job board", description: "Explore published roles across industries and countries.", href: "/jobs", icon: BriefcaseBusiness },
+  { title: "Candidate profiles", description: "Import your resume and track your next steps.", href: "/candidates", icon: UsersRound },
+  { title: "Start hiring", description: "Create a private workspace for your company.", href: "/employer/signup", icon: FileText },
 ];
 const company = [
   { title: "About ATSAI", description: "Our approach to thoughtful recruitment.", href: "/about", icon: Building2 },
@@ -168,7 +168,7 @@ export function Header() {
 
           <div className={"atsai-header-actions"}>
             <div className={"atsai-header-workspace"}>{DEMO_MODE ? trigger("workspace", "Workspace") : <Link href={candidateSignedIn ? "/candidate/dashboard" : "/candidate/login"} className={"atsai-header-navLink"}>{candidateSignedIn ? "My workspace" : "Sign in"}</Link>}</div>
-            {!candidateSignedIn && <Link href="/candidate/signup" className="atsai-header-navLink atsai-header-register">Register</Link>}<Link href="/employers/request-talent" className={"atsai-header-hireButton"}>Hire talent<ArrowUpRight size={16} aria-hidden="true" /></Link>
+            {!candidateSignedIn && <Link href="/candidate/signup" className="atsai-header-navLink atsai-header-register">Register</Link>}<Link href="/employer/dashboard" className={"atsai-header-hireButton"}>Hire talent<ArrowUpRight size={16} aria-hidden="true" /></Link>
             <button ref={mobileTrigger} className={"atsai-header-mobileToggle"} type="button" aria-label={mobileOpen ? "Close navigation" : "Open navigation"}
               aria-expanded={mobileOpen} aria-controls="header-mobile-panel" onClick={() => { setPanel(null); setMobileOpen(!mobileOpen); }}>
               {mobileOpen ? <X size={22} /> : <Menu size={22} />}
@@ -182,8 +182,8 @@ export function Header() {
             <div className={"atsai-header-feature"}>
               <span className={"atsai-header-eyebrow"}>{panel === "services" ? "OUR EXPERTISE" : panel === "company" ? "THE ATSAI APPROACH" : "EXPLORE THE PLATFORM"}</span>
               <span className={"atsai-header-featureMark"}>{panel === "workspace" ? <Layers3 size={28} /> : <Sparkles size={28} />}</span>
-              <h2>{panel === "services" ? <>Great teams.<br />Built around you.</> : panel === "company" ? <>Better connections.<br />Brighter futures.</> : <>Your next step.<br />One workspace.</>}</h2>
-              <p>{panel === "services" ? "Specialist recruitment for the people and skills your business needs next." : panel === "company" ? "Get to know the people-first thinking behind our recruitment approach." : "Preview the experience for each role. These workspaces use sample data in development."}</p>
+              <h2>{panel === "services" ? <>Connected hiring.<br />Built around people.</> : panel === "company" ? <>Better connections.<br />Brighter futures.</> : <>Your next step.<br />One workspace.</>}</h2>
+              <p>{panel === "services" ? "Recruitment software for teams hiring across industries and countries." : panel === "company" ? "Get to know the people-first thinking behind our recruitment approach." : "Preview the experience for each role. These workspaces use sample data in development."}</p>
               <Link href={panel === "services" ? "/services" : panel === "company" ? "/about" : "/admin/login"} className={"atsai-header-featureLink"}>
                 {panel === "services" ? "Explore all services" : panel === "company" ? "Discover ATSAI" : "View demo access"}<ArrowRight size={16} aria-hidden="true" />
               </Link>

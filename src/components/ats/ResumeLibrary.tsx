@@ -1,0 +1,10 @@
+"use client";
+import { useCallback, useEffect, useState } from "react";
+type File={id:string;name:string;createdAt:string};
+export function ResumeLibrary({current,onDelete}:{current:string;onDelete:(url:string)=>void}){
+ const [files,setFiles]=useState<File[]>([]);const [error,setError]=useState("");const [busy,setBusy]=useState(false);
+ const load=useCallback(async()=>{const r=await fetch("/api/ats/resumes",{cache:"no-store"});const body=await r.json();if(!r.ok)throw new Error(body.error);setFiles(body.files);},[]);
+ useEffect(()=>{let active=true;fetch("/api/ats/resumes",{cache:"no-store"}).then(async r=>{const data=await r.json();if(!r.ok)throw new Error(data.error);return data;}).then(data=>{if(active)setFiles(data.files);}).catch(e=>{if(active)setError(e.message);});return()=>{active=false;};},[current]);
+ async function remove(id:string){if(!confirm("Delete this stored resume? Hiring teams will no longer be able to download it from applications."))return;setBusy(true);setError("");try{const r=await fetch("/api/ats/resumes/delete",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({id})});const body=await r.json();if(!r.ok)throw new Error(body.error);onDelete(`/api/ats/resume/${id}`);await load();}catch(e){setError((e as Error).message);}finally{setBusy(false);}}
+ return <div style={{margin:"18px 0",fontSize:12}}><strong>Private resume files</strong><p>Uploaded resumes are private. A hiring team can download the file attached to your application; withdrawing stops that company’s access.</p>{error&&<p role="alert">{error}</p>}{files.map(file=><div key={file.id} style={{display:"flex",gap:16,alignItems:"center",padding:"9px 0",borderBottom:"1px solid #e2e8f0"}}><a href={`/api/ats/resume/${file.id}`}>{file.name}</a><button type="button" className="talent-text-button" disabled={busy} onClick={()=>void remove(file.id)}>Delete</button></div>)}{!files.length&&<small>No files stored yet. Use the resume import above to upload one.</small>}</div>;
+}

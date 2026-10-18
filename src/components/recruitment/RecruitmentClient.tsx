@@ -1,4 +1,6 @@
 "use client";
+import { ResumeLibrary } from "@/components/ats/ResumeLibrary";
+import { ApplicationTracking } from "@/components/ats/ApplicationTracking";
 import { mergeResumeProfile } from "@/lib/resumeMerge";
 /* eslint-disable @next/next/no-img-element -- Uploaded candidate profile photos use native images. */
 import Link from "next/link";
@@ -95,6 +97,14 @@ export function CandidatePortal({ initial, defaultTab }: { initial: Dashboard; d
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
+
+  useEffect(() => {
+    if (tab !== "applications") return;
+    let active = true;
+    const sync = () => { if (!busy && document.visibilityState === "visible") void api("dashboard").then(fresh => { if (active) setData(fresh); }).catch(() => {}); };
+    const timer = setInterval(sync, 15000); window.addEventListener("focus", sync);
+    return () => { active = false; clearInterval(timer); window.removeEventListener("focus", sync); };
+  }, [tab, busy]);
 
   // Complete profile state
   const [name, setName] = useState(initial.user.name || "");
@@ -633,6 +643,7 @@ export function CandidatePortal({ initial, defaultTab }: { initial: Dashboard; d
                   </Link>
                   <p>{app.company} · Applied {date(app.createdAt)}</p>
                   <small>Reference APP-{app.id.slice(0, 8).toUpperCase()}</small>
+                  <ApplicationTracking id={app.id} />
                 </div>
                 <div>
                   <span className="talent-status">{label(app.status)}</span>
@@ -703,7 +714,7 @@ export function CandidatePortal({ initial, defaultTab }: { initial: Dashboard; d
             <div>
               <h2>Create your complete profile</h2>
               <p style={{ margin: "4px 0 0" }}>
-                Keep your details updated. When you apply, a verified snapshot is bundled with your application.
+                Keep your details updated. When you apply, a profile snapshot is bundled with your application.
               </p>
             </div>
             <button
@@ -906,7 +917,7 @@ export function CandidatePortal({ initial, defaultTab }: { initial: Dashboard; d
                     value={location}
                     onChange={e => setLocation(e.target.value)}
                     maxLength={160}
-                    placeholder="e.g. Pune, India or Bengaluru, India"
+                    placeholder="e.g. London, United Kingdom or Nairobi, Kenya"
                   />
                 </label>
               </div>
@@ -964,7 +975,7 @@ export function CandidatePortal({ initial, defaultTab }: { initial: Dashboard; d
                     value={expectedSalary}
                     onChange={e => setExpectedSalary(e.target.value)}
                     maxLength={80}
-                    placeholder="e.g. ₹25 - 30 LPA or $120k / yr"
+                    placeholder="e.g. EUR 55,000 / year or USD 35 / hour"
                   />
                 </label>
               </div>
@@ -976,7 +987,7 @@ export function CandidatePortal({ initial, defaultTab }: { initial: Dashboard; d
                     value={preferredLocation}
                     onChange={e => setPreferredLocation(e.target.value)}
                     maxLength={160}
-                    placeholder="e.g. Remote, Mumbai, Pune, Bangalore"
+                    placeholder="e.g. Remote, Toronto, Dubai or Berlin"
                   />
                 </label>
                 <label style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer", marginTop: 24 }}>
@@ -1026,7 +1037,7 @@ export function CandidatePortal({ initial, defaultTab }: { initial: Dashboard; d
                   onChange={e => setSkills(e.target.value)}
                   rows={3}
                   maxLength={2500}
-                  placeholder="e.g. React, Next.js, TypeScript, Node.js, PostgreSQL, Docker, AWS, GraphQL"
+                  placeholder="e.g. Project management, Patient care, Sales, Python, Customer service"
                 />
               </label>
 
@@ -1202,7 +1213,7 @@ export function CandidatePortal({ initial, defaultTab }: { initial: Dashboard; d
                           <input
                             value={item.institution}
                             onChange={e => updateEducation(idx, { institution: e.target.value })}
-                            placeholder="e.g. Pune University / IIT Bombay"
+                            placeholder="e.g. University, college or training institute"
                             maxLength={160}
                           />
                         </label>
@@ -1222,23 +1233,23 @@ export function CandidatePortal({ initial, defaultTab }: { initial: Dashboard; d
               )}
             </div>
 
+            <ResumeLibrary current={resumeUrl} onDelete={url => { if (url === resumeUrl) setResumeUrl(""); }} />
             {/* Section 7: Resume, Portfolio & Social Profiles */}
             <div className="talent-section-card">
               <h3><FileText size={18} color="#2563eb" /> Resume & Professional Links</h3>
-              <p className="sub">All links must begin with <code>https://</code>.</p>
+              <p className="sub">Import your resume above to store it privately, or use a complete HTTPS link.</p>
               <div className="talent-form-grid">
                 <label>
-                  Resume / CV link (HTTPS)
+                  Resume / CV link or private uploaded file
                   <input
-                    type="url"
-                    pattern="https://.*"
+                    type="text"
                     value={resumeUrl}
                     onChange={e => setResumeUrl(e.target.value)}
                     maxLength={1500}
                     placeholder="https://drive.google.com/..."
                   />
                   <small>
-                    Host on Google Drive, Dropbox, OneDrive, or personal site.{" "}
+                    Use your imported file, or an HTTPS link you control.{" "}
                     {resumeUrl && (
                       <a href={resumeUrl} target="_blank" rel="noreferrer" style={{ fontWeight: 600 }}>
                         Test link ↗

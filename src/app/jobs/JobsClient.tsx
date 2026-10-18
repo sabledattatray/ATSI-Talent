@@ -1,4 +1,5 @@
 "use client";
+import { compensation, compareCompensation } from "@/lib/ats-types";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Modal } from "@/components/common/Modal";
 import { isJobOpen } from "@/lib/jobs";
@@ -115,7 +116,7 @@ function JobsDirectoryContent({ initialJobs }: { initialJobs: import("@/lib/type
       return true;
     }).sort((a, b) => {
       if (sortBy === "salary") {
-        return (b.salaryMax || 0) - (a.salaryMax || 0);
+        return compareCompensation(a, b);
       }
       return new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime();
     });
@@ -144,13 +145,13 @@ function JobsDirectoryContent({ initialJobs }: { initialJobs: import("@/lib/type
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
               <span className="text-xs font-bold text-blue-600 uppercase tracking-wider">
-                Authentic Recruitment Directory
+                INTERNATIONAL JOB DIRECTORY
               </span>
               <h1 className="text-3xl sm:text-4xl font-extrabold text-[#0b1728] mt-1 tracking-tight">
-                Analytics, MIS, IT &amp; Finance Jobs
+                Find your next opportunity.
               </h1>
               <p className="text-slate-600 text-sm mt-1 max-w-2xl">
-                Browse published roles across India. Review each employer, location, requirements and application route. ATSAI does not charge candidates application fees.
+                Explore published jobs across industries and countries. Review each employer, location, requirements and application route. ATSAI does not charge candidates application fees.
               </p>
             </div>
 
@@ -169,7 +170,7 @@ function JobsDirectoryContent({ initialJobs }: { initialJobs: import("@/lib/type
                 type="text"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Search by role title, technical skill, or keyword..."
+                placeholder="Search by job title, skill, company or keyword…"
                 className="w-full pl-3 pr-2 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none"
               />
               {searchTerm && (
@@ -202,7 +203,7 @@ function JobsDirectoryContent({ initialJobs }: { initialJobs: import("@/lib/type
                   className="flex-1 md:flex-none py-2 px-3 text-xs font-semibold text-slate-700 bg-slate-100 rounded-xl focus:outline-none cursor-pointer"
                 >
                   <option value="latest">Latest Published</option>
-                  <option value="salary">Compensation (High to Low)</option>
+                  <option value="salary">Compensation (by currency & period)</option>
                 </select>
               </div>
             </div>
@@ -472,9 +473,9 @@ function JobsDirectoryContent({ initialJobs }: { initialJobs: import("@/lib/type
                             <Briefcase className="w-3.5 h-3.5 text-slate-400" />
                             {job.experienceMinYears}-{job.experienceMaxYears} years
                           </span>
-                          {job.isSalaryDisclosed && job.salaryMin && job.salaryMax && (
+                          {job.isSalaryDisclosed && job.salaryMax && (
                             <span className="inline-flex items-center gap-1 bg-emerald-50 text-emerald-800 border border-emerald-200 px-2.5 py-1 rounded-md font-bold">
-                              ₹{(job.salaryMin / 100000).toFixed(1)}L - ₹{(job.salaryMax / 100000).toFixed(1)}L PA
+                              {compensation(job.salaryMin, job.salaryMax, job.salaryCurrency, job.salaryPeriod)}
                             </span>
                           )}
                         </div>

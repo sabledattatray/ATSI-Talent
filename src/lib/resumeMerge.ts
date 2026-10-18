@@ -4,7 +4,7 @@ import type { ParsedResume } from "@/lib/resumeParser";
 // Import fills gaps by default. Candidates may explicitly choose replacement.
 export function mergeResumeProfile(current: CandidateProfile & { name: string }, parsed: ParsedResume, replace = false) {
   const result = { ...current };
-  const keys = ["name", "phone", "location", "headline", "bio", "certifications", "targetRole", "noticePeriod", "expectedSalary", "linkedinUrl", "githubUrl", "portfolioUrl"] as const;
+  const keys = ["name", "phone", "location", "headline", "bio", "certifications", "targetRole", "noticePeriod", "expectedSalary", "linkedinUrl", "githubUrl", "portfolioUrl", "resumeUrl"] as const;
   for (const key of keys) {
     if (parsed[key]?.trim() && (replace || !current[key]?.trim())) result[key] = parsed[key].trim();
   }

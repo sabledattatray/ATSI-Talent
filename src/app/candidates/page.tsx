@@ -24,7 +24,7 @@ export default function CandidatesPage() {
             Connecting Talent. Empowering Careers.
           </h1>
           <p className="text-slate-600 text-sm sm:text-base mt-2 leading-relaxed">
-            ATSAI Talent Solutions advocates for qualified professionals in Data Analytics, MIS, BFSI, and Software. We protect your privacy, ensure honest job descriptions, and never charge applicant fees.
+            ATSAI Technologies connects people with opportunities across healthcare, education, engineering, finance, hospitality, technology and more. We protect your privacy, ensure honest job descriptions, and never charge applicant fees.
           </p>
 
           <div className="mt-6 flex flex-wrap gap-4 items-center"><Link href="/candidate/signup" className="talent-button">Create free account</Link><Link href="/candidate/login" className="talent-button talent-secondary">Candidate sign in</Link>
@@ -62,7 +62,7 @@ export default function CandidatesPage() {
             </div>
             <h2 className="text-base font-bold text-[#0b1728]">Role-Specific Consent</h2>
             <p className="text-xs text-slate-600 leading-relaxed">
-              Your profile is not listed publicly. You choose which roles to apply for and confirm consent before a snapshot is shared with the ATSAI team for that opportunity.
+              Your profile is not listed publicly. You choose which roles to apply for and confirm consent before a snapshot is shared with the hiring team for that opportunity.
             </p>
           </div>
 
@@ -72,7 +72,7 @@ export default function CandidatesPage() {
             </div>
             <h2 className="text-base font-bold text-[#0b1728]">Verified Job Authenticity</h2>
             <p className="text-xs text-slate-600 leading-relaxed">
-              Review the employer, location, work arrangement, and role requirements before applying. Job details are managed and published by the ATSAI team.
+              Review the employer, location, work arrangement, and role requirements before applying. Job details are managed and published by the hiring team.
             </p>
           </div>
 

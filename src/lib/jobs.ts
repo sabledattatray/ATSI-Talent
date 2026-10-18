@@ -1,6 +1,6 @@
 import type { JobListing } from "./types";
 export function isJobOpen(job: JobListing, now: number): boolean {
-  return job.status === "Published" && job.employerVerified && Date.parse(job.publishedAt) <= now && Date.parse(job.expiresAt) > now;
+  return job.status === "Published" && Date.parse(job.publishedAt) <= now && Date.parse(job.expiresAt) > now;
 }
 export function matchesKeyword(job: JobListing, term: string): boolean {
   const q = term.trim().toLowerCase();

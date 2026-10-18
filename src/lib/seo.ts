@@ -40,7 +40,7 @@ export const PRIVATE_SEARCH_PATHS = [
 
 
 
-export const BRAND_NAME = "ATSAI Talent Solutions";
+export const BRAND_NAME = "ATSAI Technologies";
 
 export const SOCIAL_IMAGE = "/brand/atsai-social.png";
 
@@ -48,9 +48,9 @@ export function absoluteUrl(path: string) { return new URL(path, SITE_URL).href;
 
 export function pageMetadata(path: string, title: string, description: string, image = SOCIAL_IMAGE): Metadata {
 
-  const cleanTitle = title.replace(/\s*[|–-]\s*(?:ATSAI(?: Talent Solutions)?|ATS AI(?: Talent Solutions)?)$/i, "").trim();
+  const cleanTitle = title.replace(/\s*[|–-]\s*(?:ATSAI(?: Talent Solutions| Technologies)?|ATS AI(?: Talent Solutions| Technologies)?)$/i, "").trim();
 
-  const fullTitle = `${cleanTitle} | ATSAI`;
+  const fullTitle = path === "/" ? "ATSAI Technologies | Recruitment Software & HR Technology Solutions" : `${cleanTitle} | ATSAI`;
 
   return {
 
@@ -70,13 +70,13 @@ export function pageMetadata(path: string, title: string, description: string, i
 
 export const PAGE_SEO: Record<string, { title: string; description: string; keywords: string[] }> = {
 
-  "/": { title: "Recruitment Agency for Analytics, MIS, IT & Finance", description: "Find jobs and hire talent with ATSAI. Recruitment for data analytics, MIS, Power BI, IT and finance, serving employers and professionals across India.", keywords: ["recruitment agency India", "data analytics recruitment", "MIS recruitment", "IT recruitment", "finance recruitment"] },
+  "/": { title: "ATSAI Technologies | Recruitment Software & HR Technology Solutions", description: "Discover jobs across industries and countries. Manage job postings, applicants, interviews and hiring decisions with ATSAI Technologies recruitment software.", keywords: ["ATSAI Technologies", "applicant tracking system", "recruitment software", "HR technology solutions"] },
 
-  "/jobs": { title: "Data Analytics, MIS, IT & Finance Jobs in India", description: "Browse current analytics, MIS, Power BI, SQL, IT and finance jobs. Compare role requirements, locations and application routes. No candidate fees.", keywords: ["data analyst jobs India", "MIS jobs", "Power BI jobs", "SQL jobs", "finance jobs"] },
+  "/jobs": { title: "Explore Jobs Across Industries & Countries", description: "Find published jobs across technology, healthcare, finance, education, engineering, retail and more. Filter by country, industry and work arrangement.", keywords: ["international jobs", "healthcare jobs", "education jobs", "engineering jobs", "technology jobs"] },
 
-  "/about": { title: "About ATSAI Recruitment & Talent Solutions", description: "Meet ATSAI Talent Solutions and learn about our recruitment focus in analytics, MIS, IT and finance, with roots in Pune and Mumbai.", keywords: ["ATSAI Talent Solutions", "recruitment consultancy Pune Mumbai"] },
+  "/about": { title: "About ATSAI Technologies", description: "ATSAI Technologies builds recruitment software and HR technology solutions connecting candidates and hiring teams across industries and countries.", keywords: ["ATSAI Talent Solutions", "recruitment consultancy Pune Mumbai"] },
 
-  "/services": { title: "Recruitment Services for Employers in India", description: "Explore permanent recruitment, IT and data hiring, BFSI recruitment, executive search and contract staffing. Share your hiring needs with ATSAI.", keywords: ["recruitment services India", "talent acquisition", "staffing services"] },
+  "/services": { title: "Recruitment Software & HR Technology Solutions", description: "Explore ATSAI Technologies applicant tracking, job publishing, interview scheduling, team collaboration and candidate profile tools for international hiring.", keywords: ["recruitment services India", "talent acquisition", "staffing services"] },
 
   "/services/permanent-recruitment": { title: "Permanent Recruitment for MIS, Analytics & Operations", description: "Discuss permanent hiring for MIS, analytics, finance and operations roles. ATSAI helps define requirements, source candidates and coordinate selection.", keywords: ["permanent recruitment India", "MIS recruitment", "operations hiring"] },
 
@@ -92,7 +92,7 @@ export const PAGE_SEO: Record<string, { title: string; description: string; keyw
 
   "/candidates/how-it-works": { title: "How to Find & Apply for Jobs on ATSAI", description: "Learn how to create a candidate profile, save openings and apply on ATSAI or through an employer’s careers site. Track your ATSAI applications online.", keywords: ["how to apply for jobs", "ATSAI candidate account"] },
 
-  "/employers": { title: "Hire Analytics, MIS, IT & Finance Talent", description: "Share your hiring brief with ATSAI Talent Solutions. Discuss recruitment for analytics, MIS, software, banking and finance roles across India.", keywords: ["hire data analysts", "hire MIS professionals", "IT hiring services", "finance hiring"] },
+  "/employers": { title: "Applicant Tracking Software for Hiring Teams", description: "Create your company workspace. Publish jobs, track applications, schedule interviews and collaborate with recruiters using ATSAI Technologies.", keywords: ["applicant tracking software", "company hiring workspace", "recruitment management"] },
 
   "/blog": { title: "Career Advice, Recruitment & Hiring Insights", description: "Read ATSAI articles on careers, job applications, analytics skills and hiring. Explore practical guidance for job seekers and employers.", keywords: ["career advice", "recruitment insights", "hiring advice"] },
 
