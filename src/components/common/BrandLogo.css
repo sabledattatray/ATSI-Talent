@@ -1,5 +1,7 @@
-.atsai-brand-logo { display: inline-flex; align-items: center; flex-shrink: 0; vertical-align: middle; width: 190px; line-height: 0; text-decoration: none; border-radius: 4px; }
+.atsai-brand-logo { display: inline-flex; align-items: center; flex-shrink: 0; vertical-align: middle; width: 188px; line-height: 0; text-decoration: none; border-radius: 6px; transition: opacity .18s ease, transform .18s ease; }
+.atsai-brand-logo:hover { opacity: 0.94; transform: translateY(-0.5px); }
 .atsai-brand-logo > svg { display: block; width: 100%; height: auto; overflow: visible; }
-.atsai-brand-logo--sm { width: 160px; }
-.atsai-brand-logo--lg { width: 240px; }
-.atsai-brand-logo--xl { width: 320px; }
+.atsai-brand-logo--sm { width: 156px; }
+.atsai-brand-logo--md { width: 188px; }
+.atsai-brand-logo--lg { width: 236px; }
+.atsai-brand-logo--xl { width: 300px; }

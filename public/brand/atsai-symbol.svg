@@ -1,1 +1,121 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="none"><title>ATSAI emblem</title><path d="M50 3C63 11 77 15 89 17V43C89 67 74 84 50 96C26 84 11 67 11 43V17C25 15 38 10 50 3Z" fill="#2864EA" transform="" fill-rule="evenodd"/><path d="M50 3C63 11 77 15 89 17V43C89 67 74 84 50 96V3Z" fill="#3478F6" transform="" fill-rule="evenodd"/><path d="M50 24A9 9 0 1 1 50 42A9 9 0 1 1 50 24Z" fill="#FFFFFF" transform="" fill-rule="evenodd"/><path d="M29 34A6.5 6.5 0 1 1 29 47A6.5 6.5 0 1 1 29 34ZM71 34A6.5 6.5 0 1 1 71 47A6.5 6.5 0 1 1 71 34Z" fill="#D8E7FF" transform="" fill-rule="evenodd"/><path d="M19 62V60C19 53 23 50 29 50H34C30 54 28 59 28 65H22C20 65 19 64 19 62ZM81 62V60C81 53 77 50 71 50H66C70 54 72 59 72 65H78C80 65 81 64 81 62Z" fill="#D8E7FF" transform="" fill-rule="evenodd"/><path d="M34 64V61C34 52 40 47 50 47C60 47 66 52 66 61V64C66 67 64 69 61 69H39C36 69 34 67 34 64Z" fill="#FFFFFF" transform="" fill-rule="evenodd"/><path d="M98 77A21 21 0 1 1 56 77A21 21 0 1 1 98 77Z" fill="#FFFFFF" transform="" fill-rule="evenodd"/><path d="M95 77A18 18 0 1 1 59 77A18 18 0 1 1 95 77Z" fill="#0E9E94" transform="" fill-rule="evenodd"/><path d="M66 77L70 73L75 78L85 67L89 71L75 87Z" fill="#FFFFFF" transform="" fill-rule="evenodd"/></svg>
+
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="none" width="100" height="100">
+  <title>ATSAI Emblem</title>
+  
+    <defs>
+      <!-- Primary Sapphire to Deep Cobalt gradient -->
+      <linearGradient id="symbol-master-g-left" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stop-color="#3B82F6"/>
+        <stop offset="45%" stop-color="#2563EB"/>
+        <stop offset="100%" stop-color="#1D4ED8"/>
+      </linearGradient>
+
+      <!-- Electric Cyan to Sky Azure gradient -->
+      <linearGradient id="symbol-master-g-right" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stop-color="#00F0FF"/>
+        <stop offset="35%" stop-color="#06B6D4"/>
+        <stop offset="100%" stop-color="#0284C7"/>
+      </linearGradient>
+
+      <!-- Central Upward Arrow Ascension gradient -->
+      <linearGradient id="symbol-master-g-arrow" x1="50%" y1="100%" x2="50%" y2="0%">
+        <stop offset="0%" stop-color="#1E40AF"/>
+        <stop offset="40%" stop-color="#2563EB"/>
+        <stop offset="85%" stop-color="#38BDF8"/>
+        <stop offset="100%" stop-color="#E0F2FE"/>
+      </linearGradient>
+
+      <!-- Bottom fold return gradients for 3D ribbon depth -->
+      <linearGradient id="symbol-master-g-fold-l" x1="0%" y1="100%" x2="100%" y2="0%">
+        <stop offset="0%" stop-color="#172554"/>
+        <stop offset="100%" stop-color="#1E40AF"/>
+      </linearGradient>
+
+      <linearGradient id="symbol-master-g-fold-r" x1="100%" y1="100%" x2="0%" y2="0%">
+        <stop offset="0%" stop-color="#082F49"/>
+        <stop offset="100%" stop-color="#0369A1"/>
+      </linearGradient>
+
+      <!-- Luminous Apex Crest -->
+      <linearGradient id="symbol-master-g-crest" x1="0%" y1="0%" x2="100%" y2="0%">
+        <stop offset="0%" stop-color="#93C5FD"/>
+        <stop offset="50%" stop-color="#FFFFFF"/>
+        <stop offset="100%" stop-color="#A5F3FC"/>
+      </linearGradient>
+
+      <!-- High-tech subtle glow -->
+      <filter id="symbol-master-glow" x="-20%" y="-20%" width="140%" height="140%">
+        <feGaussianBlur stdDeviation="2.5" result="blur"/>
+        <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+      </filter>
+    </defs>
+
+    <!-- Main Icon Group -->
+    <g id="symbol-master-group">
+      <!-- Left Outer Pillar of the "A" -->
+      <path d="M 50 10 
+               L 16 72 
+               C 14.5 75 16 78.5 19.5 78.5 
+               L 31 78.5 
+               C 33 78.5 34.8 77.3 35.8 75.5 
+               L 43.5 61 
+               L 50 48 
+               L 50 10 Z" 
+            fill="url(#symbol-master-g-left)"/>
+
+      <!-- Right Outer Pillar of the "A" -->
+      <path d="M 50 10 
+               L 84 72 
+               C 85.5 75 84 78.5 80.5 78.5 
+               L 69 78.5 
+               C 67 78.5 65.2 77.3 64.2 75.5 
+               L 56.5 61 
+               L 50 48 
+               L 50 10 Z" 
+            fill="url(#symbol-master-g-right)"/>
+
+      <!-- Lower Left Folded Return Bevel (Adds 3D ribbon precision) -->
+      <path d="M 19.5 78.5 
+               L 14 86 
+               C 13 87.5 14.2 89.5 16 89.5 
+               L 33 89.5 
+               L 31 78.5 Z" 
+            fill="url(#symbol-master-g-fold-l)"/>
+
+      <!-- Lower Right Folded Return Bevel -->
+      <path d="M 80.5 78.5 
+               L 86 86 
+               C 87 87.5 85.8 89.5 84 89.5 
+               L 67 89.5 
+               L 69 78.5 Z" 
+            fill="url(#symbol-master-g-fold-r)"/>
+
+      <!-- Upward Ascending Chevron Arrow (Career Advancement & AI matching apex) -->
+      <path d="M 50 24 
+               L 66 54 
+               L 57 54 
+               L 50 41 
+               L 43 54 
+               L 34 54 Z" 
+            fill="url(#symbol-master-g-arrow)"/>
+
+      <!-- Intersecting Hex-Nexus Bridge Bar -->
+      <path d="M 33 63 
+               L 43 63 
+               L 50 51 
+               L 57 63 
+               L 67 63 
+               L 61 73 
+               L 39 73 Z" 
+            fill="url(#symbol-master-g-left)" 
+            opacity="0.9"/>
+
+      <!-- Apex Prism Cap (Crystal light highlight) -->
+      <polygon points="50,10 44,18 50,22 56,18" fill="url(#symbol-master-g-crest)"/>
+
+      <!-- Central Luminous Spark Node (Convergence of AI & Talent) -->
+      <circle cx="50" cy="46" r="3" fill="#FFFFFF"/>
+      <circle cx="50" cy="46" r="1.5" fill="#38BDF8"/>
+    </g>
+  
+</svg>
