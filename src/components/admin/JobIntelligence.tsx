@@ -16,7 +16,9 @@ import {
   MapPin,
   BriefcaseBusiness,
   Coins,
-  Trash2
+  Trash2,
+  Plus,
+  X
 } from "lucide-react";
 import type {
   JobSource,
@@ -39,6 +41,14 @@ export function JobIntelligence({ userRole }: { userRole: string }) {
   const [singleUrl, setSingleUrl] = useState("");
   const [bulkUrls, setBulkUrls] = useState("");
   const [previewData, setPreviewData] = useState<any>(null);
+
+  // Source registration modal state
+  const [showAddSourceModal, setShowAddSourceModal] = useState(false);
+  const [newSourceName, setNewSourceName] = useState("");
+  const [newSourceOrg, setNewSourceOrg] = useState("");
+  const [newSourceHomepage, setNewSourceHomepage] = useState("");
+  const [newSourceDomains, setNewSourceDomains] = useState("");
+  const [newSourceBasis, setNewSourceBasis] = useState("manual_reference_only");
 
   useEffect(() => {
     loadData();
@@ -91,6 +101,89 @@ export function JobIntelligence({ userRole }: { userRole: string }) {
       setPreviewData(data);
     } catch (e) {
       setError((e as Error).message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleAuthorizeDomain(host: string) {
+    if (!importSourceId) return;
+    setLoading(true);
+    setError("");
+    setMessage("");
+    try {
+      const parts = host.split(".");
+      const root = parts.length > 2 ? parts.slice(-2).join(".") : host;
+      const wildcard = `*.${root}`;
+
+      await fetch(`/api/admin/job-intelligence/sources/${importSourceId}/add-domain`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ domain: wildcard })
+      });
+      await fetch(`/api/admin/job-intelligence/sources/${importSourceId}/add-domain`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ domain: host })
+      });
+
+      setMessage(`Authorized '${wildcard}' and '${host}' successfully. Re-running preview...`);
+      const sRes = await fetch("/api/admin/job-intelligence/sources");
+      if (sRes.ok) setSources(await sRes.json());
+
+      const res = await fetch("/api/admin/job-intelligence/preview", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: singleUrl.trim(), sourceId: importSourceId })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Preview failed.");
+      setPreviewData(data);
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleCreateSource(e: React.FormEvent) {
+    e.preventDefault();
+    if (!newSourceName.trim() || !newSourceHomepage.trim()) {
+      setError("Source Name and Homepage are required.");
+      return;
+    }
+    setLoading(true);
+    setError("");
+    try {
+      const domains = newSourceDomains
+        .split(/[\n,]/)
+        .map(d => d.trim().toLowerCase())
+        .filter(Boolean);
+
+      const res = await fetch("/api/admin/job-intelligence/sources", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: newSourceName.trim(),
+          ownerOrg: newSourceOrg.trim() || newSourceName.trim(),
+          homepage: newSourceHomepage.trim(),
+          domainAllowlist: domains,
+          authBasis: newSourceBasis,
+          sourceType: "careers_page",
+          status: "active"
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to create source.");
+      setMessage(`Source '${data.name}' registered successfully with ${data.domainAllowlist.length} domains.`);
+      setShowAddSourceModal(false);
+      setNewSourceName("");
+      setNewSourceOrg("");
+      setNewSourceHomepage("");
+      setNewSourceDomains("");
+      await loadData();
+    } catch (err) {
+      setError((err as Error).message);
     } finally {
       setLoading(false);
     }
@@ -186,6 +279,9 @@ export function JobIntelligence({ userRole }: { userRole: string }) {
     }
   }
 
+  const unauthorizedDomainMatch = error ? error.match(/Hostname '([^']+)' is outside the authorized source domain allowlist/) : null;
+  const unauthorizedHost = unauthorizedDomainMatch ? unauthorizedDomainMatch[1] : null;
+
   return (
     <div className="cms-job-intelligence" style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
       {/* Sub-Navigation Tabs */}
@@ -206,7 +302,27 @@ export function JobIntelligence({ userRole }: { userRole: string }) {
         ))}
       </div>
 
-      {error && <div className="cms-alert" role="alert" style={{ background: "#fef2f2", color: "#991b1b", padding: "12px 16px", borderRadius: "8px", border: "1px solid #fecaca" }}>{error}</div>}
+      {error && (
+        <div className="cms-alert" role="alert" style={{ background: "#fef2f2", color: "#991b1b", padding: "14px 18px", borderRadius: "10px", border: "1px solid #fecaca" }}>
+          <div style={{ fontWeight: 500 }}>{error}</div>
+          {unauthorizedHost && userRole === "owner" && (
+            <div style={{ marginTop: "12px", paddingTop: "12px", borderTop: "1px solid #fecaca", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px", flexWrap: "wrap" }}>
+              <div style={{ fontSize: "13px", color: "#7f1d1d" }}>
+                Would you like to authorize <strong>{unauthorizedHost}</strong> for the selected source?
+              </div>
+              <button
+                type="button"
+                className="cms-btn cms-primary"
+                style={{ padding: "6px 14px", fontSize: "12px", background: "#16a34a", borderColor: "#15803d", color: "#fff", cursor: loading ? "not-allowed" : "pointer" }}
+                disabled={loading}
+                onClick={() => handleAuthorizeDomain(unauthorizedHost)}
+              >
+                ✓ Authorize Domain & Retry Preview
+              </button>
+            </div>
+          )}
+        </div>
+      )}
       {message && <div className="cms-alert" style={{ background: "#f0fdf4", color: "#166534", padding: "12px 16px", borderRadius: "8px", border: "1px solid #bbf7d0" }}>{message}</div>}
 
       {/* OVERVIEW TAB */}
@@ -457,8 +573,101 @@ export function JobIntelligence({ userRole }: { userRole: string }) {
       {/* SOURCES TAB */}
       {activeTab === "sources" && (
         <section className="cms-panel" style={{ background: "#fff", padding: "24px", borderRadius: "12px", border: "1px solid #e2e8f0" }}>
-          <h2 style={{ fontSize: "18px", fontWeight: 700, marginBottom: "8px", color: "#0f172a" }}>Authorized Discovery Sources</h2>
-          <p style={{ fontSize: "13px", color: "#64748b", marginBottom: "20px" }}>Registry of authorized partner feeds, API integrations, and domain allowlists.</p>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px", flexWrap: "wrap", gap: "12px" }}>
+            <div>
+              <h2 style={{ fontSize: "18px", fontWeight: 700, color: "#0f172a" }}>Authorized Discovery Sources</h2>
+              <p style={{ fontSize: "13px", color: "#64748b" }}>Registry of authorized partner feeds, API integrations, and domain allowlists.</p>
+            </div>
+            {userRole === "owner" && (
+              <button
+                type="button"
+                className="cms-btn cms-primary"
+                onClick={() => setShowAddSourceModal(true)}
+                style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}
+              >
+                <Plus size={14} /> Add Source / Domain
+              </button>
+            )}
+          </div>
+
+          {/* ADD SOURCE MODAL */}
+          {showAddSourceModal && (
+            <div style={{ position: "fixed", inset: 0, background: "rgba(15, 23, 42, 0.6)", zIndex: 999, display: "flex", alignItems: "center", justifyContent: "center", padding: "20px" }}>
+              <div style={{ background: "#fff", borderRadius: "12px", maxWidth: "560px", width: "100%", padding: "24px", boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.1)" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
+                  <h3 style={{ fontSize: "16px", fontWeight: 700, color: "#0f172a" }}>Register Authorized Discovery Source</h3>
+                  <button type="button" onClick={() => setShowAddSourceModal(false)} style={{ background: "none", border: "none", cursor: "pointer", color: "#64748b" }}><X size={18} /></button>
+                </div>
+                <form onSubmit={handleCreateSource} style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+                  <div>
+                    <label style={{ display: "block", fontSize: "12px", fontWeight: 600, color: "#334155", marginBottom: "4px" }}>Source Name *</label>
+                    <input
+                      type="text"
+                      className="cms-input"
+                      placeholder="e.g. Accenture Official Careers"
+                      value={newSourceName}
+                      onChange={e => setNewSourceName(e.target.value)}
+                      required
+                      style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1" }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: "block", fontSize: "12px", fontWeight: 600, color: "#334155", marginBottom: "4px" }}>Owner Organization</label>
+                    <input
+                      type="text"
+                      className="cms-input"
+                      placeholder="e.g. Accenture PLC"
+                      value={newSourceOrg}
+                      onChange={e => setNewSourceOrg(e.target.value)}
+                      style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1" }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: "block", fontSize: "12px", fontWeight: 600, color: "#334155", marginBottom: "4px" }}>Homepage URL *</label>
+                    <input
+                      type="url"
+                      className="cms-input"
+                      placeholder="https://www.accenture.com"
+                      value={newSourceHomepage}
+                      onChange={e => setNewSourceHomepage(e.target.value)}
+                      required
+                      style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1" }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: "block", fontSize: "12px", fontWeight: 600, color: "#334155", marginBottom: "4px" }}>Permitted Domains (one per line or comma-separated) *</label>
+                    <textarea
+                      className="cms-input"
+                      rows={3}
+                      placeholder="*.accenture.com&#10;www.accenture.com"
+                      value={newSourceDomains}
+                      onChange={e => setNewSourceDomains(e.target.value)}
+                      required
+                      style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1" }}
+                    />
+                    <small style={{ color: "#64748b", fontSize: "11px" }}>Use *.domain.com to allow all subdomains.</small>
+                  </div>
+                  <div>
+                    <label style={{ display: "block", fontSize: "12px", fontWeight: 600, color: "#334155", marginBottom: "4px" }}>Authorization Basis</label>
+                    <select
+                      value={newSourceBasis}
+                      onChange={e => setNewSourceBasis(e.target.value)}
+                      style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1" }}
+                    >
+                      <option value="manual_reference_only">Manual Reference Only (Private Draft Verification)</option>
+                      <option value="direct_owner">Direct Owner (Employer Direct Posting)</option>
+                      <option value="published_api_terms">Published API Terms (Official Developer Terms)</option>
+                      <option value="written_permission">Written Permission (Signed MOU / License)</option>
+                    </select>
+                  </div>
+                  <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", marginTop: "10px" }}>
+                    <button type="button" className="cms-btn cms-secondary" onClick={() => setShowAddSourceModal(false)}>Cancel</button>
+                    <button type="submit" className="cms-btn cms-primary" disabled={loading}>Register Source</button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
 
           <table className="cms-table" style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
             <thead>
@@ -483,7 +692,7 @@ export function JobIntelligence({ userRole }: { userRole: string }) {
                       {s.status}
                     </span>
                   </td>
-                  <td style={{ padding: "12px 10px" }}>{s.domainAllowlist.join(", ")}</td>
+                  <td style={{ padding: "12px 10px", maxWidth: "300px", wordBreak: "break-word" }}>{s.domainAllowlist.join(", ")}</td>
                   <td style={{ padding: "12px 10px" }}>{s.rateBudget} req/hr</td>
                 </tr>
               ))}

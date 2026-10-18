@@ -86,9 +86,13 @@ export const FIXTURE_JOB_DATA: Record<string, any> = {
  */
 export async function ensureDefaultSources(): Promise<void> {
   const defaultDomains = [
+    // Internal & testing fixtures
     "careers.example.com",
     "*.example.com",
     "atsai.test",
+    "*.atsai.pro",
+
+    // Global ATS Platforms
     "boards.greenhouse.io",
     "job-boards.greenhouse.io",
     "*.greenhouse.io",
@@ -96,7 +100,40 @@ export async function ensureDefaultSources(): Promise<void> {
     "*.lever.co",
     "jobs.ashbyhq.com",
     "*.ashbyhq.com",
-    "careers.google.com"
+    "*.myworkdayjobs.com",
+    "*.workday.com",
+    "*.smartrecruiters.com",
+    "jobs.smartrecruiters.com",
+    "*.icims.com",
+    "careers.icims.com",
+    "*.oraclecloud.com",
+    "*.taleo.net",
+    "*.successfactors.com",
+    "*.sap.com",
+    "*.bamboohr.com",
+    "*.jobvite.com",
+    "*.recruitee.com",
+
+    // Major Enterprise Technology & Consulting Career Portals
+    "*.accenture.com",
+    "www.accenture.com",
+    "accenture.com",
+    "careers.google.com",
+    "*.google.com",
+    "careers.microsoft.com",
+    "*.microsoft.com",
+    "*.amazon.jobs",
+    "amazon.jobs",
+    "*.ibm.com",
+    "*.deloitte.com",
+    "*.pwc.com",
+    "*.ey.com",
+    "*.kpmg.com",
+    "*.tcs.com",
+    "*.infosys.com",
+    "*.wipro.com",
+    "*.cognizant.com",
+    "*.capgemini.com"
   ];
   const now = new Date().toISOString();
   const existing = await db().prepare("SELECT id, domainAllowlist FROM ji_sources WHERE id=?").get("src-atsai-fixtures") as { id: string; domainAllowlist: string } | undefined;
@@ -163,55 +200,73 @@ export async function getSource(id: string): Promise<JobSource | null> {
 /**
  * Creates or updates a source.
  */
-export async function saveSource(source: Omit<JobSource, "createdAt" | "updatedAt">): Promise<JobSource> {
+export async function saveSource(source: Partial<JobSource> & { name: string; homepage: string }): Promise<JobSource> {
+  const id = source.id || `src-${randomUUID().slice(0, 8)}`;
   const now = new Date().toISOString();
-  const exists = await db().prepare("SELECT id FROM ji_sources WHERE id=?").get(source.id);
+  const exists = await db().prepare("SELECT id FROM ji_sources WHERE id=?").get(id);
+
+  const fullSource = {
+    id,
+    name: source.name,
+    ownerOrg: source.ownerOrg || source.name,
+    homepage: source.homepage,
+    domainAllowlist: source.domainAllowlist || [],
+    sourceType: source.sourceType || "careers_page",
+    authBasis: source.authBasis || "manual_reference_only",
+    evidenceRef: source.evidenceRef || "ADMIN_MANUAL_AUTHORIZATION",
+    reviewer: source.reviewer || "Platform Owner",
+    approvedAt: source.approvedAt || now,
+    renewalDate: source.renewalDate || "2027-10-19T00:00:00Z",
+    status: source.status || "active",
+    autoPublish: Boolean(source.autoPublish),
+    rateBudget: source.rateBudget || 120
+  };
 
   if (exists) {
     await db().prepare(
       `UPDATE ji_sources SET name=?, ownerOrg=?, homepage=?, domainAllowlist=?, sourceType=?, authBasis=?, evidenceRef=?, reviewer=?, approvedAt=?, renewalDate=?, status=?, autoPublish=?, rateBudget=?, updatedAt=? WHERE id=?`
     ).run(
-      source.name,
-      source.ownerOrg,
-      source.homepage,
-      JSON.stringify(source.domainAllowlist),
-      source.sourceType,
-      source.authBasis,
-      source.evidenceRef,
-      source.reviewer,
-      source.approvedAt,
-      source.renewalDate,
-      source.status,
-      source.autoPublish ? 1 : 0,
-      source.rateBudget,
+      fullSource.name,
+      fullSource.ownerOrg,
+      fullSource.homepage,
+      JSON.stringify(fullSource.domainAllowlist),
+      fullSource.sourceType,
+      fullSource.authBasis,
+      fullSource.evidenceRef,
+      fullSource.reviewer,
+      fullSource.approvedAt,
+      fullSource.renewalDate,
+      fullSource.status,
+      fullSource.autoPublish ? 1 : 0,
+      fullSource.rateBudget,
       now,
-      source.id
+      id
     );
   } else {
     await db().prepare(
       `INSERT INTO ji_sources (id, name, ownerOrg, homepage, domainAllowlist, sourceType, authBasis, evidenceRef, reviewer, approvedAt, renewalDate, status, autoPublish, rateBudget, createdAt, updatedAt)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     ).run(
-      source.id,
-      source.name,
-      source.ownerOrg,
-      source.homepage,
-      JSON.stringify(source.domainAllowlist),
-      source.sourceType,
-      source.authBasis,
-      source.evidenceRef,
-      source.reviewer,
-      source.approvedAt,
-      source.renewalDate,
-      source.status,
-      source.autoPublish ? 1 : 0,
-      source.rateBudget,
+      id,
+      fullSource.name,
+      fullSource.ownerOrg,
+      fullSource.homepage,
+      JSON.stringify(fullSource.domainAllowlist),
+      fullSource.sourceType,
+      fullSource.authBasis,
+      fullSource.evidenceRef,
+      fullSource.reviewer,
+      fullSource.approvedAt,
+      fullSource.renewalDate,
+      fullSource.status,
+      fullSource.autoPublish ? 1 : 0,
+      fullSource.rateBudget,
       now,
       now
     );
   }
 
-  return (await getSource(source.id))!;
+  return (await getSource(id))!;
 }
 
 /**

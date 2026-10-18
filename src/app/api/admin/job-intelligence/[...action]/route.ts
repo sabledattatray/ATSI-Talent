@@ -87,6 +87,22 @@ export async function POST(request: Request, context: Context) {
       if (user.role !== "owner") {
         return response({ error: "Only the platform owner can register or modify job sources." }, 403);
       }
+      if (action[1] && action[2] === "add-domain") {
+        const { domain } = body;
+        if (!domain || typeof domain !== "string") {
+          return response({ error: "A valid 'domain' string is required." }, 400);
+        }
+        const source = await getSource(action[1]);
+        if (!source) return response({ error: "Source not found." }, 404);
+
+        const clean = domain.toLowerCase().trim();
+        const updatedDomains = Array.from(new Set([...source.domainAllowlist, clean]));
+        const updated = await saveSource({
+          ...source,
+          domainAllowlist: updatedDomains
+        });
+        return response({ ok: true, source: updated });
+      }
       const saved = await saveSource(body);
       return response(saved, 201);
     }
