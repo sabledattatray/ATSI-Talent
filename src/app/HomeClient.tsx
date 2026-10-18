@@ -34,110 +34,136 @@ export default function HomeClient({initialJobs}:{initialJobs:JobListing[]}){
           const hasComp = comp !== "Compensation not disclosed";
 
           return (
-            <Link className="platform-job" href={`/jobs/${j.slug}`} key={j.id}>
-              <div className="platform-job-top">
-                <div className="platform-job-icon">
-                  <Building2 size={22} strokeWidth={1.8} />
-                </div>
-                <div className="platform-job-badges">
-                  <span
-                    className={`platform-workmode-badge ${
-                      isRemote ? "is-remote" : isHybrid ? "is-hybrid" : "is-onsite"
-                    }`}
-                  >
-                    <span className="platform-badge-dot" />
-                    {j.workMode}
-                  </span>
-                  {j.employerVerified && (
-                    <span className="platform-verified-badge" title="Verified employer">
-                      <ShieldCheck size={12} />
-                      <span>Verified</span>
-                    </span>
-                  )}
-                </div>
-              </div>
-
-              <div className="platform-job-content">
-                <span className="platform-company-name">{j.employerName}</span>
-                <h3 className="platform-job-title">{j.title}</h3>
-                <div className="platform-job-location">
-                  <MapPin size={14} className="platform-pin-icon" />
-                  <span>
-                    {j.location.city}
-                    {j.location.country ? ` · ${j.location.country}` : ""}
-                  </span>
+            <Link
+              className="platform-job group block p-4 sm:p-5 bg-white border border-slate-200/90 hover:border-blue-400 rounded-2xl shadow-xs hover:shadow-md transition-all duration-200"
+              href={`/jobs/${j.slug}`}
+              key={j.id}
+            >
+              <div className="flex items-start gap-3.5">
+                {/* Company Logo Icon */}
+                <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-100 flex items-center justify-center text-blue-600 shadow-2xs shrink-0 group-hover:scale-105 transition-transform">
+                  <Building2 size={20} strokeWidth={1.8} />
                 </div>
 
-                <div className="platform-job-tags">
-                  <span className="platform-tag-pill">{j.employmentType}</span>
-                  <span className="platform-tag-pill platform-tag-dept">{j.department}</span>
-                  {j.skills && j.skills.length > 0 && (
-                    <span className="platform-tag-pill platform-tag-skill">{j.skills[0]}</span>
-                  )}
-                </div>
-              </div>
-
-              <div className="platform-job-footer">
-                <div className="platform-job-salary">
-                  {hasComp ? (
-                    <>
-                      <span className="platform-salary-label">Offered Pay</span>
-                      <span className="platform-salary-amount">
-                        {comp.replace(/ \/ (year|month|hr)/i, "")}
-                        <small className="platform-salary-period">
-                          {" "}/ {j.salaryPeriod ? j.salaryPeriod.toLowerCase() : "year"}
-                        </small>
+                {/* Main Card Content */}
+                <div className="flex-1 min-w-0">
+                  {/* Top Line: Company + Verified + WorkMode */}
+                  <div className="flex items-center justify-between gap-2 mb-1">
+                    <div className="flex items-center gap-1.5 min-w-0 flex-wrap">
+                      <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider truncate max-w-[170px] sm:max-w-none">
+                        {j.employerName}
                       </span>
-                    </>
-                  ) : (
-                    <span className="platform-salary-undisclosed">
-                      Competitive salary · Disclosed on interview
+                      {j.employerVerified && (
+                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 shrink-0">
+                          <ShieldCheck size={11} className="text-emerald-600 shrink-0" />
+                          <span>Verified</span>
+                        </span>
+                      )}
+                    </div>
+
+                    <span
+                      className={`shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold border ${
+                        isRemote
+                          ? "bg-purple-50 text-purple-700 border-purple-200"
+                          : isHybrid
+                          ? "bg-teal-50 text-teal-700 border-teal-200"
+                          : "bg-blue-50 text-blue-700 border-blue-200"
+                      }`}
+                    >
+                      <span
+                        className={`w-1.5 h-1.5 rounded-full ${
+                          isRemote ? "bg-purple-500" : isHybrid ? "bg-teal-500" : "bg-blue-500"
+                        }`}
+                      />
+                      {j.workMode}
                     </span>
-                  )}
+                  </div>
+
+                  {/* Job Title */}
+                  <h3 className="text-sm sm:text-base font-bold text-slate-900 group-hover:text-blue-600 transition-colors line-clamp-1 leading-snug">
+                    {j.title}
+                  </h3>
+
+                  {/* Location & Tags Line */}
+                  <div className="flex items-center gap-2 text-xs text-slate-500 flex-wrap mt-1">
+                    <span className="inline-flex items-center gap-1 text-slate-600 shrink-0">
+                      <MapPin size={12} className="text-blue-500 shrink-0" />
+                      <span className="truncate">
+                        {j.location.city}
+                        {j.location.country ? ` · ${j.location.country}` : ""}
+                      </span>
+                    </span>
+                    <span className="text-slate-300">·</span>
+                    <span className="px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 text-[11px] font-medium shrink-0">
+                      {j.employmentType}
+                    </span>
+                    <span className="px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 text-[11px] font-medium hidden sm:inline shrink-0">
+                      {j.department}
+                    </span>
+                  </div>
+
+                  {/* Card Footer: Salary + View Action */}
+                  <div className="flex items-center justify-between gap-3 mt-3 pt-2 border-t border-slate-100">
+                    <div className="flex items-baseline gap-1.5 text-xs sm:text-sm font-bold text-slate-800">
+                      <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                        Pay:
+                      </span>
+                      <span>
+                        {hasComp ? comp : "Competitive pay · Disclosed on interview"}
+                      </span>
+                    </div>
+
+                    <span className="inline-flex items-center gap-1 text-xs font-semibold text-blue-600 group-hover:text-blue-700 shrink-0">
+                      <span>View role</span>
+                      <ArrowUpRight size={13} className="transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+                    </span>
+                  </div>
                 </div>
-                <span className="platform-view-btn">
-                  <span>View role</span>
-                  <ArrowUpRight size={14} />
-                </span>
               </div>
             </Link>
           );
         })}
 
         {jobs.length > 0 && jobs.length < 3 && (
-          <div className="platform-job platform-job-invite">
-            <div className="platform-job-top">
-              <div className="platform-job-icon platform-icon-invite">
-                <Sparkles size={22} strokeWidth={1.8} />
-              </div>
-              <span className="platform-workmode-badge is-invite">
-                <span className="platform-badge-dot" />
-                Talent Network
-              </span>
-            </div>
-
-            <div className="platform-job-content">
-              <span className="platform-company-name">ATSAI Talent Network</span>
-              <h3 className="platform-job-title">Can’t find your preferred role?</h3>
-              <div className="platform-job-location">
-                <Globe2 size={14} className="platform-pin-icon" />
-                <span>Pan-India verified employers hiring weekly</span>
+          <div className="platform-job platform-job-invite group block p-4 sm:p-5 bg-gradient-to-br from-purple-50/70 to-indigo-50/50 border border-dashed border-purple-200 hover:border-purple-400 rounded-2xl shadow-xs hover:shadow-md transition-all duration-200">
+            <div className="flex items-start gap-3.5">
+              <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-purple-100/70 border border-purple-200 flex items-center justify-center text-purple-700 shrink-0 shadow-2xs group-hover:scale-105 transition-transform">
+                <Sparkles size={20} strokeWidth={1.8} />
               </div>
 
-              <p className="platform-invite-copy">
-                Create a free candidate profile to get matched with unlisted openings before they are publicly posted.
-              </p>
-            </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center justify-between gap-2 mb-1">
+                  <span className="text-xs font-semibold text-purple-700 uppercase tracking-wider truncate">
+                    ATSAI Talent Network
+                  </span>
+                  <span className="shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-purple-100/80 text-purple-700 border border-purple-200">
+                    <span className="w-1.5 h-1.5 rounded-full bg-purple-500" />
+                    100% Free
+                  </span>
+                </div>
 
-            <div className="platform-job-footer">
-              <div className="platform-job-salary">
-                <span className="platform-salary-label">Candidate Service</span>
-                <span className="platform-salary-amount">100% Free</span>
+                <h3 className="text-sm sm:text-base font-bold text-slate-900 group-hover:text-purple-700 transition-colors line-clamp-1 leading-snug">
+                  Can’t find your preferred role?
+                </h3>
+
+                <div className="flex items-center gap-1.5 text-xs text-slate-500 mt-1">
+                  <Globe2 size={12} className="text-purple-500 shrink-0" />
+                  <span className="truncate">Pan-India verified employers hiring weekly</span>
+                </div>
+
+                <div className="flex items-center justify-between gap-3 mt-3 pt-2 border-t border-purple-100">
+                  <span className="text-xs font-medium text-slate-600 hidden sm:inline">
+                    Direct candidate matching
+                  </span>
+                  <Link
+                    href="/candidate/signup"
+                    className="inline-flex items-center gap-1 text-xs font-semibold text-purple-700 hover:text-purple-900 ml-auto"
+                  >
+                    <span>Join talent pool</span>
+                    <ArrowRight size={13} />
+                  </Link>
+                </div>
               </div>
-              <Link href="/candidate/signup" className="platform-invite-action">
-                <span>Join talent pool</span>
-                <ArrowRight size={14} />
-              </Link>
             </div>
           </div>
         )}
