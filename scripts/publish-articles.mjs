@@ -4,9 +4,17 @@ import crypto from "node:crypto";
 import { pathToFileURL } from "node:url";
 import { createClient } from "@libsql/client";
 
-// Connect to SQLite database
+// Connect to Turso cloud database or local SQLite database
+const tursoUrl = (process.env.ATSAI_TURSO_DATABASE_URL || process.env.TURSO_DATABASE_URL || "").trim();
+const tursoToken = (process.env.ATSAI_TURSO_AUTH_TOKEN || process.env.TURSO_AUTH_TOKEN || "").trim();
+const isTurso = Boolean(tursoUrl && tursoToken);
+
 const dbPath = process.env.ATSAI_DATABASE_PATH || path.join(process.cwd(), "data", "atsai.sqlite");
-const client = createClient({ url: pathToFileURL(path.resolve(dbPath)).href });
+const client = isTurso
+  ? createClient({ url: tursoUrl, authToken: tursoToken })
+  : createClient({ url: pathToFileURL(path.resolve(dbPath)).href });
+
+console.log(`Publishing target: ${isTurso ? "Turso Cloud (" + tursoUrl + ")" : "Local SQLite (" + dbPath + ")"}`);
 
 function parseInlineMarks(text) {
   if (!text) return [];

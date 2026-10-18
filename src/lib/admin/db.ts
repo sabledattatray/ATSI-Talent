@@ -66,12 +66,38 @@ function getClient(): Client {
   return client;
 }
 
+async function seedDefaultArticles(connection: Client): Promise<void> {
+  if (process.env.ATSAI_DATABASE_PATH === ":memory:" || process.env.NODE_ENV === "test") {
+    return;
+  }
+  try {
+    const { SEED_ARTICLES } = await import("@/lib/data/seedArticles");
+    for (const article of SEED_ARTICLES) {
+      await connection.execute({
+        sql: `INSERT INTO content (id, kind, slug, status, document, createdAt, updatedAt, version)
+              VALUES (?, 'post', ?, 'published', ?, ?, ?, 1)
+              ON CONFLICT(kind, slug) DO NOTHING`,
+        args: [
+          article.id,
+          article.slug,
+          article.document,
+          article.createdAt,
+          article.updatedAt
+        ]
+      });
+    }
+  } catch (err) {
+    console.warn("Seed articles notice:", (err as Error)?.message || err);
+  }
+}
+
 async function initializedClient(): Promise<Client> {
   const connection = getClient();
   if (!initialization) {
     initialization = (async () => {
       await connection.execute("PRAGMA foreign_keys=ON");
       await connection.batch(schema, "write");
+      await seedDefaultArticles(connection);
     })().catch(error => { initialization = undefined; throw error; });
   }
   await initialization;
