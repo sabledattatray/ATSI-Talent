@@ -237,12 +237,14 @@ export async function recruitmentRequest(request: Request, route: string): Promi
     const user = await requireCandidate();
     if (route === "profile") {
       const value = profileSchema.parse(body); const { name, ...profile } = value;
-      if (profile.resumeUrl.startsWith("/api/ats/resume/")) {
-        const file = await db().prepare("SELECT id FROM ats_resumes WHERE id=? AND candidateId=?").get(profile.resumeUrl.split("/").at(-1)!, user.id);
-        if (!file) return result({ error: "Choose a resume uploaded to your own account." }, 400);
-      }
-      await db().prepare("UPDATE candidate_accounts SET name=?,profile=? WHERE id=?").run(name, JSON.stringify(profile), user.id);
-      return result({ ok: true });
+      return await transaction(async () => {
+        if (profile.resumeUrl.startsWith("/api/ats/resume/")) {
+          const file = await db().prepare("SELECT id FROM ats_resumes WHERE id=? AND candidateId=?").get(profile.resumeUrl.split("/").at(-1)!, user.id);
+          if (!file) return result({ error: "Choose a resume uploaded to your own account." }, 400);
+        }
+        await db().prepare("UPDATE candidate_accounts SET name=?,profile=? WHERE id=?").run(name, JSON.stringify(profile), user.id);
+        return result({ ok: true });
+      });
     }
     if (route === "password") {
       const value = z.object({ currentPassword: z.string().min(1).max(128), password: z.string().min(12).max(128) }).parse(body);

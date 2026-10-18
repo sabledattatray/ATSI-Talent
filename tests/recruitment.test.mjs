@@ -6,9 +6,9 @@ import vm from "node:vm";
 import { createRequire } from "node:module";
 import ts from "typescript";
 const nativeRequire=createRequire(import.meta.url);
-function environment(mode="development") {
+function environment(mode="development", Clock=Date) {
   const jar=new Map(),options=new Map(),cache=new Map();
-  const context=vm.createContext({console,Buffer,URL,Request,Response,File,FormData,Date,setTimeout,clearTimeout,process:{cwd:()=>process.cwd(),env:{NODE_ENV:mode,ATSAI_DATABASE_PATH:":memory:",ATSAI_ADMIN_SETUP_TOKEN:"fixture-owner-setup-secret-at-least-32-characters"}}});
+  const context=vm.createContext({console,Buffer,URL,Request,Response,File,FormData,Date:Clock,setTimeout,clearTimeout,process:{cwd:()=>process.cwd(),env:{NODE_ENV:mode,ATSAI_DATABASE_PATH:":memory:",ATSAI_ADMIN_SETUP_TOKEN:"fixture-owner-setup-secret-at-least-32-characters"}}});
   const cookies={get:key=>jar.has(key)?{value:jar.get(key)}:undefined,set:(key,value,config)=>{jar.set(key,value);options.set(key,config);},delete:key=>jar.delete(key)};
   function load(file) {
     const full=path.resolve(file);if(cache.has(full))return cache.get(full).exports;
@@ -448,4 +448,55 @@ test("private resumes enforce candidate ownership, application-based employer ac
   assert.equal((await e.callATS("resumes/delete",{id:files.files[0].id})).status,200);
   assert.equal((await e.callATS(path)).status,404);
   assert.equal((await(await e.call("dashboard")).json()).user.profile.resumeUrl,"");
+});
+
+
+test("ATS stage versions advance even when two updates share the same clock tick",async()=>{
+  class FrozenDate extends Date {
+    constructor(value){super(value===undefined?"2026-10-18T12:00:00.000Z":value);}
+    static now(){return Date.parse("2026-10-18T12:00:00.000Z");}
+  }
+  const e=environment("development",FrozenDate);await e.callATS("auth/signup",companyOwner);await e.callATS("jobs/save",globalJob);
+  const job=(await(await e.callATS("workspace")).json()).jobs[0];await e.call("auth/signup",person);await e.call("apply",{jobId:job.id,consent:true});
+  const original=(await(await e.callATS("workspace")).json()).applications[0];
+  assert.equal((await e.callATS("applications/stage",{id:original.id,status:"review",updatedAt:original.updatedAt})).status,200);
+  const reviewed=(await(await e.callATS("workspace")).json()).applications[0];
+  assert.ok(Date.parse(reviewed.updatedAt)>Date.parse(original.updatedAt));
+  assert.equal((await e.callATS("applications/stage",{id:original.id,status:"offer",updatedAt:original.updatedAt})).status,409);
+  assert.equal((await e.callATS("applications/stage",{id:reviewed.id,status:"shortlisted",updatedAt:reviewed.updatedAt})).status,200);
+  const shortlisted=(await(await e.callATS("workspace")).json()).applications[0];
+  assert.ok(Date.parse(shortlisted.updatedAt)>Date.parse(reviewed.updatedAt));
+});
+
+test("resume deletion preserves profile edits made after the authentication snapshot",async()=>{
+  const e=environment();await e.call("auth/signup",person);
+  const {storeCandidateResume}=e.load("src/lib/resume-storage.ts");
+  const user=(await(await e.call("dashboard")).json()).user;
+  const url=await storeCandidateResume(user.id,Buffer.from("Fictional candidate resume text for deletion testing."),"fixture.txt");
+  assert.equal((await e.call("profile",{name:person.name,resumeUrl:url,headline:"Original headline"})).status,200);
+  const storage=e.load("src/lib/admin/db.ts").db();const prepare=storage.prepare;let injected=false;
+  storage.prepare=sql=>{
+    const statement=prepare(sql);
+    if(!sql.startsWith("SELECT c.id,c.name,c.email,c.profile"))return statement;
+    return {...statement,get:async(...args)=>{
+      const snapshot=await statement.get(...args);
+      if(snapshot&&!injected){injected=true;const profile=JSON.parse(snapshot.profile);await prepare("UPDATE candidate_accounts SET profile=? WHERE id=?").run(JSON.stringify({...profile,headline:"Latest saved headline",skills:"Nursing, Patient care"}),snapshot.id);}
+      return snapshot;
+    }};
+  };
+  try{assert.equal((await e.callATS("resumes/delete",{id:url.split("/").at(-1)})).status,200);}finally{storage.prepare=prepare;}
+  const saved=(await(await e.call("dashboard")).json()).user.profile;
+  assert.equal(saved.headline,"Latest saved headline");assert.equal(saved.skills,"Nursing, Patient care");assert.equal(saved.resumeUrl,"");
+  assert.equal((await e.call("profile",{name:person.name,resumeUrl:url})).status,400);
+});
+
+
+test("listed skill matching does not confuse substrings, languages or duplicate aliases",()=>{
+  const {matchSkills}=environment().load("src/lib/skill-match.ts");
+  const mismatch=matchSkills("Java, C, C++, R, SQL", "JavaScript, C#, Nursing, PostgreSQL");
+  assert.equal(mismatch.score,0);assert.equal(mismatch.matched.length,0);
+  const aliases=matchSkills("JavaScript, JS; Node.js\nSQL, sql", "JS; nodejs\nSQL");
+  assert.equal(aliases.required.length,3);assert.equal(aliases.matched.length,3);assert.equal(aliases.score,100);
+  const partial=matchSkills("React, React Native", "React");assert.equal(partial.score,50);
+  assert.equal(matchSkills("", "Python").score,0);
 });

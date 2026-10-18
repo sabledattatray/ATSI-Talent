@@ -2,7 +2,7 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { ArrowRight, Check, Eye, EyeOff, LockKeyhole, ShieldCheck, Sparkles } from "lucide-react";
+import { ArrowRight, Check, Eye, EyeOff, ShieldCheck, Sparkles } from "lucide-react";
 import BrandLogo, { BrandIcon } from "@/components/common/BrandLogo";
 export function AuthForm({ signup }: { signup: boolean }) {
   const params = useSearchParams(); const router = useRouter();

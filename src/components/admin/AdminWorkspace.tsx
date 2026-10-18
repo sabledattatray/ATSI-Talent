@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { Activity, ArrowLeft, ArrowRight, ArrowUpRight, BookOpen, BriefcaseBusiness, Check, CheckCircle2, ChevronDown, ChevronRight, Copy, ExternalLink, FilePenLine, Globe2, ImagePlus, Images, LayoutDashboard, LogOut, Menu, Plus, Search, Settings2, ShieldCheck, Sparkles, Trash2, Users, X } from "lucide-react";
 import { RecruitmentInbox } from "@/components/recruitment/RecruitmentClient";
-import BrandLogo, { BrandIcon } from "@/components/common/BrandLogo";
+import BrandLogo from "@/components/common/BrandLogo";
 import { blankRecord, slugify, type ContentRecord, type MediaRecord, type WorkspaceData } from "@/lib/admin/types";
 import { RichEditor } from "./RichEditor";
 import { RichContent } from "./RichContent";

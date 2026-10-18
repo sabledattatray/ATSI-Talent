@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import {
   STAGE_LABELS,
   type Stage,
@@ -10,7 +10,6 @@ import {
 import {
   Check,
   CheckCircle2,
-  Clock,
   Calendar,
   Video,
   MapPin,
@@ -18,13 +17,8 @@ import {
   RefreshCw,
   ChevronDown,
   ChevronUp,
-  FileCheck2,
-  Users2,
   Sparkles,
-  Award,
   AlertCircle,
-  ShieldCheck,
-  Radio,
 } from "lucide-react";
 import "./ats.css";
 
@@ -38,55 +32,63 @@ const PIPELINE_STAGES: { key: Stage; label: string; hint: string }[] = [
   { key: "submitted", label: "Applied", hint: "Logged in ATS" },
   { key: "review", label: "In Review", hint: "Recruiter screening" },
   { key: "shortlisted", label: "Shortlisted", hint: "Hiring team queue" },
-  { key: "interview", label: "Interview", hint: "Scheduled rounds" },
-  { key: "offer", label: "Offer", hint: "Package & agreement" },
-  { key: "hired", label: "Hired", hint: "Onboarding complete" },
+  { key: "interview", label: "Interview", hint: "Interview stage" },
+  { key: "offer", label: "Offer", hint: "Offer stage" },
+  { key: "hired", label: "Hired", hint: "Hiring decision recorded" },
 ];
 
 const STAGE_DESCRIPTIONS: Record<Stage, string> = {
-  submitted: "Your application and profile credentials are cataloged in the employer's ATS. A talent acquisition recruiter conducts preliminary resume calibration.",
-  review: "Your application is under active review. The hiring team is evaluating your technical skill depth, project history, and compensation alignment.",
-  shortlisted: "Congratulations! Your profile has been shortlisted and forwarded to the hiring manager and engineering leadership for interview scheduling.",
-  interview: "You are currently in the interview process. Review your scheduled interview appointments below. Times and video links are synchronized in real time.",
-  offer: "Congratulations! An offer or pre-offer communication has been issued for this requisition. Review any notes below or check your inbox.",
-  hired: "Hired! Candidate onboarding process has been initiated. Welcome to your new role!",
-  rejected: "The hiring team has concluded review for this opening and proceeded with other candidates. Your profile remains active in the ATS talent network for future openings.",
-  withdrawn: "This application was withdrawn at your request. No further action will be taken by the hiring team.",
+  submitted: "Your application was received. Updates recorded by the hiring team will appear here.",
+  review: "The hiring team marked your application as in review.",
+  shortlisted: "The hiring team shortlisted your application. Interview details will appear below when scheduled.",
+  interview: "Your application is at the interview stage. Review any scheduled appointments below.",
+  offer: "The hiring team moved your application to the offer stage. Refer to their messages for the actual offer details.",
+  hired: "The hiring team marked your application as hired. Contact them for your start date and onboarding steps.",
+  rejected: "The hiring team marked this application as not selected. You can still apply for other published opportunities.",
+  withdrawn: "You withdrew this application and it is no longer active for this role.",
 };
 
 export function ApplicationTracking({ id }: { id: string }) {
-  const [data, setData] = useState<Tracking | null>(null);
-  const [error, setError] = useState("");
+  const [snapshot, setSnapshot] = useState<{ id: string; tracking: Tracking } | null>(null);
+  const [failure, setFailure] = useState<{ id: string; message: string } | null>(null);
+  const data = snapshot?.id === id ? snapshot.tracking : null;
+  const error = failure?.id === id ? failure.message : "";
   const [refreshing, setRefreshing] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const [lastSynced, setLastSynced] = useState<string>("");
 
-  const load = useCallback(async (isManual = false) => {
-    if (isManual) setRefreshing(true);
-    try {
-      const response = await fetch(`/api/recruitment/tracking?id=${encodeURIComponent(id)}`, {
-        cache: "no-store",
-      });
+  const request = useRef<{ controller: AbortController; id: string } | null>(null);
+  const load = useCallback(() => {
+    request.current?.controller.abort();
+    const controller = new AbortController();
+    request.current = { controller, id };
+    return fetch(`/api/recruitment/tracking?id=${encodeURIComponent(id)}`, {
+      cache: "no-store",
+      signal: controller.signal,
+    }).then(async response => {
       const body = await response.json();
       if (!response.ok) throw new Error(body.error || "Could not retrieve tracking status.");
-      setData(body);
-      setError("");
+      return body as Tracking;
+    }).then(body => {
+      if (controller.signal.aborted || request.current?.controller !== controller) return;
+      setSnapshot({ id, tracking: body });
+      setFailure(null);
       setLastSynced(new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" }));
-    } catch (e) {
-      setError((e as Error).message);
-    } finally {
-      if (isManual) setRefreshing(false);
-    }
+    }).catch((error: unknown) => {
+      if (controller.signal.aborted || request.current?.controller !== controller) return;
+      setFailure({ id, message: (error as Error).message });
+    }).finally(() => {
+      if (!controller.signal.aborted && request.current?.controller === controller) setRefreshing(false);
+    });
   }, [id]);
 
   useEffect(() => {
-    let active = true;
     void load();
     const timer = setInterval(() => {
       if (document.visibilityState === "visible") void load();
     }, 12000);
     return () => {
-      active = false;
+      request.current?.controller.abort();
       clearInterval(timer);
     };
   }, [load]);
@@ -106,7 +108,7 @@ export function ApplicationTracking({ id }: { id: string }) {
       <div className="ats-tracker-container">
         <div style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "12px", color: "#64748b" }}>
           <RefreshCw size={14} className="animate-spin" />
-          <span>Connecting to real-time ATS pipeline…</span>
+          <span>Loading your application updates…</span>
         </div>
       </div>
     );
@@ -138,7 +140,7 @@ export function ApplicationTracking({ id }: { id: string }) {
           <button
             type="button"
             className="ats-tracker-refresh-btn"
-            onClick={() => void load(true)}
+            onClick={() => { setRefreshing(true); void load(); }}
             disabled={refreshing}
             title="Check live updates immediately"
           >
@@ -185,8 +187,8 @@ export function ApplicationTracking({ id }: { id: string }) {
             <strong>Application {STAGE_LABELS[data.status]}</strong>
             <p>
               {data.status === "rejected"
-                ? "The hiring team concluded review for this role. Your profile remains active for other worldwide openings."
-                : "This requisition has been withdrawn from consideration."}
+                ? "The hiring team marked this application as not selected. Your account remains available for other applications."
+                : "You withdrew your application for this role."}
             </p>
           </div>
         </div>
@@ -211,7 +213,7 @@ export function ApplicationTracking({ id }: { id: string }) {
             <div className="ats-tracker-interviews">
               <div className="ats-tracker-interviews-title">
                 <Calendar size={14} color="#16a34a" />
-                <span>Scheduled Interviews ({data.interviews.length})</span>
+                <span>Interview appointments ({data.interviews.length})</span>
               </div>
               {data.interviews.map((i) => {
                 const isUrl = /^https?:\/\//i.test(i.location);
@@ -233,7 +235,7 @@ export function ApplicationTracking({ id }: { id: string }) {
                         ({i.timeZone})
                       </span>
                     </div>
-                    {isUrl ? (
+                    {isUrl && i.status === "scheduled" ? (
                       <a
                         href={i.location}
                         target="_blank"
@@ -247,7 +249,7 @@ export function ApplicationTracking({ id }: { id: string }) {
                     ) : (
                       <div style={{ fontSize: "11px", color: "#1e293b", display: "flex", alignItems: "center", gap: "4px" }}>
                         <MapPin size={13} color="#64748b" />
-                        <span>Location: {i.location}</span>
+                        <span>{i.status === "cancelled" ? "This interview was cancelled." : `Location: ${i.location}`}</span>
                       </div>
                     )}
                   </div>
@@ -280,7 +282,7 @@ export function ApplicationTracking({ id }: { id: string }) {
               </div>
             ) : (
               <p style={{ fontSize: "11px", color: "#94a3b8", margin: 0, fontStyle: "italic" }}>
-                No custom messages posted yet. Any updates made by the hiring team will appear here in real time.
+                No custom messages posted yet. Updates made by the hiring team will appear here after the next refresh.
               </p>
             )}
           </div>

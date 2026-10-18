@@ -129,8 +129,6 @@ export function getEmblemVector(id = "atsai-mark") {
 export function getFullLogoSvg(dark = false, id = dark ? "atsai-dark" : "atsai-light") {
   const textColor = dark ? "#FFFFFF" : "#0A192F";
   const descColor = dark ? "#94A3B8" : "#475569";
-  const aiBadgeBg = dark ? "rgba(37, 99, 235, 0.22)" : "rgba(37, 99, 235, 0.08)";
-  const aiBadgeBorder = dark ? "rgba(96, 165, 250, 0.35)" : "rgba(37, 99, 235, 0.2)";
 
   return `
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 90" fill="none" width="360" height="90">

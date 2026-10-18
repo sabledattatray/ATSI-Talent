@@ -89,7 +89,7 @@ export async function atsRequest(request:Request,route:string):Promise<Response>
     }
     if(route==="resumes/delete") {
       const candidate=await candidateUser();if(!candidate)return json({error:"Sign in as a candidate."},401);const value=z.object({id:text(80)}).parse(body);
-      await transaction(async()=>{const changed=await db().prepare("DELETE FROM ats_resumes WHERE id=? AND candidateId=?").run(value.id,candidate.id);if(!changed.changes)fail("Resume not found.",404);if(candidate.profile.resumeUrl===`/api/ats/resume/${value.id}`)await db().prepare("UPDATE candidate_accounts SET profile=? WHERE id=?").run(JSON.stringify({...candidate.profile,resumeUrl:""}),candidate.id);});return json({ok:true});
+      await transaction(async()=>{const changed=await db().prepare("DELETE FROM ats_resumes WHERE id=? AND candidateId=?").run(value.id,candidate.id);if(!changed.changes)fail("Resume not found.",404);const latest=await db().prepare("SELECT profile FROM candidate_accounts WHERE id=?").get(candidate.id) as {profile:string};const profile=JSON.parse(latest.profile);if(profile.resumeUrl===`/api/ats/resume/${value.id}`)await db().prepare("UPDATE candidate_accounts SET profile=? WHERE id=?").run(JSON.stringify({...profile,resumeUrl:""}),candidate.id);});return json({ok:true});
     }
     const user=await requireEmployer();
     if(route==="jobs/save"){
@@ -117,7 +117,7 @@ export async function atsRequest(request:Request,route:string):Promise<Response>
         if(app.status===value.status)return;
         const rank=STAGES.indexOf(value.status),old=STAGES.indexOf(app.status);
         if(value.status!=="rejected" && rank<=old)fail("Choose a later stage or reject the application.",409);
-        const now=new Date().toISOString();const changed=await db().prepare("UPDATE candidate_applications SET status=?,updatedAt=? WHERE id=? AND updatedAt=? AND status=?").run(value.status,now,app.id,value.updatedAt,app.status);if(!changed.changes)fail("Application changed. Please refresh.",409);
+        const now=new Date(Math.max(Date.now(),Date.parse(app.updatedAt)+1)).toISOString();const changed=await db().prepare("UPDATE candidate_applications SET status=?,updatedAt=? WHERE id=? AND updatedAt=? AND status=?").run(value.status,now,app.id,value.updatedAt,app.status);if(!changed.changes)fail("Application changed. Please refresh.",409);
         await event(app.id,"stage",value.status,value.message||`Application moved to ${value.status}.`,"candidate",user.email);await audit(user.email,"Application stage updated",`${app.id}: ${app.status} → ${value.status}`);
       });return json({ok:true});
     }
