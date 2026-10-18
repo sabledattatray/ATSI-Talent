@@ -50,6 +50,18 @@ export function Header() {
   const triggers = useRef<Partial<Record<Panel, HTMLButtonElement | null>>>({});
   const mobileTrigger = useRef<HTMLButtonElement>(null);
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    const header = root.current;
+    if (!header) return;
+    const updateHeight = () => document.documentElement.style.setProperty("--atsai-header-height", `${Math.ceil(header.getBoundingClientRect().height)}px`);
+    updateHeight();
+    const observer = new ResizeObserver(updateHeight);
+    observer.observe(header);
+    return () => {
+      observer.disconnect();
+      document.documentElement.style.removeProperty("--atsai-header-height");
+    };
+  }, []);
 
   function cancelClose() { if (closeTimer.current) clearTimeout(closeTimer.current); }
   function closeAll() { cancelClose(); setPanel(null); setMobileOpen(false); }
