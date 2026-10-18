@@ -74,15 +74,15 @@ export default function HomePage() {
     },
     {
       q: "How does ATSAI verify that job postings are authentic?",
-      a: "Every single opportunity listed on ATSAI is backed by a signed corporate commercial agreement or verified client mandate. We never scrape the public web or publish speculative vacancies. Every employer identity is authenticated prior to listing.",
+      a: "Roles are managed and published by the ATSAI team. Review the company, location, compensation details, and application route on each job page. Contact the team if you need clarification before applying.",
     },
     {
       q: "How is candidate personal data and resume privacy safeguarded?",
-      a: "We adhere strictly to the Digital Personal Data Protection (DPDP) Act 2023. Your resume and contact information are disclosed to a prospective employer only after you review the role description and grant explicit, role-specific consent.",
+      a: "Your profile is not listed publicly. Applying through ATSAI shares a snapshot with the team for that role, after you confirm your consent. You can request access, correction, or deletion through the privacy request page.",
     },
     {
       q: "How can I verify whether a person contacting me is an official ATSAI recruiter?",
-      a: "You can use our official verification directory at atsai.pro/verify-recruiter. ATSAI representatives only communicate via verified @atsai.pro email addresses and never ask for bank transfers or processing deposits.",
+      a: "Use atsai.pro/verify-recruiter with the exact work email or recruiter ID. The directory contains active entries approved by the workspace owner. Confirm any message through the listed work email, and never pay a candidate recruitment fee.",
     },
   ];
 
@@ -240,9 +240,9 @@ export default function HomePage() {
                 <FileCheck className="w-5 h-5" />
               </div>
               <div>
-                <h2 className="text-sm font-bold text-slate-900">Signed Client Mandates</h2>
+                <h2 className="text-sm font-bold text-slate-900">Clear Role Information</h2>
                 <p className="text-xs text-slate-600 mt-1 leading-relaxed">
-                  Every job post represents a genuine, active opening verified by our recruitment practice leaders.
+                  Review the role, employer, work arrangement, and compensation details before you apply.
                 </p>
               </div>
             </div>
@@ -254,7 +254,7 @@ export default function HomePage() {
               <div>
                 <h2 className="text-sm font-bold text-slate-900">Consent-Driven Privacy</h2>
                 <p className="text-xs text-slate-600 mt-1 leading-relaxed">
-                  Aligned with India DPDP Act 2023. Resumes are only shared after you explicitly approve the employer.
+                  Your profile stays out of public directories. You choose which ATSAI roles to apply for.
                 </p>
               </div>
             </div>
@@ -594,7 +594,7 @@ export default function HomePage() {
                 Need to fill critical analytics or technology roles?
               </h2>
               <p className="text-slate-300 text-sm mt-3 leading-relaxed">
-                Connect directly with our practice leads. We deliver verified candidate dossiers within 5 business days of mandate agreement.
+                Share your requirements with the team. We will discuss the search approach, expectations, and agreed next steps.
               </p>
               <div className="mt-6 flex flex-wrap items-center gap-6 text-xs text-slate-300">
                 <span className="flex items-center gap-1.5">

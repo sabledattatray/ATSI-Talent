@@ -92,3 +92,5 @@
 }
 @media (max-width: 359px) { .atsai-header-hireButton { display: none; } }
 @media (prefers-reduced-motion: reduce) { .atsai-header-megaMenu, .atsai-header-mobilePanel { animation: none; } }
+
+@media(max-width:1119px){.atsai-header-register{display:none!important}}

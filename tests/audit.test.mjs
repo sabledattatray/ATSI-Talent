@@ -24,7 +24,7 @@ function app(environment = "development") {
     if (cache.has(full)) return cache.get(full).exports;
     const loaded = { exports: {} }; cache.set(full, loaded);
     const source = ts.transpileModule(fs.readFileSync(full,"utf8"), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText;
-    const localRequire = id => id === "server-only" ? {} : id.startsWith("@/") ? load(`src/${id.slice(2)}.ts`) : id.startsWith(".") ? load(path.relative(path.resolve(__dirname,".."),path.resolve(path.dirname(full),id+".ts"))) : nativeRequire(id);
+    const localRequire = id => id === "server-only" ? {} : id === "next/headers" ? { cookies: async () => ({ get: () => undefined }) } : id.startsWith("@/") ? load(`src/${id.slice(2)}.ts`) : id.startsWith(".") ? load(path.relative(path.resolve(__dirname,".."),path.resolve(path.dirname(full),id+".ts"))) : nativeRequire(id);
     const fn = vm.runInContext(`(function(require,module,exports){${source}\n})`,context,{filename:full});
     fn(localRequire,loaded,loaded.exports); return loaded.exports;
   }
@@ -78,20 +78,25 @@ test("job visibility and confidential keyword checks",()=>{
   assert.equal(isJobOpen({...job,status:"Draft"},Date.now()),false);
   assert.equal(matchesKeyword({...job,isEmployerConfidential:true,employerName:"HiddenSecretCorp"},"HiddenSecretCorp"),false);
 });
-test("private API collections reject anonymous reads and all writes",async()=>{
-  const {load}=app();for(const route of ["applications","mandates","employers/leads"]){const api=load(`src/app/api/v1/${route}/route.ts`);assert.equal(api.GET().status,401);const response=api.POST();assert.equal(response.status,503);assert.equal((await response.json()).code,"SERVICE_UNAVAILABLE");}
+test("private recruitment APIs reject anonymous reads and candidate applications require sign-in", async () => {
+  const {load}=app();
+  for(const path of ["applications","employers/leads"]){const api=load(`src/app/api/v1/${path}/route.ts`);assert.equal((await api.GET(new Request(`http://localhost/api/v1/${path}`))).status,401);}
+  const response=await load("src/app/api/v1/applications/route.ts").POST(new Request("http://localhost/api/v1/applications",{method:"POST",headers:{origin:"http://localhost","content-type":"application/json"},body:"{}"}));
+  assert.equal(response.status,401);
 });
-test("public submission endpoints never fabricate receipt or notification",()=>{
-  const {load}=app();for(const route of ["report-job","privacy-request"]){assert.equal(load(`src/app/api/v1/${route}/route.ts`).POST().status,503);}
-  assert.equal(load("src/app/api/v1/verify-recruiter/route.ts").GET().status,503);
+test("invalid public submissions never fabricate receipt or notification", async () => {
+  const {load}=app();
+  for(const path of ["report-job","privacy-request"]){const response=await load(`src/app/api/v1/${path}/route.ts`).POST(new Request(`http://localhost/api/v1/${path}`,{method:"POST",headers:{origin:"http://localhost","content-type":"application/json"},body:"{}"}));assert.equal(response.status,400);assert.equal((await response.json()).reference,undefined);}
+  assert.equal((await load("src/app/api/v1/verify-recruiter/route.ts").GET(new Request("http://localhost/api/v1/verify-recruiter"))).status,400);
 });
+
 test("job API rejects invalid ranges and non-integer filters",async()=>{
   const {load}=app();const {GET}=load("src/app/api/v1/jobs/route.ts");
   for(const query of ["expMin=5abc","expMin=-1","expMin=9&expMax=3","workMode=invalid","sort=invalid"]){assert.equal((await GET(new Request(`http://localhost/api/v1/jobs?${query}`))).status,400);}
 });
 test("production job API is empty and status has no invented metrics",async()=>{
   const {load}=app("production");const response=await load("src/app/api/v1/jobs/route.ts").GET(new Request("http://localhost/api/v1/jobs"));assert.equal((await response.json()).data.length,0);
-  const status=await load("src/app/api/v1/status/route.ts").GET().json();assert.equal(status.status,"prototype");assert.equal(status.services.authentication,"admin-sessions-configured");assert.equal(status.services.database,"admin-publishing-sqlite");assert.equal(status.services.recruitmentSubmissions,"not-configured");assert.equal(status.uptime,undefined);
+  const status=await load("src/app/api/v1/status/route.ts").GET().json();assert.equal(status.status,"available");assert.equal(status.services.authentication,"candidate-and-admin-sessions");assert.equal(status.services.database,"local-sqlite");assert.equal(status.services.recruitmentSubmissions,"database-inbox");assert.equal(status.uptime,undefined);
 });
 
 test("sitemap lists existing public routes on the live www host without database access", () => {

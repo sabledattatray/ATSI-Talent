@@ -41,7 +41,7 @@ A considered digital experience for connecting talent, sharing expertise, and ma
 
 The interface pairs a deep navy foundation with blue and teal accents, clear typography, structured job listings, and a focused editorial workspace. Its recruitment content spans data analytics, business intelligence, MIS, BFSI, and technology careers.
 
-> **Project stage:** Admin authentication, job publishing, and blog publishing are implemented. Candidate, employer, and recruiter workflows are development previews. Real recruitment intake and email services require further integration. See the [release review](RELEASE_AUDIT.md).
+> **Available:** Candidate registration, profiles, saved jobs, applications, contact and hiring enquiries, owner recruitment inbox, recruiter verification, and staff publishing are backed by Turso. Automated email and direct candidate resume uploads are not enabled. See [public-page workflows](docs/PUBLIC_PAGES.md).
 
 ## Product showcase
 
@@ -75,6 +75,9 @@ Click any screenshot to view the **HD PNG** (up to 1920 × 1080). All captures c
 | Experience | Included capabilities |
 | :--- | :--- |
 | **Recruitment website** | Responsive public pages, service specializations, employer and candidate information, resources, and job discovery. |
+| **Candidate accounts** | Separate signup and sign-in, professional profiles, saved roles, application tracking, withdrawal, and password changes. |
+| **Recruitment inbox** | Owner-only enquiries, candidate applications, accounts, status updates, and an explicitly approved public recruiter directory. |
+| **Public enquiries** | Contact, hiring briefs, safety reports, privacy requests, and account assistance are saved with a reference number. |
 | **Job publishing** | Draft, publish, update, and archive roles; manage company, location, work mode, experience, INR compensation, skills, expiry, and external application links. |
 | **Blog CMS** | Tiptap editor with headings, lists, links, images, tables, quotes, code blocks, previews, categories, author attribution, and featured posts. |
 | **Search metadata** | Editable SEO titles and descriptions, readable slugs, cover images, and public detail pages for published content. |
@@ -107,7 +110,7 @@ npm ci
 npm run dev
 ```
 
-Open **[http://127.0.0.1:3001](http://127.0.0.1:3001)**. The development server binds to loopback on port 3001.
+Open **[http://127.0.0.1:3001](http://127.0.0.1:3001)**. The development server binds to loopback on port 3001. Job seekers register at `/candidate/signup` and sign in at `/candidate/login`. Staff access remains at `/admin/login`; `/login` and `/signup` are candidate aliases.
 
 ### Set up the admin workspace
 
@@ -181,7 +184,7 @@ For local SQLite only, create an online database backup with:
 node scripts/backup-admin.mjs
 ```
 
-Development builds include sample recruitment records and tab-local demo workspaces. Production builds exclude those samples and restrict demo recruitment routes. Real candidate submissions, resume uploads, employer intake, recruiter verification, SMTP delivery, email password recovery, MFA, and external identity providers are not configured. Production public pages allow search indexing; admin, API, draft-policy, and preview routes remain excluded. The sitemap at `https://www.atsai.pro/sitemap.xml` lists public pages independently of the publishing database. Individual job and article URLs are not yet added to the sitemap.
+Development builds can include sample roles; production excludes those fixtures. Candidate accounts and enquiries use durable storage in both modes. Internal job applications require a published, unexpired role, a signed-in candidate, and explicit consent. External employer application links remain external. Direct candidate resume uploads, SMTP delivery, automated email recovery, MFA, and external identity providers are not configured. Resume/portfolio HTTPS links and owner-reviewed account assistance are provided. Production public pages allow search indexing; admin, API, draft-policy, and preview routes remain excluded. The sitemap at `https://www.atsai.pro/sitemap.xml` lists public pages independently of the publishing database. Individual job and article URLs are not yet added to the sitemap.
 
 Private local databases, account records, backups, environment secrets, dependencies, and build outputs are excluded from Git. Turso stores cloud accounts, content, sessions, and uploaded media outside the deployment filesystem. Existing local records are not automatically copied to Turso; migrate them separately if needed. Use Turso backup/export facilities for cloud data.
 
@@ -189,6 +192,7 @@ Private local databases, account records, backups, environment secrets, dependen
 
 | Guide | What it covers |
 | :--- | :--- |
+| [Public-page workflows](docs/PUBLIC_PAGES.md) | Candidate accounts, applications, enquiries, recruiter verification, and owner review. |
 | [Turso deployment](docs/TURSO_DEPLOYMENT.md) | Vercel integration, environment variables, schema setup, and first-owner signup. |
 | [Admin workspace](ADMIN.md) | Accounts, publishing, media, team access, hosting, and backups. |
 | [Release review](RELEASE_AUDIT.md) | GitHub publishing checks, verification, and remaining limitations. |

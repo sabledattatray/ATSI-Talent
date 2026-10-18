@@ -13,6 +13,6 @@ export const PUBLIC_SITEMAP_PATHS = [
 
 export const PRIVATE_SEARCH_PATHS = [
   "/admin", "/api", "/candidate", "/employer", "/recruiter",
-  "/login", "/forgot-password", "/legal", "/status",
-  "/report-job", "/verify-recruiter", "/employers/request-talent", "/security",
+  "/login", "/signup", "/forgot-password", "/legal", "/status",
+  "/privacy-request", "/report-job", "/verify-recruiter", "/employers/request-talent", "/security",
 ] as const;

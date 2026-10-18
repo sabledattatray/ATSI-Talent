@@ -29,7 +29,7 @@ export default function CandidatesPage() {
             ATSAI Talent Solutions advocates for qualified professionals in Data Analytics, MIS, BFSI, and Software. We protect your privacy, ensure honest job descriptions, and never charge applicant fees.
           </p>
 
-          <div className="mt-6 flex flex-wrap gap-4 items-center">
+          <div className="mt-6 flex flex-wrap gap-4 items-center"><Link href="/candidate/signup" className="talent-button">Create free account</Link><Link href="/candidate/login" className="talent-button talent-secondary">Candidate sign in</Link>
             <Link
               href="/jobs"
               className="px-6 py-3 rounded-xl bg-blue-600 text-white font-semibold text-xs hover:bg-blue-700 transition-colors shadow-xs flex items-center gap-2"
@@ -64,7 +64,7 @@ export default function CandidatesPage() {
             </div>
             <h2 className="text-base font-bold text-[#0b1728]">Role-Specific Consent</h2>
             <p className="text-xs text-slate-600 leading-relaxed">
-              Under our DPDP Act 2023 compliance protocols, your resume is disclosed only after you review the employer and position, and grant explicit consent for that specific opportunity.
+              Your profile is not listed publicly. You choose which roles to apply for and confirm consent before a snapshot is shared with the ATSAI team for that opportunity.
             </p>
           </div>
 
@@ -74,7 +74,7 @@ export default function CandidatesPage() {
             </div>
             <h2 className="text-base font-bold text-[#0b1728]">Verified Job Authenticity</h2>
             <p className="text-xs text-slate-600 leading-relaxed">
-              Every job listing is backed by an authenticated commercial agreement. We do not publish speculative vacancies or ghost postings to collect resumes.
+              Review the employer, location, work arrangement, and role requirements before applying. Job details are managed and published by the ATSAI team.
             </p>
           </div>
 

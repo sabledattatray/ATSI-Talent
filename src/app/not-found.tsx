@@ -1,0 +1,2 @@
+import Link from "next/link";
+export default function NotFound() { return <div className="talent-container talent-narrow"><span className="talent-eyebrow">LET’S FIND YOUR NEXT STEP</span><h1>This page is no longer here.</h1><p>The address may have changed, or the opportunity may have closed.</p><div className="talent-actions"><Link className="talent-button" href="/jobs">Browse current jobs</Link><Link className="talent-button talent-secondary" href="/contact">Contact the team</Link></div></div>; }

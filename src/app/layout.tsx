@@ -4,6 +4,7 @@ import { SiteChrome } from "@/components/layout/SiteChrome";
 import type { Metadata } from "next";
 import { Inter, Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
+import "@/components/recruitment/portal.css";
 import { Suspense } from "react";
 
 const inter = Inter({

@@ -35,6 +35,15 @@ const workspaces = [
 
 export function Header() {
   const pathname = usePathname();
+  const [candidateSignedIn, setCandidateSignedIn] = useState(false);
+  useEffect(() => {
+    const controller = new AbortController();
+    fetch("/api/recruitment/me", { cache: "no-store", signal: controller.signal })
+      .then(response => response.ok ? response.json() : null)
+      .then(data => { if (!controller.signal.aborted) setCandidateSignedIn(Boolean(data?.user)); })
+      .catch(() => { if (!controller.signal.aborted) setCandidateSignedIn(false); });
+    return () => controller.abort();
+  }, [pathname]);
   const [panel, setPanel] = useState<Panel | null>(null);
   const [mobileOpen, setMobileOpen] = useState(false);
   const root = useRef<HTMLElement>(null);
@@ -146,8 +155,8 @@ export function Header() {
           </nav>
 
           <div className={"atsai-header-actions"}>
-            <div className={"atsai-header-workspace"}>{DEMO_MODE ? trigger("workspace", "Workspace") : <Link href="/admin/login" className={"atsai-header-navLink"}>Sign in</Link>}</div>
-            <Link href="/employers/request-talent" className={"atsai-header-hireButton"}>Hire talent<ArrowUpRight size={16} aria-hidden="true" /></Link>
+            <div className={"atsai-header-workspace"}>{DEMO_MODE ? trigger("workspace", "Workspace") : <Link href={candidateSignedIn ? "/candidate/dashboard" : "/candidate/login"} className={"atsai-header-navLink"}>{candidateSignedIn ? "My workspace" : "Sign in"}</Link>}</div>
+            {!candidateSignedIn && <Link href="/candidate/signup" className="atsai-header-navLink atsai-header-register">Register</Link>}<Link href="/employers/request-talent" className={"atsai-header-hireButton"}>Hire talent<ArrowUpRight size={16} aria-hidden="true" /></Link>
             <button ref={mobileTrigger} className={"atsai-header-mobileToggle"} type="button" aria-label={mobileOpen ? "Close navigation" : "Open navigation"}
               aria-expanded={mobileOpen} aria-controls="header-mobile-panel" onClick={() => { setPanel(null); setMobileOpen(!mobileOpen); }}>
               {mobileOpen ? <X size={22} /> : <Menu size={22} />}
@@ -191,7 +200,7 @@ export function Header() {
         <details className={"atsai-header-mobileGroup"}><summary>Company<ChevronDown size={16} /></summary><div>{company.map(item => <Link key={item.href} href={item.href}>{item.title}</Link>)}</div></details>
         <div className={"atsai-header-mobileSecondary"}><Link href="/resources"><FileText size={17} />Resources</Link><Link href="/contact"><LifeBuoy size={17} />Contact our team</Link></div>
         {DEMO_MODE && <details className={"atsai-header-mobileGroup"}><summary>Demo workspaces<ChevronDown size={16} /></summary><div>{workspaces.map(item => <Link key={item.href} href={item.href}>{item.title}<span className={"atsai-header-demoBadge"}>Demo</span></Link>)}</div></details>}
-        <div className={"atsai-header-mobileBottom"}><Link href="/admin/login">{DEMO_MODE ? "Workspace access" : "Sign in"}<ArrowRight size={16} /></Link><Link href="/verify-recruiter">Verify a recruiter<ShieldCheck size={16} /></Link></div>
+        <div className={"atsai-header-mobileBottom"}>{!candidateSignedIn && <Link href="/candidate/signup">Create free account<ArrowRight size={16} /></Link>}<Link href={candidateSignedIn ? "/candidate/dashboard" : "/candidate/login"}>{candidateSignedIn ? "My workspace" : "Sign in"}<ArrowRight size={16} /></Link><Link href="/verify-recruiter">Verify a recruiter<ShieldCheck size={16} /></Link></div>
       </nav>}
     </header>
   </>;

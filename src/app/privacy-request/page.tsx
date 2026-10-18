@@ -1,0 +1,3 @@
+import { InquiryForm } from "@/components/recruitment/RecruitmentClient";
+export const metadata = { title: "Let’s take care of your data request.", robots: { index: false, follow: false } };
+export default function Page() { return <div className="talent-container talent-narrow"><span className="talent-eyebrow">YOUR INFORMATION, YOUR CHOICE</span><h1>Let’s take care of your data request.</h1><p>Request access, correction, or deletion of your account and application data. The team may need to confirm your identity before making changes.</p><section className="talent-card"><InquiryForm kind="privacy" /></section></div>; }

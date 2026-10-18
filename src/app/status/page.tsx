@@ -1,16 +1,3 @@
-import Link from "next/link";
-export const metadata = { title: "Service availability" };
-export default function StatusPage() {
-  return <div className="max-w-3xl mx-auto px-6 py-16 space-y-6">
-    <h1 className="text-3xl font-bold">Service availability</h1>
-    <p>This project is a prototype. Uptime and latency monitoring are not connected, so no service-level measurements are available.</p>
-    <ul className="list-disc pl-6 space-y-2">
-      <li>Public website: preview available.</li>
-      <li>Job and blog publishing: authenticated admin workspace with persistent SQLite storage.</li>
-      <li>Candidate, employer, and recruiter workspaces: sample workflows in local development only.</li>
-      <li>Email delivery, candidate authentication, and resume scanning: not configured.</li>
-      <li>Applications, employer inquiries, abuse reports, and privacy requests: no operational submission service.</li>
-    </ul>
-    <Link href="/api/v1/status" className="text-blue-700 underline">View availability JSON</Link>
-  </div>;
-}
+import { InfoPage } from "@/components/recruitment/InfoPage";
+export const metadata = { title: "What you can do on ATSAI.", description: "A factual overview of the available tools. This page does not claim uptime or service-level measurements." };
+export default function Page() { return <InfoPage eyebrow="PLATFORM CAPABILITIES" title="What you can do on ATSAI." intro="A factual overview of the available tools. This page does not claim uptime or service-level measurements." sections={[{"title": "Candidate accounts", "text": "Create an account, sign in, manage your profile, save openings, apply to eligible ATSAI roles, track updates, and withdraw active applications."}, {"title": "Team publishing", "text": "Staff can manage jobs, articles, media, and publishing settings. The owner can review enquiries and applications, maintain the public recruiter directory, and manage staff invitations."}, {"title": "Requests and enquiries", "text": "Contact, hiring briefs, safety reports, privacy requests, and account-access requests are stored in the configured database for owner review. A reference is shown after a successful save."}, {"title": "External services", "text": "Automated email delivery, email-based recovery, MFA, direct resume uploads, document scanning, and third-party interview scheduling are not enabled. External employer application sites operate separately."}]} />; }

@@ -21,7 +21,7 @@ export default function ServicesIndexPage() {
       title: "Permanent Contingent Recruitment",
       icon: Briefcase,
       summary: "Success-fee based senior and mid-tier talent sourcing for core corporate departments.",
-      deliverables: ["Curated 3-candidate shortlist", "Notice period guarantee", "90-day replacement commitment"],
+      deliverables: ["Role-specific shortlisting", "Availability discussions", "Agreed replacement provisions"],
       roles: "MIS Managers, Business Analysts, Team Leads, Regional Operations Heads",
     },
     {
@@ -53,7 +53,7 @@ export default function ServicesIndexPage() {
       title: "Contract & Project Staffing",
       icon: Clock,
       summary: "Agile specialist deployment for system implementations, ERP migrations, and reporting sprints.",
-      deliverables: ["Quick deployment within 10 days", "Timesheet governance", "Statutory compliance"],
+      deliverables: ["Project-based search planning", "Timesheet governance", "Engagement-specific requirements"],
       roles: "Interim BI Specialists, Migration Analysts, Project Technical Leads",
     },
   ];
@@ -71,7 +71,7 @@ export default function ServicesIndexPage() {
             Comprehensive Recruitment Services
           </h1>
           <p className="text-slate-600 text-base mt-2 leading-relaxed">
-            ATSAI Talent Solutions operates dedicated practice desks led by seasoned industry recruiters. Every mandate is delivered with rigorous screening, transparent progress reporting, and binding commercial warranties.
+            ATSAI Talent Solutions operates recruitment services across specialist practice areas. Every mandate is delivered with rigorous screening, transparent progress reporting, and engagement-specific commercial terms.
           </p>
         </div>
 

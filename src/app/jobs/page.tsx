@@ -1,13 +1,11 @@
 "use client";
-import { runDemoAction } from "@/lib/demoAction";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Modal } from "@/components/common/Modal";
 import { BrowserReady } from "@/components/common/BrowserReady";
 import { isJobOpen } from "@/lib/jobs";
 import { useDemoJobs } from "@/lib/useDemoJobs";
 import Link from "next/link";
 
-import { DataService } from "@/lib/dataService";
 import {
   ArrowRight,
   Bookmark,
@@ -22,10 +20,11 @@ import {
   SlidersHorizontal,
   X
 } from "lucide-react";
-import React, { Suspense, useMemo, useState } from "react";
+import React, { Suspense, useMemo, useState, useEffect } from "react";
 
 function JobsDirectoryContent() {
   const params = useSearchParams();
+  const router = useRouter();
   const jobs = useDemoJobs();
   const [now] = useState(() => Date.now());
   const searchTerm = params.get("q") || "";
@@ -47,18 +46,23 @@ function JobsDirectoryContent() {
   const setMinExp = (value: number) => updateFilter("expMin", String(value), "0");
   const setSortBy = (value: string) => updateFilter("sort", value, "latest");
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
-  const [savedJobIds, setSavedJobIds] = useState<string[]>(() => DataService.getSavedJobIds());
+  const [savedJobIds, setSavedJobIds] = useState<string[]>([]);
 
 
 
 
 
 
-  const handleToggleSave = (jobId: string, e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    DataService.toggleSaveJob(jobId);
-    setSavedJobIds(DataService.getSavedJobIds());
+  useEffect(() => { let active = true; fetch("/api/recruitment/dashboard", { cache: "no-store" }).then(response => response.ok ? response.json() : null).then(data => { if (active && data) setSavedJobIds(data.savedJobs.map((job: { id: string }) => job.id)); }).catch(() => {}); return () => { active = false; }; }, []);
+  const [saveError, setSaveError] = useState("");
+  const handleToggleSave = async (jobId: string, e: React.MouseEvent) => {
+    e.preventDefault(); e.stopPropagation(); setSaveError("");
+    try {
+      const response = await fetch("/api/recruitment/saved", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ jobId }) });
+      if (response.status === 401) { router.push("/candidate/login"); return; }
+      const result = await response.json(); if (!response.ok) throw new Error(result.error);
+      setSavedJobIds(ids => result.saved ? [...ids.filter(id => id !== jobId), jobId] : ids.filter(id => id !== jobId));
+    } catch (error) { setSaveError((error as Error).message); }
   };
 
   const handleResetFilters = () => window.history.replaceState(null, "", "/jobs");
@@ -134,7 +138,7 @@ function JobsDirectoryContent() {
 
   return (
     <div className="bg-slate-50 min-h-screen py-10 sm:py-12">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      {saveError && <div className="talent-alert" role="alert">{saveError}</div>}<div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
 
         {/* Editorial Heading */}
         <div className="mb-8">
@@ -154,7 +158,7 @@ function JobsDirectoryContent() {
             {/* Trust badge */}
             <div className="hidden sm:flex items-center gap-2 bg-emerald-50 border border-emerald-200 text-emerald-800 px-3.5 py-2 rounded-xl text-xs font-semibold self-start md:self-auto">
               <ShieldCheck className="w-4 h-4 text-emerald-600" />
-              <span>100% Genuine Corporate Mandates</span>
+              <span>Published recruitment opportunities</span>
             </div>
           </div>
 
@@ -416,7 +420,7 @@ function JobsDirectoryContent() {
                             </span>
                             <span className="inline-flex items-center gap-1 text-emerald-700 font-medium text-[11px]">
                               <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-                              Mandate Verified
+                              Published by ATSAI
                             </span>
                           </div>
 
@@ -426,7 +430,7 @@ function JobsDirectoryContent() {
                             </span>
                             <button
                               type="button"
-                              onClick={(e) => runDemoAction(() => handleToggleSave(job.id, e))}
+                              onClick={(e) => void handleToggleSave(job.id, e)}
                               className={`p-1.5 rounded-lg border transition-colors ${
                                 isSaved
                                   ? "bg-blue-50 border-blue-200 text-blue-600"

@@ -47,7 +47,7 @@ ATSAI_ADMIN_SETUP_TOKEN=replace-with-a-random-secret-of-at-least-32-characters
 
 Generate your setup key with `node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"`. Enter it on the first production signup. The setup key is never sent to the browser by the server. Remove it from deployment configuration after creating the owner, and store account recovery details securely. No SMTP, email-based password recovery, MFA, or external identity provider is configured.
 
-Build with `npm run build`, then use `npm start -- --hostname 127.0.0.1 --port 3001`. Keep HTTPS and the exact admin origin configured at the reverse proxy. Production public pages allow indexing and are listed at `https://www.atsai.pro/sitemap.xml`. Admin, API, draft-policy, and preview routes remain excluded from search. Recruitment submission restrictions remain in place. Job applications go to the employer's configured external application URL, or open an email enquiry if no URL is supplied.
+Build with `npm run build`, then use `npm start -- --hostname 127.0.0.1 --port 3001`. Keep HTTPS and the exact admin origin configured at the reverse proxy. Production public pages allow indexing and are listed at `https://www.atsai.pro/sitemap.xml`. Admin, API, draft-policy, and preview routes remain excluded from search. Roles with an external application URL open that employer site. Other roles accept consented applications from signed-in candidates. The owner reviews candidate applications and public requests in Recruitment inbox.
 
 For Turso, use the provider backup/export facilities. For local SQLite only, back up the database using `node scripts/backup-admin.mjs`. This uses SQLite's online backup API, including live WAL changes, and creates a timestamped file in `data/backups/` by default. Secure backups as carefully as the live database. To restore, stop the app, preserve the current database, restore the backup at the configured database path, then restart.
 
@@ -63,3 +63,13 @@ npm run build
 The admin tests use isolated libSQL in-memory databases, including a simulated Vercel configuration, and cover owner bootstrap, invitation-only signup, authentication, secure cookies, public/draft visibility, publishing, archiving, expired jobs, concurrent edits, unsafe rich text, upload signatures, referenced-image deletion, permissions, session invalidation, and rate limiting, asynchronous transaction rollback, concurrent edits, and media BLOB readback. Browser checks use a separate database on port 3002; no test records are added to the real workspace.
 
 For isolated test builds, `ATSAI_BUILD_DIR` can select another Next.js output directory. Use it only for local verification; the ordinary development server remains on port 3001.
+
+## Recruitment inbox and candidate accounts
+
+The owner can open `/admin/inbox` to review saved Contact requests, hiring briefs, reports, privacy requests, account assistance, candidate applications, and registered candidate profiles. Editors cannot access these personal-data collections. Request and application statuses can be updated from the inbox. Withdrawn applications cannot be advanced.
+
+Candidates register at `/candidate/signup`, sign in at `/candidate/login`, and use `/candidate/dashboard`. These accounts and cookies are separate from staff accounts. A candidate cannot choose or obtain a staff role through signup. Profile snapshots and consent timestamps are stored with each internal application. Direct resume uploads are not enabled; profiles accept optional HTTPS resume or portfolio links.
+
+Public recruiter lookup returns only active entries explicitly added by the owner in Recruitment inbox → Recruiters. Staff accounts are not automatically published. Use exact recruiter ID or work email for lookup.
+
+Enquiry and application receipts are displayed on screen. No automatic email is sent. Reply links open your own email app. Privacy and account-recovery requests require owner review and identity confirmation before action; submitting one does not automatically disclose or remove data.

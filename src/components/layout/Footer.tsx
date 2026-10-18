@@ -51,7 +51,7 @@ export function Footer() {
             <BrandLogo size="md" theme="dark" />
 
             <p className="text-slate-400 text-sm leading-relaxed max-w-sm">
-              Connecting Talent. Empowering Careers. We operate a verified recruitment agency and talent intelligence platform adhering to rigorous compliance, transparent criteria, and candidate privacy.
+              Connecting Talent. Empowering Careers. We operate a verified recruitment agency and talent intelligence platform with clear role information, candidate accounts, and thoughtful communication.
             </p>
 
             <div className="space-y-2 pt-2 text-xs text-slate-400">
@@ -71,7 +71,7 @@ export function Footer() {
 
             <div className="pt-2 flex items-center gap-2 text-xs text-emerald-400 bg-emerald-950/40 border border-emerald-800/40 px-3 py-2 rounded-lg max-w-fit">
               <CheckCircle2 className="w-3.5 h-3.5" />
-              <span>Pre-launch preview — business and policy review pending</span>
+              <span>Candidate accounts · Job publishing · Hiring enquiries</span>
             </div>
           </div>
 
@@ -139,7 +139,7 @@ export function Footer() {
             </h3>
             <ul className="space-y-2.5 text-xs text-slate-400">
               <li>
-                <Link href="/legal/privacy-policy" className="hover:text-white transition-colors">Privacy Policy (DPDP Act)</Link>
+                <Link href="/legal/privacy-policy" className="hover:text-white transition-colors">Privacy notice</Link>
               </li>
               <li>
                 <Link href="/legal/terms-of-use" className="hover:text-white transition-colors">Terms of Platform Use</Link>
@@ -154,7 +154,7 @@ export function Footer() {
                 <Link href="/legal/grievance-redressal" className="hover:text-white transition-colors">Grievance Redressal</Link>
               </li>
               <li>
-                <Link href="/accessibility" className="hover:text-white transition-colors">Accessibility Statement (AA)</Link>
+                <Link href="/accessibility" className="hover:text-white transition-colors">Accessibility</Link>
               </li>
               <li>
                 <Link href="/status" className="text-emerald-400 hover:underline flex items-center gap-1.5">
@@ -169,7 +169,7 @@ export function Footer() {
         {/* Separator */}
         <div className="border-t border-slate-800 mt-12 pt-8 flex flex-col md:flex-row items-center justify-between gap-4 text-xs text-slate-500">
           <p>
-            &copy; 2026 ATSAI Talent Solutions (atsai.pro). All rights reserved. Greenfield recruitment consultancy.
+            &copy; 2026 ATSAI Talent Solutions (atsai.pro). All rights reserved. Created by Datta Sable.
           </p>
           <div className="flex flex-wrap items-center gap-6">
             <Link href="/legal/privacy-policy" className="hover:text-slate-300">Privacy</Link>

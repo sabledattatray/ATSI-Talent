@@ -1,16 +1,2 @@
-import { DEMO_MODE } from "@/lib/runtime";
 import { NextResponse } from "next/server";
-
-export function GET() {
-  return NextResponse.json({
-    status: "prototype",
-    environment: DEMO_MODE ? "development-demo" : "preview",
-    services: {
-      authentication: "admin-sessions-configured",
-      database: process.env.TURSO_DATABASE_URL ? "admin-publishing-turso" : "admin-publishing-sqlite",
-      recruitmentSubmissions: "not-configured",
-      email: "not-configured",
-      resumeStorageAndScanning: "not-configured",
-    },
-  }, { headers: { "Cache-Control": "no-store" } });
-}
+export function GET() { return NextResponse.json({ status: "available", services: { authentication: "candidate-and-admin-sessions", database: process.env.TURSO_DATABASE_URL ? "turso" : "local-sqlite", recruitmentSubmissions: "database-inbox", email: "not-configured", resumeUploads: "https-links-only" } }, { headers: { "Cache-Control": "no-store" } }); }

@@ -1,3 +1,3 @@
-import { unavailable } from "@/lib/api-boundary";
-
-export function POST() { return unavailable(); }
+import { recruitmentRequest } from "@/lib/recruitment";
+export async function GET(request: Request) { return recruitmentRequest(request, "admin"); }
+export async function POST(request: Request) { return recruitmentRequest(request, "inquiries"); }
