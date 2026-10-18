@@ -188,3 +188,19 @@ test("archiving and concurrent editing cannot silently restore an archived recor
   const saved = (await e.load("src/lib/admin/db.ts").records("post"))[0];
   assert.equal(saved.status, "archived");
 });
+
+test("pinned database credentials override the integration as a pair and fail closed when incomplete", async () => {
+  const integration = { VERCEL: "1", TURSO_DATABASE_URL: "libsql://integration.turso.io", TURSO_AUTH_TOKEN: "integration-fixture" };
+  let supplied;
+  const e = environment("production", { ...integration, ATSAI_TURSO_DATABASE_URL: "libsql://owner-branch.turso.io", ATSAI_TURSO_AUTH_TOKEN: "pinned-fixture" }, config => {
+    supplied = config;
+    return nativeRequire("@libsql/client").createClient({ url: ":memory:" });
+  });
+  assert.equal((await e.request("setup", undefined, "GET")).status, 200);
+  assert.equal(supplied.url, "libsql://owner-branch.turso.io");
+  assert.equal(supplied.authToken, "pinned-fixture");
+  for (const partial of [{ ATSAI_TURSO_DATABASE_URL: "libsql://owner-branch.turso.io" }, { ATSAI_TURSO_AUTH_TOKEN: "pinned-fixture" }]) {
+    const broken = environment("production", { ...integration, ...partial });
+    assert.equal((await broken.request("setup", undefined, "GET")).status, 503);
+  }
+});

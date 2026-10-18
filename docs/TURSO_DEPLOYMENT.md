@@ -31,3 +31,7 @@ Images remain stored as database BLOBs. Uploads are limited to 3 MB so requests 
 Run `npm run lint`, `npm run typecheck`, `npm test`, and `npm run build`. Regression coverage includes owner setup, permissions, sessions, publishing visibility, media round trips, rollback, concurrent-edit conflict handling, and missing Vercel database configuration.
 
 The public job API should respond successfully even when no roles have been published. First-owner signup still requires a configured setup key. Candidate accounts, internal applications, and public enquiries are durable database workflows. Automated email delivery, automated email recovery, MFA, and direct resume-file uploads remain separate integrations. See PUBLIC_PAGES.md.
+
+## Pin an existing database branch
+
+If integration variables are locked, set both ATSAI_TURSO_DATABASE_URL and ATSAI_TURSO_AUTH_TOKEN as project environment variables for Production. Use the URL and a token from the same branch containing the existing owner. Both override the integration pair together; an incomplete override fails closed. Never share or commit the token. Keep automatic production database branching disabled, preserve existing branches, and redeploy after saving. The override remains in effect until both custom variables are removed. Preview continues to use its integration credentials unless explicitly overridden there too. Verify /api/admin/setup returns needsSetup:false and sign in with the existing owner credentials.

@@ -34,8 +34,11 @@ let initialization: Promise<void> | undefined;
 
 function getClient(): Client {
   if (client) return client;
-  const url = process.env.TURSO_DATABASE_URL?.trim();
-  const authToken = process.env.TURSO_AUTH_TOKEN?.trim();
+  const pinnedUrl = process.env.ATSAI_TURSO_DATABASE_URL?.trim();
+  const pinnedToken = process.env.ATSAI_TURSO_AUTH_TOKEN?.trim();
+  const pinned = !!(pinnedUrl || pinnedToken);
+  const url = pinned ? pinnedUrl : process.env.TURSO_DATABASE_URL?.trim();
+  const authToken = pinned ? pinnedToken : process.env.TURSO_AUTH_TOKEN?.trim();
   if (url || authToken) {
     if (!url || !authToken || !/^(libsql|https):\/\//.test(url)) {
       throw Object.assign(new Error("Turso database configuration is incomplete."), { status: 503 });
@@ -66,7 +69,7 @@ async function initializedClient(): Promise<Client> {
 // operations while allowing transaction-scoped queries to use their own connection.
 let localQueue = Promise.resolve();
 async function localOperation<T>(fn: () => Promise<T>): Promise<T> {
-  if (process.env.TURSO_DATABASE_URL) return fn();
+  if (process.env.ATSAI_TURSO_DATABASE_URL || process.env.TURSO_DATABASE_URL) return fn();
   const previous = localQueue;
   let release!: () => void;
   localQueue = new Promise<void>(resolve => { release = resolve; });
