@@ -177,7 +177,7 @@ Create an online database backup with:
 node scripts/backup-admin.mjs
 ```
 
-Development builds include sample recruitment records and tab-local demo workspaces. Production builds exclude those samples and restrict demo recruitment routes. Real candidate submissions, resume uploads, employer intake, recruiter verification, SMTP delivery, email password recovery, MFA, and external identity providers are not configured. Search indexing remains disabled for the pre-launch website.
+Development builds include sample recruitment records and tab-local demo workspaces. Production builds exclude those samples and restrict demo recruitment routes. Real candidate submissions, resume uploads, employer intake, recruiter verification, SMTP delivery, email password recovery, MFA, and external identity providers are not configured. Production public pages allow search indexing; admin, API, draft-policy, and preview routes remain excluded. The sitemap at `https://www.atsai.pro/sitemap.xml` lists public pages independently of the publishing database. Individual job and article URLs are not yet added to the sitemap.
 
 Private databases, uploaded media stored in SQLite, account records, backups, environment secrets, dependencies, and build outputs are excluded from the source repository. Deployment to another host requires a separate secure data migration.
 

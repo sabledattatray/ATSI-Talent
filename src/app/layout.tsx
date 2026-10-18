@@ -1,3 +1,4 @@
+import { PUBLIC_INDEXING, SITE_URL } from "@/lib/seo";
 import { SkipToContent } from "@/components/common/SkipToContent";
 import { SiteChrome } from "@/components/layout/SiteChrome";
 import type { Metadata } from "next";
@@ -19,7 +20,7 @@ const plusJakartaSans = Plus_Jakarta_Sans({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://atsai.pro"),
+  metadataBase: new URL(SITE_URL),
   title: {
     default: "ATSAI Talent Solutions | Connecting Talent. Empowering Careers.",
     template: "%s | ATSAI Talent Solutions",
@@ -39,14 +40,14 @@ export const metadata: Metadata = {
   openGraph: {
     type: "website",
     locale: "en_IN",
-    url: "https://atsai.pro",
+    url: SITE_URL,
     siteName: "ATSAI Talent Solutions",
     title: "ATSAI Talent Solutions | Connecting Talent. Empowering Careers.",
     description: "Verified recruitment consultancy and transparent jobs marketplace.",
   },
   robots: {
-    index: false,
-    follow: false,
+    index: PUBLIC_INDEXING,
+    follow: PUBLIC_INDEXING,
   },
   icons: {
     icon: [

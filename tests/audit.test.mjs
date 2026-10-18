@@ -93,3 +93,42 @@ test("production job API is empty and status has no invented metrics",async()=>{
   const {load}=app("production");const response=await load("src/app/api/v1/jobs/route.ts").GET(new Request("http://localhost/api/v1/jobs"));assert.equal((await response.json()).data.length,0);
   const status=await load("src/app/api/v1/status/route.ts").GET().json();assert.equal(status.status,"prototype");assert.equal(status.services.authentication,"admin-sessions-configured");assert.equal(status.services.database,"admin-publishing-sqlite");assert.equal(status.services.recruitmentSubmissions,"not-configured");assert.equal(status.uptime,undefined);
 });
+
+test("sitemap lists existing public routes on the live www host without database access", () => {
+  const { load } = app("production");
+  const entries = load("src/app/sitemap.ts").default();
+  assert.equal(entries.length, 17);
+  assert.equal(new Set(entries.map(e => e.url)).size, entries.length);
+  for (const entry of entries) {
+    const url = new URL(entry.url);
+    assert.equal(url.origin, "https://www.atsai.pro");
+    assert.ok(!/^\/(admin|api|candidate|employer|recruiter)(?:\/|$)/.test(url.pathname));
+    const page = path.join(__dirname, "..", "src/app", url.pathname, "page.tsx");
+    const service = path.join(__dirname, "..", "src/app/services/[slug]/page.tsx");
+    assert.ok(fs.existsSync(page) || (url.pathname.startsWith("/services/") && fs.readFileSync(service,"utf8").includes(`"${url.pathname.split("/").pop()}":`)));
+  }
+});
+
+test("production robots permit public pages without blocking candidates and employers", () => {
+  const { load } = app("production");
+  const robots = load("src/app/robots.ts").default();
+  assert.equal(robots.sitemap, "https://www.atsai.pro/sitemap.xml");
+  assert.equal(robots.rules.allow, "/");
+  assert.ok(robots.rules.disallow.includes("/admin/"));
+  assert.ok(robots.rules.disallow.includes("/candidate$"));
+  assert.ok(!robots.rules.disallow.includes("/candidate"));
+  assert.ok(!robots.rules.disallow.includes("/employer"));
+});
+
+test("preview deployments stay noindex while production limits noindex headers to private routes", async () => {
+  const preview = app("production");
+  preview.context.process.env.VERCEL_ENV = "preview";
+  assert.equal(preview.load("src/app/robots.ts").default().rules.disallow, "/");
+  const previewHeaders = await preview.load("next.config.ts").default.headers();
+  assert.ok(previewHeaders.some(rule => rule.source === "/:path*" && rule.headers.some(h => h.key === "X-Robots-Tag")));
+  const production = app("production");
+  const headers = await production.load("next.config.ts").default.headers();
+  assert.ok(!headers.some(rule => rule.source === "/:path*" && rule.headers.some(h => h.key === "X-Robots-Tag")));
+  assert.ok(headers.some(rule => rule.source === "/admin/:path*" && rule.headers.some(h => h.key === "X-Robots-Tag")));
+  assert.equal(app().load("src/app/robots.ts").default().rules.disallow, "/");
+});

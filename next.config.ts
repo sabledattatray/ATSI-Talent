@@ -1,3 +1,4 @@
+import { PRIVATE_SEARCH_PATHS, PUBLIC_INDEXING } from "./src/lib/seo";
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
@@ -9,9 +10,14 @@ const nextConfig: NextConfig = {
       { key: "X-Frame-Options", value: "DENY" },
       { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
       { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
-      { key: "X-Robots-Tag", value: "noindex, nofollow" },
       { key: "Content-Security-Policy", value: "frame-ancestors 'none'; object-src 'none'; base-uri 'self'" },
-    ] }];
+    ] }, ...(!PUBLIC_INDEXING ? [{
+      source: "/:path*",
+      headers: [{ key: "X-Robots-Tag", value: "noindex, nofollow" }],
+    }] : PRIVATE_SEARCH_PATHS.map(path => ({
+      source: `${path}/:path*`,
+      headers: [{ key: "X-Robots-Tag", value: "noindex, nofollow" }],
+    })))];
   },
   cacheComponents: true,
   partialPrefetching: true,
