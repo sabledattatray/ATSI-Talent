@@ -39,6 +39,17 @@ const schema = [
   "CREATE INDEX IF NOT EXISTS candidate_session_expiry ON candidate_sessions(expiresAt)",
   "CREATE INDEX IF NOT EXISTS content_visibility ON content(kind,status)",
   "CREATE INDEX IF NOT EXISTS sessions_expiry ON sessions(expiresAt)",
+  "CREATE TABLE IF NOT EXISTS ji_sources (id TEXT PRIMARY KEY,name TEXT NOT NULL,ownerOrg TEXT NOT NULL,homepage TEXT NOT NULL,domainAllowlist TEXT NOT NULL,sourceType TEXT NOT NULL,authBasis TEXT NOT NULL,evidenceRef TEXT NOT NULL,reviewer TEXT NOT NULL,approvedAt TEXT NOT NULL,renewalDate TEXT NOT NULL,status TEXT NOT NULL,autoPublish INTEGER NOT NULL,rateBudget INTEGER NOT NULL,createdAt TEXT NOT NULL,updatedAt TEXT NOT NULL)",
+  "CREATE TABLE IF NOT EXISTS ji_import_batches (id TEXT PRIMARY KEY,initiator TEXT NOT NULL,sourceId TEXT,totalItems INTEGER NOT NULL,processedItems INTEGER NOT NULL,successItems INTEGER NOT NULL,failedItems INTEGER NOT NULL,status TEXT NOT NULL,createdAt TEXT NOT NULL,updatedAt TEXT NOT NULL)",
+  "CREATE TABLE IF NOT EXISTS ji_import_items (id TEXT PRIMARY KEY,batchId TEXT NOT NULL REFERENCES ji_import_batches(id) ON DELETE CASCADE,sourceId TEXT NOT NULL REFERENCES ji_sources(id),sourceUrl TEXT NOT NULL,stage TEXT NOT NULL,jobId TEXT,externalJobId TEXT,extractedData TEXT,verificationScore INTEGER,verificationDetails TEXT,error TEXT,retryCount INTEGER NOT NULL,idempotencyKey TEXT UNIQUE NOT NULL,createdAt TEXT NOT NULL,updatedAt TEXT NOT NULL)",
+  "CREATE TABLE IF NOT EXISTS ji_job_evidence (id TEXT PRIMARY KEY,itemId TEXT NOT NULL REFERENCES ji_import_items(id) ON DELETE CASCADE,field TEXT NOT NULL,extractedValue TEXT NOT NULL,sourceSnippet TEXT NOT NULL,extractionMethod TEXT NOT NULL,confidence REAL NOT NULL,createdAt TEXT NOT NULL)",
+  "CREATE TABLE IF NOT EXISTS ji_duplicates (id TEXT PRIMARY KEY,candidateItemId TEXT NOT NULL REFERENCES ji_import_items(id) ON DELETE CASCADE,existingJobId TEXT NOT NULL,similarityScore REAL NOT NULL,matchReason TEXT NOT NULL,decision TEXT NOT NULL,decidedBy TEXT,createdAt TEXT NOT NULL,updatedAt TEXT NOT NULL)",
+  "CREATE TABLE IF NOT EXISTS ji_audit_events (id TEXT PRIMARY KEY,actor TEXT NOT NULL,action TEXT NOT NULL,targetId TEXT NOT NULL,metadata TEXT NOT NULL,createdAt TEXT NOT NULL)",
+  "CREATE INDEX IF NOT EXISTS ji_item_batch ON ji_import_items(batchId, stage)",
+  "CREATE INDEX IF NOT EXISTS ji_item_source ON ji_import_items(sourceId, stage)",
+  "CREATE INDEX IF NOT EXISTS ji_evidence_item ON ji_job_evidence(itemId, field)",
+  "CREATE INDEX IF NOT EXISTS ji_duplicate_item ON ji_duplicates(candidateItemId)",
+  "CREATE INDEX IF NOT EXISTS ji_audit_time ON ji_audit_events(createdAt DESC)",
 ];
 
 const transactionContext = new AsyncLocalStorage<Transaction>();
