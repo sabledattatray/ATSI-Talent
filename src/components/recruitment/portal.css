@@ -170,6 +170,136 @@
   .talent-modal-grid{grid-template-columns:1fr}
 }
 
+/* Premium Candidate Workspace Header */
+.talent-workspace-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 22px;
+}
+.talent-workspace-user {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  min-width: 0;
+}
+.talent-avatar-wrap {
+  position: relative;
+  display: inline-block;
+  flex-shrink: 0;
+}
+.talent-avatar-img {
+  width: 64px;
+  height: 64px;
+  border-radius: 50% !important;
+  object-fit: cover;
+  border: 3px solid #ffffff;
+  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.18), 0 0 0 1px #e2e8f0;
+  display: block;
+}
+.talent-avatar-fallback {
+  width: 64px;
+  height: 64px;
+  border-radius: 50% !important;
+  background: linear-gradient(135deg, #1d4ed8 0%, #3b82f6 100%);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  font-weight: 750;
+  border: 3px solid #ffffff;
+  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.18), 0 0 0 1px #e2e8f0;
+  letter-spacing: -0.5px;
+}
+.talent-avatar-status {
+  position: absolute;
+  bottom: 2px;
+  right: 2px;
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background: #10b981;
+  border: 2px solid #ffffff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+}
+.talent-workspace-meta {
+  flex: 1;
+  min-width: 0;
+}
+.talent-workspace-badge-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 3px;
+}
+.talent-verified-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10.5px;
+  font-weight: 650;
+  color: #047857;
+  background: #ecfdf5;
+  border: 1px solid #d1fae5;
+  padding: 2px 7px;
+  border-radius: 999px;
+  line-height: 1.2;
+}
+.talent-workspace-title {
+  font-size: 32px !important;
+  font-weight: 750 !important;
+  color: #0f172a !important;
+  letter-spacing: -1px !important;
+  line-height: 1.15 !important;
+  margin: 3px 0 5px !important;
+}
+.talent-workspace-sub {
+  font-size: 13.5px !important;
+  color: #64748b !important;
+  line-height: 1.5 !important;
+  margin: 0 !important;
+  max-width: 560px;
+}
+.talent-workspace-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+.talent-explore-btn {
+  background: #2563eb !important;
+  border-color: #2563eb !important;
+  border-radius: 12px !important;
+  padding: 10px 18px !important;
+  font-size: 13px !important;
+  font-weight: 650 !important;
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.25);
+  transition: all 0.2s ease;
+}
+.talent-explore-btn:hover {
+  background: #1d4ed8 !important;
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.35);
+  transform: translateY(-1px);
+}
+.talent-signout-btn {
+  background: #ffffff !important;
+  color: #475569 !important;
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 12px !important;
+  padding: 10px 16px !important;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  transition: all 0.2s ease;
+}
+.talent-signout-btn:hover {
+  background: #f8fafc !important;
+  color: #0f172a !important;
+  border-color: #cbd5e1 !important;
+}
+
 /* Premium Responsive 4-Metric Stats Grid */
 .talent-stats {
   display: grid;
@@ -554,6 +684,60 @@
   .talent-stat-text-val {
     font-size: 12px !important;
     line-height: 1.25 !important;
+  }
+
+  /* Compact, Premium Workspace Header for Mobile */
+  .talent-workspace-header {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 12px !important;
+    margin-bottom: 12px !important;
+  }
+  .talent-workspace-user {
+    gap: 12px !important;
+    align-items: flex-start !important;
+  }
+  .talent-avatar-img, .talent-avatar-fallback {
+    width: 52px !important;
+    height: 52px !important;
+    font-size: 18px !important;
+    border-width: 2.5px !important;
+  }
+  .talent-avatar-status {
+    width: 11px !important;
+    height: 11px !important;
+    bottom: 1px !important;
+    right: 1px !important;
+  }
+  .talent-workspace-title {
+    font-size: 22px !important;
+    letter-spacing: -0.5px !important;
+    margin: 2px 0 3px !important;
+  }
+  .talent-workspace-sub {
+    font-size: 12px !important;
+    line-height: 1.45 !important;
+  }
+  .talent-workspace-actions {
+    display: flex !important;
+    width: 100% !important;
+    gap: 8px !important;
+    margin-top: 2px !important;
+  }
+  .talent-explore-btn {
+    flex: 1 !important;
+    min-height: 38px !important;
+    font-size: 12px !important;
+    padding: 8px 12px !important;
+    justify-content: center !important;
+    border-radius: 10px !important;
+  }
+  .talent-signout-btn {
+    min-height: 38px !important;
+    font-size: 12px !important;
+    padding: 8px 14px !important;
+    justify-content: center !important;
+    border-radius: 10px !important;
   }
 }
 

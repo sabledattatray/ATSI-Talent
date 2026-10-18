@@ -489,27 +489,35 @@ export function CandidatePortal({ initial, defaultTab }: { initial: Dashboard; d
   return (
     <div className="talent-container">
       {/* Workspace Header */}
-      <div className="talent-page-title">
-        <div style={{ display: "flex", alignItems: "center", gap: 18 }}>
-          {photoUrl ? (
-            <img src={photoUrl} alt={name} style={{ width: 62, height: 62, borderRadius: "20px", objectFit: "cover", boxShadow: "0 6px 18px rgba(37,99,235,0.2)", border: "2px solid #fff", flexShrink: 0 }} />
-          ) : (
-            <div style={{ width: 62, height: 62, borderRadius: "20px", background: "linear-gradient(135deg, #2563eb, #3b82f6)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, fontWeight: 700, flexShrink: 0, boxShadow: "0 6px 18px rgba(37,99,235,0.2)", border: "2px solid #fff" }}>
-              {initials}
+      <div className="talent-workspace-header">
+        <div className="talent-workspace-user">
+          <div className="talent-avatar-wrap">
+            {photoUrl ? (
+              <img src={photoUrl} alt={name} className="talent-avatar-img" />
+            ) : (
+              <div className="talent-avatar-fallback">
+                {initials}
+              </div>
+            )}
+            <span className="talent-avatar-status" title="Active" />
+          </div>
+          <div className="talent-workspace-meta">
+            <div className="talent-workspace-badge-row">
+              <span className="talent-eyebrow">CANDIDATE WORKSPACE</span>
+              <span className="talent-verified-pill">
+                <ShieldCheck size={12} /> Verified Candidate
+              </span>
             </div>
-          )}
-          <div>
-            <span className="talent-eyebrow">CANDIDATE WORKSPACE</span>
-            <h1>Hello, {name.split(" ")[0] || "Candidate"}.</h1>
-            <p>Manage your applications, job shortlist, and your complete verified candidate profile.</p>
+            <h1 className="talent-workspace-title">Hello, {name.split(" ")[0] || "Candidate"}.</h1>
+            <p className="talent-workspace-sub">Manage your applications, job shortlist, and your complete verified candidate profile.</p>
           </div>
         </div>
-        <div className="talent-actions">
-          <Link className="talent-button" href="/jobs">
-            Explore jobs <ArrowRight size={17} />
+        <div className="talent-workspace-actions">
+          <Link className="talent-button talent-explore-btn" href="/jobs">
+            Explore jobs <ArrowRight size={15} />
           </Link>
           <button
-            className="talent-button talent-secondary"
+            className="talent-button talent-secondary talent-signout-btn"
             onClick={async () => {
               try {
                 await api("auth/logout", {});
