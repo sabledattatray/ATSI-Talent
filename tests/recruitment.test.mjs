@@ -6,9 +6,9 @@ import vm from "node:vm";
 import { createRequire } from "node:module";
 import ts from "typescript";
 const nativeRequire=createRequire(import.meta.url);
-function environment(mode="development", Clock=Date) {
+function environment(mode="development", Clock=Date, mail={}) {
   const jar=new Map(),options=new Map(),cache=new Map();
-  const context=vm.createContext({console,Buffer,URL,Request,Response,File,FormData,Date:Clock,setTimeout,clearTimeout,process:{cwd:()=>process.cwd(),env:{NODE_ENV:mode,ATSAI_DATABASE_PATH:":memory:",ATSAI_ADMIN_SETUP_TOKEN:"fixture-owner-setup-secret-at-least-32-characters"}}});
+  const context=vm.createContext({console,Buffer,URL,Request,Response,File,FormData,TextEncoder,ReadableStream,AbortSignal,fetch:mail.fetch||fetch,Date:Clock,setTimeout,clearTimeout,process:{cwd:()=>process.cwd(),env:{NODE_ENV:mode,ATSAI_DATABASE_PATH:":memory:",ATSAI_ADMIN_SETUP_TOKEN:"fixture-owner-setup-secret-at-least-32-characters",...mail.env}}});
   const cookies={get:key=>jar.has(key)?{value:jar.get(key)}:undefined,set:(key,value,config)=>{jar.set(key,value);options.set(key,config);},delete:key=>jar.delete(key)};
   function load(file) {
     const full=path.resolve(file);if(cache.has(full))return cache.get(full).exports;
@@ -31,7 +31,7 @@ function environment(mode="development", Clock=Date) {
   }
   async function callATS(route,body,method=body===undefined?"GET":"POST",origin="https://atsai.test") {
     const request=new Request(`https://atsai.test/api/ats/${route}`,{method,headers:{origin,"content-type":"application/json"},body:method==="GET"?undefined:JSON.stringify(body)});
-    return load("src/lib/ats.ts").atsRequest(request,route);
+    return load("src/lib/ats.ts").atsRequest(request,route.split("?")[0]);
   }
   return {load,call,callATS,callFormData,owner,jar,options};
 }
@@ -499,4 +499,94 @@ test("listed skill matching does not confuse substrings, languages or duplicate 
   assert.equal(aliases.required.length,3);assert.equal(aliases.matched.length,3);assert.equal(aliases.score,100);
   const partial=matchSkills("React, React Native", "React");assert.equal(partial.score,50);
   assert.equal(matchSkills("", "Python").score,0);
+});
+
+
+async function appliedFixture(e){
+  await e.callATS("auth/signup",companyOwner);await e.callATS("jobs/save",globalJob);
+  const role=(await(await e.callATS("workspace")).json()).jobs[0];
+  await e.call("auth/signup",person);await e.call("apply",{jobId:role.id,consent:true});
+  return (await(await e.callATS("workspace")).json()).applications[0];
+}
+test("staff decisions queue public updates atomically, protect versions and support completed interviews and selection",async()=>{
+ const e=environment();let app=await appliedFixture(e);const sql=e.load("src/lib/admin/db.ts").db();
+ const queue=()=>sql.prepare("SELECT * FROM ats_notifications ORDER BY createdAt").all();
+ assert.equal((await queue()).length,1);assert.equal((await queue())[0].status,"blocked");
+ await e.callATS("applications/note",{id:app.id,message:"PRIVATE_ASSESSMENT"});assert.equal((await queue()).length,1);
+ assert.equal((await e.callATS("applications/stage",{id:app.id,status:"review"})).status,400);
+ await e.owner();
+ for(const stage of ["review","shortlisted","interview","interviewed","selected","offer","hired"]){
+   const old=app.updatedAt;
+   const response=await e.call("admin/status",{kind:"application",id:app.id,status:stage,updatedAt:old,message:`Public ${stage} update <script>unsafe</script>`});
+   assert.equal(response.status,200,await response.text());
+   app=(await(await e.callATS("workspace")).json()).applications[0];assert.notEqual(app.updatedAt,old);
+   const candidate=await(await e.call("tracking?id="+app.id)).json();assert.equal(candidate.status,stage);
+   assert.equal((await e.callATS("applications/stage",{id:app.id,status:stage,updatedAt:old})).status,409);
+ }
+ const notifications=await queue();assert.equal(notifications.length,8);
+ assert.ok(!JSON.stringify(notifications).includes("PRIVATE_ASSESSMENT"));
+ assert.ok(notifications.some(n=>n.html.includes("&lt;script&gt;")));assert.ok(!notifications.some(n=>n.html.includes("<script>")));
+ assert.equal((await e.call("admin/status",{kind:"application",id:app.id,status:"rejected",updatedAt:app.updatedAt})).status,409);
+ const ownerMail=await(await e.call("admin/notifications?applicationId="+app.id)).json();assert.equal(ownerMail.notifications.length,8);assert.equal(ownerMail.configuration.configured,false);
+ const candidateCookie=e.jar.get("atsai_candidate_session");e.jar.delete("atsai_admin_session");e.jar.delete("atsai_employer_session");
+ assert.equal((await e.callATS("notifications?applicationId="+app.id)).status,401);assert.equal((await e.call("admin/notifications?applicationId="+app.id)).status,401);
+ e.jar.set("atsai_candidate_session",candidateCookie);
+});
+
+test("interview scheduling advances the candidate, same-stage messages notify once, and other companies cannot inspect mail",async()=>{
+ const e=environment();let app=await appliedFixture(e);
+ await e.callATS("interviews/save",{applicationId:app.id,title:"QA interview",startsAt:new Date(Date.now()+86400000).toISOString(),timeZone:"Europe/London",location:"https://meet.example.test/qa"});
+ assert.equal((await(await e.call("tracking?id="+app.id)).json()).status,"interview");
+ app=(await(await e.callATS("workspace")).json()).applications[0];
+ const count=async()=>((await(await e.callATS("notifications?applicationId="+app.id)).json()).notifications).length;
+ const before=await count();
+ assert.equal((await e.callATS("applications/stage",{id:app.id,status:app.status,updatedAt:app.updatedAt})).status,200);assert.equal(await count(),before);
+ assert.equal((await e.callATS("applications/stage",{id:app.id,status:app.status,updatedAt:app.updatedAt,message:"Thank you for joining us."})).status,200);assert.equal(await count(),before+1);
+ const mail=(await(await e.callATS("notifications?applicationId="+app.id)).json()).notifications[0];
+ await e.callATS("auth/signup",{...companyOwner,email:"separate@example.test",company:"Other Company"});
+ assert.equal((await e.callATS("notifications?applicationId="+app.id)).status,404);
+ assert.equal((await e.callATS("notifications/retry",{applicationId:app.id,id:mail.id})).status,404);
+});
+
+test("Resend outbox uses immutable payloads and stable keys, retries failures and never reports unconfirmed delivery",async()=>{
+ const requests=[];let failure=true;
+ const e=environment("development",Date,{env:{RESEND_API_KEY:"re_fixture",ATSAI_EMAIL_FROM:"QA <updates@example.test>"},fetch:async(url,options)=>{requests.push({url,options});return failure?new Response("temporary failure",{status:503}):Response.json({id:"resend-fixture-id"});}});
+ const app=await appliedFixture(e);const mail=e.load("src/lib/notifications.ts");const sql=e.load("src/lib/admin/db.ts").db();
+ const first=await mail.drainEmailOutbox();assert.equal(first.accepted,0);assert.equal(first.processed,1);
+ let row=await sql.prepare("SELECT * FROM ats_notifications").get();assert.equal(row.status,"failed");assert.equal(row.attempts,1);assert.equal(row.sentAt,null);assert.ok(row.nextAttemptAt>Date.now());
+ assert.equal((await mail.drainEmailOutbox()).processed,0);
+ await mail.retryApplicationEmail(row.id,app.id);failure=false;
+ const second=await mail.drainEmailOutbox();assert.equal(second.accepted,1);
+ row=await sql.prepare("SELECT * FROM ats_notifications").get();assert.equal(row.status,"sent");assert.equal(row.providerId,"resend-fixture-id");assert.ok(row.sentAt);
+ assert.equal(requests[0].url,"https://api.resend.com/emails");assert.equal(requests[0].options.headers["Idempotency-Key"],requests[1].options.headers["Idempotency-Key"]);
+ assert.equal(requests[0].options.body,requests[1].options.body);assert.equal(JSON.parse(requests[0].options.body).to[0],person.email);
+ await assert.rejects(()=>mail.retryApplicationEmail(row.id,app.id));assert.equal((await mail.drainEmailOutbox()).processed,0);
+ await mail.queueApplicationEmail(row.eventId,app.id,"submitted","duplicate event");assert.equal((await sql.prepare("SELECT COUNT(*) AS count FROM ats_notifications").get()).count,1);
+});
+
+test("outbox remains blocked without credentials, recovers abandoned leases and rolls back public events on failure",async()=>{
+ const e=environment();const app=await appliedFixture(e);const mail=e.load("src/lib/notifications.ts");const sql=e.load("src/lib/admin/db.ts").db();
+ assert.equal((await mail.drainEmailOutbox()).configured,false);const row=await sql.prepare("SELECT * FROM ats_notifications").get();
+ await assert.rejects(()=>mail.retryApplicationEmail(row.id,app.id));assert.equal(row.sentAt,null);
+ const before=await sql.prepare("SELECT COUNT(*) AS count FROM ats_events").get();
+ await assert.rejects(()=>e.load("src/lib/admin/db.ts").transaction(async()=>{await e.load("src/lib/application-workflow.ts").recordApplicationEvent(app.id,"message",app.status,"Rolled back message","candidate","fixture");throw Error("rollback fixture");}));
+ assert.equal((await sql.prepare("SELECT COUNT(*) AS count FROM ats_events").get()).count,before.count);assert.equal((await sql.prepare("SELECT COUNT(*) AS count FROM ats_notifications").get()).count,1);
+ const configured=environment("development",Date,{env:{RESEND_API_KEY:"re_fixture",ATSAI_EMAIL_FROM:"QA <updates@example.test>"},fetch:async()=>Response.json({id:"recovered"})});
+ await appliedFixture(configured);const db=configured.load("src/lib/admin/db.ts").db();
+ await db.prepare("UPDATE ats_notifications SET status='sending',attempts=5,leaseUntil=0").run();
+ await configured.load("src/lib/notifications.ts").drainEmailOutbox();assert.equal((await db.prepare("SELECT status FROM ats_notifications").get()).status,"failed");
+ await db.prepare("UPDATE ats_notifications SET status='sending',attempts=1,leaseUntil=0").run();
+ assert.equal((await configured.load("src/lib/notifications.ts").drainEmailOutbox()).accepted,1);
+});
+
+test("authenticated live streams report revisions after staff decisions and close when candidate access is revoked",async()=>{
+ const e=environment();const open=e.load("src/lib/live-tracking.ts").openApplicationStream;
+ assert.equal((await open(new Request("https://atsai.test/api/recruitment/updates"),"candidate")).status,401);
+ const app=await appliedFixture(e);const response=await open(new Request("https://atsai.test/api/recruitment/updates"),"candidate");assert.equal(response.headers.get("content-type"),"text/event-stream");
+ const reader=response.body.getReader();const decoder=new TextDecoder();assert.match(decoder.decode((await reader.read()).value),/retry:/);
+ const initial=decoder.decode((await reader.read()).value);assert.match(initial,/event: updates/);assert.ok(!initial.includes(person.email));assert.ok(!initial.includes(app.id));
+ await e.callATS("applications/stage",{id:app.id,status:"selected",updatedAt:app.updatedAt});
+ const changed=decoder.decode((await reader.read()).value);assert.match(changed,/event: updates/);assert.notEqual(changed,initial);
+ await e.call("auth/logout",{});assert.equal((await reader.read()).done,true);await reader.cancel();
+ const employer=await open(new Request("https://atsai.test/api/ats/updates"),"employer");const employerReader=employer.body.getReader();await employerReader.read();await employerReader.cancel();
 });

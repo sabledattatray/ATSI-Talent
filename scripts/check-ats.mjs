@@ -24,7 +24,7 @@ assert.equal((await employer(parsed.resumeUrl)).status,200);
 await result(await employer("/api/ats/applications/note",{id:a.id,message:"INTERNAL NOTE MUST NEVER BE VISIBLE TO CANDIDATE"}),201);
 await result(await employer("/api/ats/applications/stage",{id:a.id,updatedAt:a.updatedAt,status:"review",message:"Your application is under review."}));
 await result(await employer("/api/ats/interviews/save",{applicationId:a.id,title:"Nursing team interview",startsAt:new Date(Date.now()+86400000).toISOString(),timeZone:"Europe/London",location:"https://meeting.example.test/qa"}),201);
-const tracking=await result(await candidate(`/api/recruitment/tracking?id=${a.id}`));assert.equal(tracking.status,"review");assert.equal(tracking.interviews.length,1);assert.ok(!JSON.stringify(tracking).includes("INTERNAL NOTE"));
+const tracking=await result(await candidate(`/api/recruitment/tracking?id=${a.id}`));assert.equal(tracking.status,"interview");assert.equal(tracking.interviews.length,1);assert.ok(!JSON.stringify(tracking).includes("INTERNAL NOTE"));
 await result(await outsider("/api/ats/auth/signup",{...owner,email:`qa-outsider-${seed}@example.test`,company:"QA Other Company"}),201);
 assert.equal((await result(await outsider("/api/ats/workspace"))).applications.length,0);assert.equal((await outsider(parsed.resumeUrl)).status,404);assert.equal((await outsider("/api/ats/applications/note",{id:a.id,message:"Unauthorized"})).status,404);
 await result(await employer("/api/ats/interviews/cancel",{id:tracking.interviews[0].id}));

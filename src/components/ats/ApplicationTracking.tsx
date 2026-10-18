@@ -21,6 +21,7 @@ import {
   AlertCircle,
 } from "lucide-react";
 import "./ats.css";
+import { subscribeToApplicationUpdates } from "@/lib/application-live";
 
 type Tracking = {
   status: Stage;
@@ -33,6 +34,8 @@ const PIPELINE_STAGES: { key: Stage; label: string; hint: string }[] = [
   { key: "review", label: "In Review", hint: "Recruiter screening" },
   { key: "shortlisted", label: "Shortlisted", hint: "Hiring team queue" },
   { key: "interview", label: "Interview", hint: "Interview stage" },
+  { key: "interviewed", label: "Interviewed", hint: "Interview completed" },
+  { key: "selected", label: "Selected", hint: "Selected for next steps" },
   { key: "offer", label: "Offer", hint: "Offer stage" },
   { key: "hired", label: "Hired", hint: "Hiring decision recorded" },
 ];
@@ -42,6 +45,8 @@ const STAGE_DESCRIPTIONS: Record<Stage, string> = {
   review: "The hiring team marked your application as in review.",
   shortlisted: "The hiring team shortlisted your application. Interview details will appear below when scheduled.",
   interview: "Your application is at the interview stage. Review any scheduled appointments below.",
+  interviewed: "The hiring team recorded your interview as completed. Updates on their decision will appear here.",
+  selected: "The hiring team selected your application. Review their message for the next steps.",
   offer: "The hiring team moved your application to the offer stage. Refer to their messages for the actual offer details.",
   hired: "The hiring team marked your application as hired. Contact them for your start date and onboarding steps.",
   rejected: "The hiring team marked this application as not selected. You can still apply for other published opportunities.",
@@ -54,6 +59,7 @@ export function ApplicationTracking({ id }: { id: string }) {
   const data = snapshot?.id === id ? snapshot.tracking : null;
   const error = failure?.id === id ? failure.message : "";
   const [refreshing, setRefreshing] = useState(false);
+  const [connected, setConnected] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const [lastSynced, setLastSynced] = useState<string>("");
 
@@ -84,12 +90,14 @@ export function ApplicationTracking({ id }: { id: string }) {
 
   useEffect(() => {
     void load();
+    const unsubscribe = subscribeToApplicationUpdates("candidate", () => { void load(); }, setConnected);
     const timer = setInterval(() => {
       if (document.visibilityState === "visible") void load();
     }, 12000);
     return () => {
       request.current?.controller.abort();
       clearInterval(timer);
+      unsubscribe();
     };
   }, [load]);
 
@@ -127,7 +135,7 @@ export function ApplicationTracking({ id }: { id: string }) {
           </span>
           <span className="ats-tracker-live-pill">
             <span className="ats-tracker-pulse-dot" />
-            Live ATS Sync
+            {connected ? "Live updates" : "Auto refresh"}
           </span>
           {lastSynced && (
             <span style={{ fontSize: "10px", color: "#94a3b8" }}>
@@ -163,7 +171,7 @@ export function ApplicationTracking({ id }: { id: string }) {
         <div className="ats-stepper-wrap">
           <div className="ats-stepper-track">
             {PIPELINE_STAGES.map((s, idx) => {
-              const isCompleted = currentStageIndex > idx;
+              const isCompleted = currentStageIndex > idx && data.events.some(event => event.stage === s.key);
               const isCurrent = currentStageIndex === idx;
               return (
                 <div

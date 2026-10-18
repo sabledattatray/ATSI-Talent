@@ -1,5 +1,9 @@
 "use client";
 import { ResumeLibrary } from "@/components/ats/ResumeLibrary";
+import { ApplicationStatusEditor } from "@/components/ats/ApplicationStatusEditor";
+import { EmailDelivery } from "@/components/ats/EmailDelivery";
+import { STAGE_LABELS, type Stage } from "@/lib/ats-types";
+import { subscribeToApplicationUpdates } from "@/lib/application-live";
 import { ApplicationTracking } from "@/components/ats/ApplicationTracking";
 import { mergeResumeProfile } from "@/lib/resumeMerge";
 /* eslint-disable @next/next/no-img-element -- Uploaded candidate profile photos use native images. */
@@ -102,8 +106,9 @@ export function CandidatePortal({ initial, defaultTab }: { initial: Dashboard; d
     if (tab !== "applications") return;
     let active = true;
     const sync = () => { if (!busy && document.visibilityState === "visible") void api("dashboard").then(fresh => { if (active) setData(fresh); }).catch(() => {}); };
+    const unsubscribe = subscribeToApplicationUpdates("candidate", sync);
     const timer = setInterval(sync, 15000); window.addEventListener("focus", sync);
-    return () => { active = false; clearInterval(timer); window.removeEventListener("focus", sync); };
+    return () => { active = false; unsubscribe(); clearInterval(timer); window.removeEventListener("focus", sync); };
   }, [tab, busy]);
 
   // Complete profile state
@@ -1801,13 +1806,14 @@ export function RecruiterLookup() {
 
 type Inbox = { inquiries: Inquiry[]; applications: (Application & { name: string; email: string })[]; candidates: (Omit<Candidate, "profile"> & { profile: string })[]; recruiters: Recruiter[] };
 export function RecruitmentInbox() {
-  const [data, setData] = useState<Inbox | null>(null); const [tab, setTab] = useState("inquiries"); const [error, setError] = useState(""); const [busy, setBusy] = useState(false);
+  const [data, setData] = useState<Inbox | null>(null); const [tab, setTab] = useState("applications"); const [error, setError] = useState(""); const [busy, setBusy] = useState(false);
   useEffect(() => { let active = true; api("admin").then(result => { if (active) setData(result); }).catch(error => { if (active) setError(error.message); }); return () => { active = false; }; }, []);
   async function update(path: string, body: unknown) { setBusy(true); setError(""); try { await api(`admin/${path}`, body); setData(await api("admin")); } catch (error) { setError((error as Error).message); } finally { setBusy(false); } }
   function status(id: string, kind: "inquiry" | "application", value: string) { return <select aria-label={`Status for ${id}`} disabled={busy || value === "withdrawn"} value={value} onChange={event => void update("status", { id, kind, status: event.target.value })}>{(kind === "inquiry" ? ["new", "in-progress", "resolved"] : ["submitted", "review", "shortlisted", "interview", "offer", "hired", "rejected", ...(value === "withdrawn" ? ["withdrawn"] : [])]).map(state => <option key={state} value={state}>{label(state)}</option>)}</select>; }
   return (
     <section className="talent-card">
-      <div className="talent-tabs">{["inquiries", "applications", "candidates", "recruiters"].map(key => <button key={key} className={tab === key ? "active" : ""} onClick={() => setTab(key)}>{label(key)} {data ? `(${data[key as keyof Inbox].length})` : ""}</button>)}</div>
+      <p>Manage candidate stages in Applications below. Company owners and recruiters can also update their applicants in the employer Hiring pipeline. Each public update appears in the candidate timeline and is queued for email.</p>
+      <div className="talent-tabs">{["applications", "inquiries", "candidates", "recruiters"].map(key => <button key={key} className={tab === key ? "active" : ""} onClick={() => setTab(key)}>{label(key)} {data ? `(${data[key as keyof Inbox].length})` : ""}</button>)}</div>
       <Notice error={error} />
       {!data && !error && <p>Loading recruitment inbox…</p>}
       {data && (
@@ -1851,7 +1857,7 @@ export function RecruitmentInbox() {
                         {p.headline && <p style={{ fontWeight: 600, color: "#2563eb", margin: "2px 0 4px" }}>{p.headline}</p>}
                         <p><a href={`mailto:${item.email}`}>{item.email}</a> · {date(item.createdAt)}</p>
                       </div>
-                      {status(item.id, "application", item.status)}
+                      <span className="ats-badge">{STAGE_LABELS[item.status as Stage] || item.status}</span>
                     </header>
                     <p style={{ margin: "6px 0" }}>
                       {p.location ? `${p.location} · ` : ""}{p.experience ?? 0} years experience · {p.skills}
@@ -1870,6 +1876,8 @@ export function RecruitmentInbox() {
                       </div>
                     )}
                     {document.coverLetter && <p className="talent-preserve">{document.coverLetter}</p>}
+                    <ApplicationStatusEditor application={item} scope="admin" onUpdated={async () => setData(await api("admin"))}/>
+                    <EmailDelivery key={item.updatedAt} applicationId={item.id} scope="admin"/>
                   </article>
                 );
               })}

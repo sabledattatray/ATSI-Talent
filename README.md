@@ -43,6 +43,6 @@ Existing Turso credentials and the exact production trusted origin remain requir
 
 ### External services
 
-Automatic email, email verification/password recovery, external calendar/video integrations, SSO/MFA and e-signing are not configured. Candidate updates and interview scheduling work within the application. Companies publish their own opportunities; no global job-feed subscription is bundled. Consult docs/ATS.md for remaining operational and scale considerations.
+Candidate status and interview updates use a durable Resend email queue with delivery controls. Configure the verified sender, server credentials and retry scheduler as described in [docs/NOTIFICATIONS.md](docs/NOTIFICATIONS.md). Candidate dashboards receive live updates with polling fallback. Email verification/password recovery, external calendar/video integrations, SSO/MFA and e-signing are not configured. Companies publish their own opportunities; no global job-feed subscription is bundled. Consult docs/ATS.md for remaining operational and scale considerations.
 
 Created by [Datta Sable](https://dattasable.com). [MIT license](LICENSE).

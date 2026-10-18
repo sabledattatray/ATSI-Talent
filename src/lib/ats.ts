@@ -1,4 +1,6 @@
 import "server-only";
+import { changeApplicationStage, recordApplicationEvent } from "@/lib/application-workflow";
+import { applicationMailStatus, emailConfiguration, retryApplicationEmail } from "@/lib/notifications";
 import { isCountryCode } from "@/lib/countries";
 import { candidateUser } from "@/lib/recruitment";
 import { randomBytes, randomUUID } from "node:crypto";
@@ -24,7 +26,8 @@ async function requireEmployer(owner=false){const user=await employerUser();if(!
 async function session(userId:string){const token=randomBytes(32).toString("hex");const expiresAt=Date.now()+8*60*60*1000;await db().prepare("DELETE FROM ats_sessions WHERE expiresAt<?").run(Date.now());await db().prepare("INSERT INTO ats_sessions VALUES (?,?,?)").run(tokenHash(token),userId,expiresAt);(await cookies()).set(COOKIE,token,{httpOnly:true,sameSite:"strict",secure:process.env.NODE_ENV==="production",path:"/",expires:new Date(expiresAt)});}
 async function ownedJob(id:string,organizationId:string){const row=await db().prepare("SELECT c.document FROM content c JOIN ats_jobs j ON j.jobId=c.id WHERE c.id=? AND j.organizationId=? AND c.kind='job'").get(id,organizationId) as {document:string}|undefined;if(!row)fail("This job is unavailable in your workspace.",404);return JSON.parse(row.document) as ContentRecord;}
 async function ownedApplication(id:string,organizationId:string){const row=await db().prepare("SELECT a.* FROM candidate_applications a JOIN ats_jobs j ON j.jobId=a.jobId WHERE a.id=? AND j.organizationId=?").get(id,organizationId) as Applicant|undefined;if(!row)fail("This application is unavailable in your workspace.",404);return row;}
-async function event(applicationId:string,kind:string,stage:string,message:string,visibility:"candidate"|"team",actor:string){await db().prepare("INSERT INTO ats_events VALUES (?,?,?,?,?,?,?,?)").run(randomUUID(),applicationId,kind,stage,message,visibility,actor,new Date().toISOString());}
+const event = recordApplicationEvent;
+
 export async function employerWorkspace(user:Employer):Promise<EmployerWorkspace>{
   const org=user.organizationId;
   const [rows,applications,events,interviews,team]=await Promise.all([
@@ -55,6 +58,9 @@ export async function atsRequest(request:Request,route:string):Promise<Response>
         return new Response(new Uint8Array(row.bytes),{headers:{"Content-Type":row.type,"Content-Disposition":`attachment; filename="resume-${id}.${row.name.split('.').at(-1)}"; filename*=UTF-8''${encodeURIComponent(row.name)}`,"Cache-Control":"private, no-store","X-Content-Type-Options":"nosniff"}});
       }
 
+      if(route==="notifications"){
+        const user=await requireEmployer();const id=new URL(request.url).searchParams.get("applicationId")||"";await ownedApplication(id,user.organizationId);return json({configuration:emailConfiguration(),notifications:await applicationMailStatus(id)});
+      }
       if(route==="me")return json({user:await employerUser()});
       if(route==="workspace")return json(await employerWorkspace(await requireEmployer()));
       return json({error:"Not found."},404);
@@ -110,16 +116,11 @@ export async function atsRequest(request:Request,route:string):Promise<Response>
     if(route==="applications/stage"){
       const value=z.object({id:text(80),status:z.enum(STAGES),updatedAt:text(40).min(1),message:text(2000).default("")}).parse(body);
       if(value.status==="withdrawn")fail("Only the candidate can withdraw an application.");
-      await transaction(async()=>{
-        const app=await ownedApplication(value.id,user.organizationId);
-        if(["withdrawn","hired","rejected"].includes(app.status))fail("This application is closed and cannot be advanced.",409);
-        if(app.updatedAt!==value.updatedAt)fail("Another team member updated this application. Refresh and try again.",409);
-        if(app.status===value.status)return;
-        const rank=STAGES.indexOf(value.status),old=STAGES.indexOf(app.status);
-        if(value.status!=="rejected" && rank<=old)fail("Choose a later stage or reject the application.",409);
-        const now=new Date(Math.max(Date.now(),Date.parse(app.updatedAt)+1)).toISOString();const changed=await db().prepare("UPDATE candidate_applications SET status=?,updatedAt=? WHERE id=? AND updatedAt=? AND status=?").run(value.status,now,app.id,value.updatedAt,app.status);if(!changed.changes)fail("Application changed. Please refresh.",409);
-        await event(app.id,"stage",value.status,value.message||`Application moved to ${value.status}.`,"candidate",user.email);await audit(user.email,"Application stage updated",`${app.id}: ${app.status} → ${value.status}`);
-      });return json({ok:true});
+      await changeApplicationStage({...value,actor:user.email,organizationId:user.organizationId});
+      return json({ok:true});
+    }
+    if(route==="notifications/retry"){
+      const value=z.object({id:text(80),applicationId:text(80)}).parse(body);await ownedApplication(value.applicationId,user.organizationId);await retryApplicationEmail(value.id,value.applicationId);return json({ok:true});
     }
     if(route==="applications/note"){
       const value=z.object({id:text(80),message:text(4000).min(1)}).parse(body);const app=await ownedApplication(value.id,user.organizationId);await event(app.id,"note",app.status,value.message,"team",user.email);return json({ok:true},201);
@@ -128,7 +129,7 @@ export async function atsRequest(request:Request,route:string):Promise<Response>
       const value=z.object({applicationId:text(80),title:text(160).min(3),startsAt:z.iso.datetime({offset:true}),timeZone:text(80).min(1),location:text(1500).min(2)}).parse(body);
       if(Date.parse(value.startsAt)<=Date.now())fail("Choose a future interview time.");try{new Intl.DateTimeFormat("en",{timeZone:value.timeZone});}catch{fail("Choose a valid IANA time zone, such as Europe/London.");}
       if(/^https?:/i.test(value.location)&&!/^https:\/\/[^\s]+$/.test(value.location))fail("Use an HTTPS meeting link or a plain-text location.");
-      await transaction(async()=>{const app=await ownedApplication(value.applicationId,user.organizationId);if(["withdrawn","hired","rejected"].includes(app.status))fail("Interviews cannot be scheduled for closed applications.",409);const now=new Date().toISOString();await db().prepare("INSERT INTO ats_interviews VALUES (?,?,?,?,?,?,?,?,?)").run(randomUUID(),app.id,user.organizationId,value.title,value.startsAt,value.timeZone,value.location,"scheduled",now);await event(app.id,"interview",app.status,`${value.title} scheduled for ${value.startsAt} (${value.timeZone}).`,"candidate",user.email);await audit(user.email,"Interview scheduled",app.id);});return json({ok:true},201);
+      await transaction(async()=>{const app=await ownedApplication(value.applicationId,user.organizationId);if(["withdrawn","hired","rejected"].includes(app.status))fail("Interviews cannot be scheduled for closed applications.",409);const now=new Date().toISOString();await db().prepare("INSERT INTO ats_interviews VALUES (?,?,?,?,?,?,?,?,?)").run(randomUUID(),app.id,user.organizationId,value.title,value.startsAt,value.timeZone,value.location,"scheduled",now);if(STAGES.indexOf(app.status)<STAGES.indexOf("interview")){const updatedAt=new Date(Math.max(Date.now(),Date.parse(app.updatedAt)+1)).toISOString();await db().prepare("UPDATE candidate_applications SET status='interview',updatedAt=? WHERE id=?").run(updatedAt,app.id);app.status="interview";}await event(app.id,"interview",app.status,`${value.title} scheduled for ${value.startsAt} (${value.timeZone}).`,"candidate",user.email);await audit(user.email,"Interview scheduled",app.id);});return json({ok:true},201);
     }
     if(route==="interviews/cancel"){
       const value=z.object({id:text(80)}).parse(body);await transaction(async()=>{const row=await db().prepare("SELECT applicationId,title FROM ats_interviews WHERE id=? AND organizationId=? AND status='scheduled'").get(value.id,user.organizationId) as {applicationId:string;title:string}|undefined;if(!row)fail("Interview is unavailable.",404);const app=await ownedApplication(row.applicationId,user.organizationId);await db().prepare("UPDATE ats_interviews SET status='cancelled' WHERE id=? AND organizationId=?").run(value.id,user.organizationId);await event(app.id,"interview",app.status,`${row.title} was cancelled.`,"candidate",user.email);});return json({ok:true});

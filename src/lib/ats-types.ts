@@ -1,8 +1,8 @@
 import type { ContentRecord } from "@/lib/admin/types";
 import type { CandidateProfile } from "@/lib/recruitment";
-export const STAGES = ["submitted", "review", "shortlisted", "interview", "offer", "hired", "rejected", "withdrawn"] as const;
+export const STAGES = ["submitted", "review", "shortlisted", "interview", "interviewed", "selected", "offer", "hired", "rejected", "withdrawn"] as const;
 export type Stage = typeof STAGES[number];
-export const STAGE_LABELS: Record<Stage,string> = { submitted:"Applied",review:"In review",shortlisted:"Shortlisted",interview:"Interview",offer:"Offer",hired:"Hired",rejected:"Not selected",withdrawn:"Withdrawn" };
+export const STAGE_LABELS: Record<Stage,string> = { submitted:"Applied",review:"In review",shortlisted:"Shortlisted",interview:"Interview scheduled",interviewed:"Interview completed",selected:"Selected",offer:"Offer",hired:"Hired",rejected:"Not selected",withdrawn:"Withdrawn" };
 export type Employer = { id:string; organizationId:string; name:string; email:string; role:"owner"|"recruiter"; company:string; country:string; website:string };
 export type TrackingEvent = { id:string; applicationId:string; kind:string; stage:string; message:string; createdAt:string };
 export type Interview = { id:string; applicationId:string; title:string; startsAt:string; timeZone:string; location:string; status:string; createdAt:string };

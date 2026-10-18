@@ -1,4 +1,7 @@
 import "server-only";
+import { changeApplicationStage, recordApplicationEvent } from "@/lib/application-workflow";
+import { applicationMailStatus, emailConfiguration, retryApplicationEmail } from "@/lib/notifications";
+import { STAGES } from "@/lib/ats-types";
 import { storeCandidateResume } from "@/lib/resume-storage";
 import { randomBytes, randomUUID } from "node:crypto";
 import { cookies } from "next/headers";
@@ -82,6 +85,11 @@ export async function recruitmentRequest(request: Request, route: string): Promi
         const events = await db().prepare("SELECT id,applicationId,kind,stage,message,createdAt FROM ats_events WHERE applicationId=? AND visibility='candidate' ORDER BY createdAt DESC").all(id);
         const interviews = await db().prepare("SELECT id,applicationId,title,startsAt,timeZone,location,status,createdAt FROM ats_interviews WHERE applicationId=? ORDER BY startsAt").all(id);
         return result({ status: app.status, events, interviews });
+      }
+      if (route === "admin/notifications") {
+        await requireUser(true);const id=new URL(request.url).searchParams.get("applicationId")||"";
+        const exists=await db().prepare("SELECT id FROM candidate_applications WHERE id=?").get(id);if(!exists)return result({error:"Application not found."},404);
+        return result({configuration:emailConfiguration(),notifications:await applicationMailStatus(id)});
       }
       if (route === "me") return result({ user: await candidateUser() });
       if (route === "dashboard") return result(await candidateDashboard(await requireCandidate()));
@@ -206,18 +214,20 @@ export async function recruitmentRequest(request: Request, route: string): Promi
     }
     if (route.startsWith("admin/")) {
       const owner = await requireUser(true);
+      if (route === "admin/notifications/retry") {
+        const value=z.object({id:text(80),applicationId:text(80)}).parse(body);
+        await retryApplicationEmail(value.id,value.applicationId);return result({ok:true});
+      }
       if (route === "admin/status") {
-        const value = z.object({ id: text(80).min(1), kind: z.enum(["inquiry", "application"]), status: z.string() }).parse(body);
-        const states = value.kind === "inquiry" ? ["new", "in-progress", "resolved"] : ["submitted", "review", "shortlisted", "interview", "offer", "hired", "rejected"];
-        if (!states.includes(value.status)) return result({ error: "Choose a valid status." }, 400);
-        await transaction(async () => {
-          const table = value.kind === "inquiry" ? "public_inquiries" : "candidate_applications";
-          const changed = await db().prepare(`UPDATE ${table} SET status=?,updatedAt=? WHERE id=?${value.kind === "application" ? " AND status!='withdrawn'" : ""}`).run(value.status, new Date().toISOString(), value.id);
-          if (!changed.changes) throw Object.assign(new Error("This record is unavailable or has been withdrawn."), { status: 409 });
-          if (value.kind === "application") await db().prepare("INSERT INTO ats_events VALUES (?,?,?,?,?,?,?,?)").run(randomUUID(), value.id, "stage", value.status, `Application moved to ${value.status}.`, "candidate", owner.email, new Date().toISOString());
-          await audit(owner.email, "Recruitment status updated", `${value.kind} ${value.id}: ${value.status}`);
-        });
-        return result({ ok: true });
+        const value=z.object({id:text(80).min(1),kind:z.enum(["inquiry","application"]),status:z.string(),updatedAt:text(40).optional(),message:text(2000).default("")}).parse(body);
+        if(value.kind==="application"){
+          if(!STAGES.includes(value.status as typeof STAGES[number]))return result({error:"Choose a valid status."},400);
+          await changeApplicationStage({id:value.id,status:value.status as typeof STAGES[number],updatedAt:value.updatedAt,message:value.message,actor:owner.email});
+        }else{
+          if(!["new","in-progress","resolved"].includes(value.status))return result({error:"Choose a valid status."},400);
+          await transaction(async()=>{const changed=await db().prepare("UPDATE public_inquiries SET status=?,updatedAt=? WHERE id=?").run(value.status,new Date().toISOString(),value.id);if(!changed.changes)throw Object.assign(new Error("Request not found."),{status:404});await audit(owner.email,"Recruitment request updated",value.id);});
+        }
+        return result({ok:true});
       }
       if (route === "admin/recruiter") {
         const value = z.object({ name: text(80).min(2), email, title: text(120).min(2) }).parse(body);
@@ -274,7 +284,7 @@ export async function recruitmentRequest(request: Request, route: string): Promi
         await limit(`candidate-apply:${user.id}`, 25);
         const id = randomUUID(); const now = new Date().toISOString();
         await db().prepare("INSERT INTO candidate_applications VALUES (?,?,?,?,?,?,?,?,?)").run(id, user.id, job.id, job.title, job.company, "submitted", JSON.stringify({ profile: user.profile, name: user.name, email: user.email, coverLetter: value.coverLetter, consentAt: now }), now, now);
-        await db().prepare("INSERT INTO ats_events VALUES (?,?,?,?,?,?,?,?)").run(randomUUID(), id, "submitted", "submitted", "Your application was received.", "candidate", user.id, now);
+        await recordApplicationEvent(id,"submitted","submitted","Your application was received.","candidate",user.id);
         return result({ ok: true, reference: `APP-${id.slice(0,8).toUpperCase()}` }, 201);
       });
     }
@@ -284,7 +294,7 @@ export async function recruitmentRequest(request: Request, route: string): Promi
         const now = new Date().toISOString();
         const changed = await db().prepare("UPDATE candidate_applications SET status='withdrawn',updatedAt=? WHERE id=? AND candidateId=? AND status NOT IN ('hired','rejected','withdrawn')").run(now, value.id, user.id);
         if (!changed.changes) return result({ error: "This application cannot be withdrawn." }, 409);
-        await db().prepare("INSERT INTO ats_events VALUES (?,?,?,?,?,?,?,?)").run(randomUUID(), value.id, "withdrawn", "withdrawn", "You withdrew this application.", "candidate", user.id, now);
+        await recordApplicationEvent(value.id,"withdrawn","withdrawn","You withdrew this application.","candidate",user.id);
         return result({ ok: true });
       });
     }
