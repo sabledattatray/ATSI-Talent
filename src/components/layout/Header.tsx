@@ -46,6 +46,16 @@ export function Header() {
   }, [pathname]);
   const [panel, setPanel] = useState<Panel | null>(null);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [openSections, setOpenSections] = useState<Record<string, boolean>>({ services: true });
+  const toggleMobileSection = (key: string) => {
+    setOpenSections(prev => ({ ...prev, [key]: !prev[key] }));
+  };
+
+  useEffect(() => {
+    setMobileOpen(false);
+    setPanel(null);
+  }, [pathname]);
+
   const root = useRef<HTMLElement>(null);
   const triggers = useRef<Partial<Record<Panel, HTMLButtonElement | null>>>({});
   const mobileTrigger = useRef<HTMLButtonElement>(null);
@@ -139,7 +149,13 @@ export function Header() {
   const panelItems = panel === "services" ? services : panel === "company" ? company : workspaces;
 
   return <>
-    {(panel || mobileOpen) && <div className={"atsai-header-backdrop"} aria-hidden="true" />}
+    {(panel || mobileOpen) && (
+      <div
+        className="atsai-header-backdrop"
+        aria-hidden="true"
+        onClick={closeAll}
+      />
+    )}
     <header ref={root} className={"atsai-header-header"}
       onClick={event => { if (event.target instanceof Element && event.target.closest("a")) closeAll(); }}
       onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget)) closeAll(); }}>
@@ -169,9 +185,18 @@ export function Header() {
           <div className={"atsai-header-actions"}>
             <div className={"atsai-header-workspace"}>{DEMO_MODE ? trigger("workspace", "Workspace") : <Link href={candidateSignedIn ? "/candidate/dashboard" : "/candidate/login"} className={"atsai-header-navLink"}>{candidateSignedIn ? "My workspace" : "Sign in"}</Link>}</div>
             {!candidateSignedIn && <Link href="/candidate/signup" className="atsai-header-navLink atsai-header-register">Register</Link>}<Link href="/employer/dashboard" className={"atsai-header-hireButton"}>Hire talent<ArrowUpRight size={16} aria-hidden="true" /></Link>
-            <button ref={mobileTrigger} className={"atsai-header-mobileToggle"} type="button" aria-label={mobileOpen ? "Close navigation" : "Open navigation"}
-              aria-expanded={mobileOpen} aria-controls="header-mobile-panel" onClick={() => { setPanel(null); setMobileOpen(!mobileOpen); }}>
-              {mobileOpen ? <X size={22} /> : <Menu size={22} />}
+            <button
+              ref={mobileTrigger}
+              className={`atsai-header-mobileToggle ${mobileOpen ? "is-active" : ""}`}
+              type="button"
+              aria-label={mobileOpen ? "Close navigation menu" : "Open navigation menu"}
+              aria-expanded={mobileOpen}
+              aria-controls="header-mobile-panel"
+              onClick={() => { setPanel(null); setMobileOpen(!mobileOpen); }}
+            >
+              <span className="atsai-toggle-icon-wrap">
+                {mobileOpen ? <X size={20} /> : <Menu size={20} />}
+              </span>
             </button>
           </div>
         </div>
@@ -206,14 +231,218 @@ export function Header() {
         </div>}
       </div>
 
-      {mobileOpen && <nav id="header-mobile-panel" aria-label="Mobile navigation" className={"atsai-header-mobilePanel"}>
-        <div className={"atsai-header-mobilePrimary"}><Link href="/jobs">Find jobs<ArrowUpRight size={18} /></Link><Link href="/employers">For employers<ArrowUpRight size={18} /></Link></div>
-        <details className={"atsai-header-mobileGroup"}><summary>Recruitment services<ChevronDown size={16} /></summary><div>{services.map(item => <Link key={item.href} href={item.href}><item.icon size={17} aria-hidden="true" />{item.title}</Link>)}<Link href="/services">All services<ArrowRight size={16} /></Link></div></details>
-        <details className={"atsai-header-mobileGroup"}><summary>Company<ChevronDown size={16} /></summary><div>{company.map(item => <Link key={item.href} href={item.href}>{item.title}</Link>)}</div></details>
-        <div className={"atsai-header-mobileSecondary"}><Link href="/blog"><FileText size={17} />Resources</Link><Link href="/contact"><LifeBuoy size={17} />Contact our team</Link></div>
-        {DEMO_MODE && <details className={"atsai-header-mobileGroup"}><summary>Demo workspaces<ChevronDown size={16} /></summary><div>{workspaces.map(item => <Link key={item.href} href={item.href}>{item.title}<span className={"atsai-header-demoBadge"}>Demo</span></Link>)}</div></details>}
-        <div className={"atsai-header-mobileBottom"}>{!candidateSignedIn && <Link href="/candidate/signup">Create free account<ArrowRight size={16} /></Link>}<Link href={candidateSignedIn ? "/candidate/dashboard" : "/candidate/login"}>{candidateSignedIn ? "My workspace" : "Sign in"}<ArrowRight size={16} /></Link><Link href="/verify-recruiter">Verify a recruiter<ShieldCheck size={16} /></Link></div>
-      </nav>}
+      {mobileOpen && (
+        <nav
+          id="header-mobile-panel"
+          aria-label="Mobile navigation"
+          className="atsai-header-mobilePanel"
+        >
+          <div className="atsai-mobile-panel-inner">
+            {/* Top Hero Cards */}
+            <div className="atsai-mobile-hero-grid">
+              <Link href="/jobs" className="atsai-mobile-hero-card atsai-hero-jobs">
+                <div className="atsai-hero-top">
+                  <div className="atsai-hero-icon atsai-icon-blue">
+                    <BriefcaseBusiness size={18} strokeWidth={2} />
+                  </div>
+                  <span className="atsai-hero-pill">Live roles</span>
+                </div>
+                <div className="atsai-hero-title">Find Jobs</div>
+                <p className="atsai-hero-sub">Explore openings across India</p>
+              </Link>
+
+              <Link href="/employers" className="atsai-mobile-hero-card atsai-hero-employers">
+                <div className="atsai-hero-top">
+                  <div className="atsai-hero-icon atsai-icon-indigo">
+                    <Building2 size={18} strokeWidth={2} />
+                  </div>
+                  <span className="atsai-hero-pill">Hiring</span>
+                </div>
+                <div className="atsai-hero-title">For Employers</div>
+                <p className="atsai-hero-sub">Workspaces & talent pipelines</p>
+              </Link>
+            </div>
+
+            {/* Expandable Accordion: Recruitment Services */}
+            <div className="atsai-mobile-accordion">
+              <button
+                type="button"
+                className="atsai-mobile-accordion-trigger"
+                onClick={() => toggleMobileSection("services")}
+                aria-expanded={Boolean(openSections.services)}
+              >
+                <span className="atsai-accordion-label">
+                  <Layers3 size={16} className="text-blue-600" />
+                  <span>Recruitment Solutions</span>
+                </span>
+                <div className="atsai-accordion-meta">
+                  <span className="atsai-accordion-badge">{services.length} services</span>
+                  <ChevronDown
+                    size={16}
+                    className={`atsai-mobile-chevron ${openSections.services ? "is-open" : ""}`}
+                  />
+                </div>
+              </button>
+              <div className={`atsai-mobile-accordion-body ${openSections.services ? "is-open" : ""}`}>
+                <div className="atsai-mobile-accordion-inner">
+                  <div className="atsai-mobile-links-list">
+                    {services.map((item) => (
+                      <Link key={item.href} href={item.href} className="atsai-mobile-link-card">
+                        <div className="atsai-link-icon-box atsai-icon-blue">
+                          <item.icon size={16} strokeWidth={1.8} />
+                        </div>
+                        <div className="atsai-link-text">
+                          <div className="atsai-link-title">{item.title}</div>
+                          <div className="atsai-link-desc">{item.description}</div>
+                        </div>
+                        <ArrowUpRight size={14} className="atsai-link-arrow" />
+                      </Link>
+                    ))}
+                    <Link href="/services" className="atsai-mobile-view-all">
+                      <span>Explore all services & features</span>
+                      <ArrowRight size={14} />
+                    </Link>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Expandable Accordion: Company */}
+            <div className="atsai-mobile-accordion">
+              <button
+                type="button"
+                className="atsai-mobile-accordion-trigger"
+                onClick={() => toggleMobileSection("company")}
+                aria-expanded={Boolean(openSections.company)}
+              >
+                <span className="atsai-accordion-label">
+                  <Building2 size={16} className="text-slate-600" />
+                  <span>Company & Values</span>
+                </span>
+                <div className="atsai-accordion-meta">
+                  <span className="atsai-accordion-badge">About ATSAI</span>
+                  <ChevronDown
+                    size={16}
+                    className={`atsai-mobile-chevron ${openSections.company ? "is-open" : ""}`}
+                  />
+                </div>
+              </button>
+              <div className={`atsai-mobile-accordion-body ${openSections.company ? "is-open" : ""}`}>
+                <div className="atsai-mobile-accordion-inner">
+                  <div className="atsai-mobile-links-list">
+                    {company.map((item) => (
+                      <Link key={item.href} href={item.href} className="atsai-mobile-link-card">
+                        <div className="atsai-link-icon-box atsai-icon-slate">
+                          <item.icon size={16} strokeWidth={1.8} />
+                        </div>
+                        <div className="atsai-link-text">
+                          <div className="atsai-link-title">{item.title}</div>
+                          <div className="atsai-link-desc">{item.description}</div>
+                        </div>
+                        <ArrowUpRight size={14} className="atsai-link-arrow" />
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Expandable Accordion: Demo Workspaces (if DEMO_MODE) */}
+            {DEMO_MODE && (
+              <div className="atsai-mobile-accordion">
+                <button
+                  type="button"
+                  className="atsai-mobile-accordion-trigger"
+                  onClick={() => toggleMobileSection("workspaces")}
+                  aria-expanded={Boolean(openSections.workspaces)}
+                >
+                  <span className="atsai-accordion-label">
+                    <Sparkles size={16} className="text-amber-500" />
+                    <span>Platform Workspaces</span>
+                  </span>
+                  <div className="atsai-accordion-meta">
+                    <span className="atsai-accordion-badge atsai-badge-demo">Demo</span>
+                    <ChevronDown
+                      size={16}
+                      className={`atsai-mobile-chevron ${openSections.workspaces ? "is-open" : ""}`}
+                    />
+                  </div>
+                </button>
+                <div className={`atsai-mobile-accordion-body ${openSections.workspaces ? "is-open" : ""}`}>
+                  <div className="atsai-mobile-accordion-inner">
+                    <div className="atsai-mobile-links-list">
+                      {workspaces.map((item) => (
+                        <Link key={item.href} href={item.href} className="atsai-mobile-link-card">
+                          <div className="atsai-link-icon-box atsai-icon-amber">
+                            <item.icon size={16} strokeWidth={1.8} />
+                          </div>
+                          <div className="atsai-link-text">
+                            <div className="atsai-link-title-row">
+                              <span className="atsai-link-title">{item.title} Workspace</span>
+                              <span className="atsai-demo-tag">Sample</span>
+                            </div>
+                            <div className="atsai-link-desc">{item.description}</div>
+                          </div>
+                          <ArrowUpRight size={14} className="atsai-link-arrow" />
+                        </Link>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Quick Links: Blog & Contact */}
+            <div className="atsai-mobile-quick-grid">
+              <Link href="/blog" className="atsai-mobile-quick-btn">
+                <FileText size={15} />
+                <span>Career Insights</span>
+              </Link>
+              <Link href="/contact" className="atsai-mobile-quick-btn">
+                <LifeBuoy size={15} />
+                <span>Contact Support</span>
+              </Link>
+            </div>
+
+            {/* Authentication / User Profile Card */}
+            <div className="atsai-mobile-auth-box">
+              {candidateSignedIn ? (
+                <div className="atsai-mobile-signed-card">
+                  <div className="atsai-signed-header">
+                    <span className="atsai-signed-dot" />
+                    <span className="atsai-signed-title">Candidate Workspace Active</span>
+                  </div>
+                  <Link href="/candidate/dashboard" className="atsai-mobile-btn-primary">
+                    <span>Open My Workspace</span>
+                    <ArrowRight size={15} />
+                  </Link>
+                </div>
+              ) : (
+                <div className="atsai-mobile-cta-group">
+                  <Link href="/candidate/signup" className="atsai-mobile-btn-primary">
+                    <Sparkles size={15} />
+                    <span>Create Free Candidate Account</span>
+                  </Link>
+                  <Link href="/candidate/login" className="atsai-mobile-btn-secondary">
+                    <span>Candidate Sign In</span>
+                    <ArrowRight size={14} />
+                  </Link>
+                </div>
+              )}
+            </div>
+
+            {/* Trust & Recruiter Verification Bar */}
+            <div className="atsai-mobile-trust-bar">
+              <Link href="/verify-recruiter" className="atsai-trust-link">
+                <ShieldCheck size={16} className="text-teal-600" />
+                <span>Verify an authorized recruiter</span>
+                <ArrowUpRight size={12} className="opacity-60" />
+              </Link>
+              <p className="atsai-trust-fee">No candidate registration fees · Verified employers</p>
+            </div>
+          </div>
+        </nav>
+      )}
     </header>
   </>;
 }

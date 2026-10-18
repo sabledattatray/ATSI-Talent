@@ -24,7 +24,20 @@
 .atsai-header-hireButton { min-height: 44px; display: inline-flex; align-items: center; justify-content: center; gap: 17px; padding: 0 19px; background: #173b69; color: #fff; border: 1px solid #173b69; border-radius: 7px; font-size: 12px; font-weight: 650; text-decoration: none; white-space: nowrap; box-shadow: 0 2px 3px #1021370c; transition: background .18s, box-shadow .18s; }
 .atsai-header-hireButton:hover { background: #102c51; box-shadow: 0 4px 10px #173b6924; }
 .atsai-header-mobileToggle { display: none; width: 44px; height: 44px; align-items: center; justify-content: center; background: #f5f7fa; border: 1px solid #e6ebf2; border-radius: 8px; color: #142338; cursor: pointer; }
-.atsai-header-backdrop { position: fixed; inset: 0; z-index: 45; background: #0b172828; backdrop-filter: blur(2px); }
+.atsai-header-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 45;
+  background: rgba(14, 28, 48, 0.45);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  animation: atsai-fade-in 0.22s ease-out forwards;
+}
+@keyframes atsai-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
 .atsai-header-megaMenu { position: absolute; top: 100%; left: 32px; right: 32px; background: white; border: 1px solid #e2e8f0; border-top: 2px solid #173b69; border-radius: 0 0 14px 14px; box-shadow: 0 24px 48px -16px #0b172838; max-height: calc(100dvh - var(--atsai-header-bottom, 91px) - 12px); overflow-y: auto; overscroll-behavior: contain; animation: atsai-header-appear .16s ease-out; }
 .atsai-header-megaGrid { display: grid; grid-template-columns: 285px 1fr; }
 .atsai-header-feature { display: flex; flex-direction: column; align-items: flex-start; padding: 30px; background: #102137; color: #c0cede; }
@@ -50,6 +63,18 @@
 .atsai-header-menuFooter a { font-weight: 600; color: #204b82; }
 .atsai-header-mobilePanel { display: none; }
 @keyframes atsai-header-appear { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
+
+@keyframes atsai-mobile-slide-down {
+  from {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.99);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
 @media (min-width: 1120px) and (max-width: 1240px) {
   .atsai-header-main, .atsai-header-utilityInner { padding-left: 24px; padding-right: 24px; }
   .atsai-header-row { grid-template-columns: minmax(170px, 1fr) auto auto; gap: 12px; }
@@ -58,40 +83,494 @@
   .atsai-header-workspace { padding-right: 10px; }
   .atsai-header-megaMenu { left: 24px; right: 24px; }
 }
+
 @media (max-width: 1119px) {
   .atsai-header-desktopNav, .atsai-header-workspace, .atsai-header-megaMenu { display: none; }
+  .atsai-header-register { display: none !important; }
   .atsai-header-row { height: 64px; grid-template-columns: 1fr auto; gap: 16px; }
   .atsai-header-main { padding: 0 24px; }
-  .atsai-header-mobileToggle { display: inline-flex; }
   .atsai-header-utilityInner { padding: 0 24px; font-size: 10px; }
   .atsai-header-feeNote { display: none; }
-  .atsai-header-mobilePanel { display: block; position: absolute; top: 100%; left: 0; right: 0; max-height: calc(100dvh - var(--atsai-header-bottom, 91px)); overflow-y: auto; overscroll-behavior: contain; padding: 16px 24px 24px; background: white; border-top: 1px solid #edf0f5; box-shadow: 0 20px 32px #10213714; animation: atsai-header-appear .16s ease-out; }
-  .atsai-header-mobilePrimary { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding-bottom: 16px; }
-  .atsai-header-mobilePrimary a { display: flex; align-items: center; justify-content: space-between; background: #f3f6fb; border: 1px solid #e8edf4; padding: 16px; border-radius: 8px; font-size: 13px; font-weight: 600; color: #173b69; }
-  .atsai-header-mobileGroup { border-top: 1px solid #edf0f5; }
-  .atsai-header-mobileGroup summary { list-style: none; display: flex; align-items: center; justify-content: space-between; min-height: 52px; color: #233e60; font-size: 13px; font-weight: 600; cursor: pointer; }
-  .atsai-header-mobileGroup summary::-webkit-details-marker { display: none; }
-  .atsai-header-mobileGroup[open] summary > svg { transform: rotate(180deg); }
-  .atsai-header-mobileGroup > div { padding: 0 0 12px 12px; }
-  .atsai-header-mobileGroup a { min-height: 44px; display: flex; align-items: center; gap: 12px; color: #607087; font-size: 12px; }
-  .atsai-header-mobileGroup a:hover { color: #1d4ed8; }
-  .atsai-header-mobileSecondary { border-top: 1px solid #edf0f5; display: grid; grid-template-columns: 1fr 1fr; padding: 9px 0; }
-  .atsai-header-mobileSecondary a { display: flex; align-items: center; gap: 9px; min-height: 44px; font-size: 12px; color: #435a76; }
-  .atsai-header-demoBadge { padding: 2px 6px; border: 1px solid #e2e8f0; border-radius: 4px; font-size: 9px; color: #7b899b; }
-  .atsai-header-mobileBottom { display: flex; align-items: center; justify-content: space-between; gap: 16px; border-top: 1px solid #edf0f5; padding-top: 18px; }
-  .atsai-header-mobileBottom a { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; color: #315d91; font-size: 11px; font-weight: 550; }
+
+  /* Tactile Mobile Toggle Button */
+  .atsai-header-mobileToggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 42px;
+    height: 42px;
+    padding: 0;
+    border-radius: 11px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    color: #1e293b;
+    cursor: pointer;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .atsai-header-mobileToggle:hover {
+    background: #f1f5f9;
+    border-color: #cbd5e1;
+  }
+  .atsai-header-mobileToggle:active {
+    transform: scale(0.95);
+  }
+  .atsai-header-mobileToggle.is-active {
+    background: #0e1c30;
+    color: #ffffff;
+    border-color: #0e1c30;
+    box-shadow: 0 4px 14px rgba(14, 28, 48, 0.22);
+  }
+  .atsai-toggle-icon-wrap {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.2s ease;
+  }
+  .atsai-header-mobileToggle.is-active .atsai-toggle-icon-wrap {
+    transform: rotate(90deg);
+  }
+
+  /* Luxurious Mobile Panel Drawer */
+  .atsai-header-mobilePanel {
+    display: block;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    max-height: calc(100dvh - var(--atsai-header-bottom, 91px) - 16px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+    background: #ffffff;
+    border-top: 1px solid #edf2f7;
+    border-bottom: 1px solid #e2e8f0;
+    border-radius: 0 0 22px 22px;
+    box-shadow: 0 24px 48px -12px rgba(14, 28, 48, 0.2), 0 4px 16px rgba(14, 28, 48, 0.06);
+    animation: atsai-mobile-slide-down 0.26s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+  .atsai-mobile-panel-inner {
+    max-width: 600px;
+    margin: 0 auto;
+    padding: 18px 22px 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 13px;
+  }
+
+  /* Top Hero Quick Cards */
+  .atsai-mobile-hero-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 11px;
+  }
+  .atsai-mobile-hero-card {
+    display: flex;
+    flex-direction: column;
+    padding: 13px 14px;
+    border-radius: 14px;
+    text-decoration: none;
+    position: relative;
+    overflow: hidden;
+    transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.18s ease;
+  }
+  .atsai-mobile-hero-card:active {
+    transform: scale(0.97);
+  }
+  .atsai-hero-jobs {
+    background: linear-gradient(145deg, #f0f7ff 0%, #e0effe 100%);
+    border: 1px solid #bfdbfe;
+    box-shadow: 0 2px 8px rgba(37, 99, 235, 0.06);
+  }
+  .atsai-hero-employers {
+    background: linear-gradient(145deg, #f8fafc 0%, #f1f5f9 100%);
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);
+  }
+  .atsai-hero-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 7px;
+  }
+  .atsai-hero-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .atsai-hero-pill {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.4px;
+    text-transform: uppercase;
+    padding: 2px 7px;
+    border-radius: 9999px;
+    background: rgba(255, 255, 255, 0.9);
+    border: 1px solid rgba(0, 0, 0, 0.06);
+    color: #334155;
+  }
+  .atsai-hero-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: #0e1c30;
+    line-height: 1.25;
+  }
+  .atsai-hero-sub {
+    font-size: 11px;
+    color: #64748b;
+    margin: 2px 0 0;
+    line-height: 1.35;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* Color Themes for Micro Icon Boxes */
+  .atsai-icon-blue {
+    background: #eff6ff;
+    color: #2563eb;
+    border: 1px solid #dbeafe;
+  }
+  .atsai-icon-indigo {
+    background: #ede9fe;
+    color: #4f46e5;
+    border: 1px solid #ddd6fe;
+  }
+  .atsai-icon-slate {
+    background: #f1f5f9;
+    color: #475569;
+    border: 1px solid #e2e8f0;
+  }
+  .atsai-icon-amber {
+    background: #fef3c7;
+    color: #b45309;
+    border: 1px solid #fde68a;
+  }
+
+  /* Smooth Hardware-Accelerated Accordion */
+  .atsai-mobile-accordion {
+    border: 1px solid #edf2f7;
+    border-radius: 14px;
+    background: #fafbfc;
+    overflow: hidden;
+    transition: border-color 0.2s, background-color 0.2s;
+  }
+  .atsai-mobile-accordion:focus-within {
+    border-color: #cbd5e1;
+  }
+  .atsai-mobile-accordion-trigger {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 13px 15px;
+    background: transparent;
+    border: 0;
+    cursor: pointer;
+    text-align: left;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .atsai-mobile-accordion-trigger:active {
+    background: rgba(0, 0, 0, 0.02);
+  }
+  .atsai-accordion-label {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 13px;
+    font-weight: 650;
+    color: #1e293b;
+  }
+  .atsai-accordion-meta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .atsai-accordion-badge {
+    font-size: 10px;
+    font-weight: 600;
+    padding: 2px 7px;
+    border-radius: 9999px;
+    background: #e2e8f0;
+    color: #475569;
+  }
+  .atsai-badge-demo {
+    background: #fef3c7;
+    color: #92400e;
+  }
+  .atsai-mobile-chevron {
+    color: #94a3b8;
+    transition: transform 0.24s cubic-bezier(0.16, 1, 0.3, 1), color 0.18s;
+  }
+  .atsai-mobile-chevron.is-open {
+    transform: rotate(180deg);
+    color: #2563eb;
+  }
+  .atsai-mobile-accordion-body {
+    display: grid;
+    grid-template-rows: 0fr;
+    transition: grid-template-rows 0.26s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s ease;
+    opacity: 0;
+  }
+  .atsai-mobile-accordion-body.is-open {
+    grid-template-rows: 1fr;
+    opacity: 1;
+  }
+  .atsai-mobile-accordion-inner {
+    overflow: hidden;
+    padding: 0 9px 9px;
+  }
+  .atsai-mobile-links-list {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+  .atsai-mobile-link-card {
+    display: flex;
+    align-items: center;
+    gap: 11px;
+    padding: 9px 11px;
+    border-radius: 10px;
+    text-decoration: none;
+    transition: background 0.15s, box-shadow 0.15s;
+  }
+  .atsai-mobile-link-card:active {
+    background: #ffffff;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
+  }
+  .atsai-link-icon-box {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .atsai-link-text {
+    flex: 1;
+    min-width: 0;
+  }
+  .atsai-link-title-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .atsai-demo-tag {
+    font-size: 9px;
+    padding: 1px 5px;
+    border-radius: 4px;
+    background: #fef3c7;
+    color: #92400e;
+    font-weight: 600;
+  }
+  .atsai-link-title {
+    font-size: 12.5px;
+    font-weight: 600;
+    color: #0e1c30;
+    line-height: 1.3;
+  }
+  .atsai-link-desc {
+    font-size: 11px;
+    color: #64748b;
+    line-height: 1.35;
+    margin-top: 1px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .atsai-link-arrow {
+    color: #94a3b8;
+    flex-shrink: 0;
+    opacity: 0.6;
+    transition: transform 0.18s, opacity 0.18s;
+  }
+  .atsai-mobile-link-card:active .atsai-link-arrow {
+    opacity: 1;
+    transform: translate(1px, -1px);
+    color: #2563eb;
+  }
+  .atsai-mobile-view-all {
+    margin-top: 4px;
+    padding: 8px 11px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 11.5px;
+    font-weight: 600;
+    color: #2563eb;
+    text-decoration: none;
+    border-radius: 8px;
+    background: rgba(37, 99, 235, 0.06);
+    transition: background 0.18s;
+  }
+  .atsai-mobile-view-all:active {
+    background: rgba(37, 99, 235, 0.12);
+  }
+
+  /* Quick Support & Blog Grid */
+  .atsai-mobile-quick-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 9px;
+  }
+  .atsai-mobile-quick-btn {
+    min-height: 42px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 0 12px;
+    border-radius: 11px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    color: #334155;
+    font-size: 12px;
+    font-weight: 600;
+    text-decoration: none;
+    transition: background 0.18s, border-color 0.18s;
+  }
+  .atsai-mobile-quick-btn:active {
+    background: #f1f5f9;
+    border-color: #cbd5e1;
+  }
+
+  /* Authentication / Profile Box */
+  .atsai-mobile-auth-box {
+    margin-top: 2px;
+  }
+  .atsai-mobile-cta-group {
+    display: flex;
+    flex-direction: column;
+    gap: 9px;
+  }
+  .atsai-mobile-btn-primary {
+    min-height: 46px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+    border-radius: 12px;
+    background: linear-gradient(135deg, #1d4ed8 0%, #1e40af 100%);
+    color: #ffffff;
+    font-size: 13px;
+    font-weight: 650;
+    text-decoration: none;
+    box-shadow: 0 4px 14px rgba(29, 78, 216, 0.26);
+    transition: transform 0.18s, box-shadow 0.18s;
+  }
+  .atsai-mobile-btn-primary:active {
+    transform: scale(0.98);
+  }
+  .atsai-mobile-btn-secondary {
+    min-height: 43px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    width: 100%;
+    border-radius: 12px;
+    background: #ffffff;
+    border: 1.5px solid #cbd5e1;
+    color: #0e1c30;
+    font-size: 12.5px;
+    font-weight: 600;
+    text-decoration: none;
+    transition: background 0.18s, border-color 0.18s;
+  }
+  .atsai-mobile-btn-secondary:active {
+    background: #f8fafc;
+    border-color: #94a3b8;
+  }
+  .atsai-mobile-signed-card {
+    padding: 13px 14px;
+    border-radius: 14px;
+    background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+    border: 1px solid #bbf7d0;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .atsai-signed-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    font-weight: 650;
+    color: #166534;
+  }
+  .atsai-signed-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #22c55e;
+    box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.25);
+  }
+
+  /* Trust & Recruiter Verification Bar */
+  .atsai-mobile-trust-bar {
+    padding-top: 10px;
+    border-top: 1px solid #edf2f7;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    text-align: center;
+  }
+  .atsai-trust-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    font-weight: 600;
+    color: #0f766e;
+    text-decoration: none;
+    padding: 4px 8px;
+    border-radius: 6px;
+    transition: background 0.15s;
+  }
+  .atsai-trust-fee {
+    font-size: 10px;
+    color: #94a3b8;
+    margin: 0;
+    line-height: 1.4;
+  }
 }
+
 @media (max-width: 599px) {
   .atsai-header-utility { display: none; }
-  .atsai-header-main { padding: 0 18px; }
+  .atsai-header-main { padding: 0 16px; }
   .atsai-header-row { height: 60px; }
-  .atsai-header-brand.atsai-brand-logo { width: 144px; }
-  .atsai-header-actions { gap: 9px; }
-  .atsai-header-hireButton { gap: 8px; min-height: 40px; padding: 0 12px; font-size: 11px; }
-  .atsai-header-mobileToggle { width: 40px; height: 40px; }
-  .atsai-header-mobilePanel { padding: 14px 18px 20px; max-height: calc(100dvh - var(--atsai-header-bottom, 61px)); }
+  .atsai-header-brand.atsai-brand-logo { width: 140px; }
+  .atsai-header-actions { gap: 8px; }
+  .atsai-header-hireButton { gap: 6px; min-height: 38px; padding: 0 11px; font-size: 11px; }
+  .atsai-header-mobileToggle { width: 38px; height: 38px; }
+  .atsai-header-mobilePanel {
+    max-height: calc(100dvh - var(--atsai-header-bottom, 61px) - 12px);
+    border-radius: 0 0 18px 18px;
+  }
+  .atsai-mobile-panel-inner { padding: 14px 16px 20px; gap: 11px; }
+  .atsai-mobile-hero-grid { gap: 8px; }
+  .atsai-mobile-hero-card { padding: 11px 12px; }
 }
-@media (max-width: 359px) { .atsai-header-hireButton { display: none; } }
-@media (prefers-reduced-motion: reduce) { .atsai-header-megaMenu, .atsai-header-mobilePanel { animation: none; } }
 
-@media(max-width:1119px){.atsai-header-register{display:none!important}}
+@media (max-width: 359px) {
+  .atsai-header-hireButton { display: none; }
+  .atsai-mobile-hero-grid { grid-template-columns: 1fr; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .atsai-header-megaMenu,
+  .atsai-header-mobilePanel,
+  .atsai-header-backdrop,
+  .atsai-mobile-accordion-body,
+  .atsai-mobile-chevron {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
