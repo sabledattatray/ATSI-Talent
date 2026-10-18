@@ -5,8 +5,8 @@
 /* Keep the application card below the full sticky header, including at zoom. */
 @media(min-width:701px){
   .cms-managed-job-layout>aside{
-    top:calc(var(--atsai-header-height,121px) + 24px);
-    max-height:calc(100dvh - var(--atsai-header-height,121px) - 48px);
+    top:calc(var(--atsai-header-height,91px) + 24px);
+    max-height:calc(100dvh - var(--atsai-header-height,91px) - 48px);
     overflow-y:auto;
     scrollbar-gutter:stable;
   }

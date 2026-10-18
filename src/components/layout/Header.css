@@ -1,6 +1,6 @@
 .atsai-header-header { position: sticky; top: 0; z-index: 50; width: 100%; background: #fff; border-bottom: 1px solid #e7ecf2; box-shadow: 0 2px 12px #14233804; }
 .atsai-header-utility { background: #102137; color: #c6d1de; }
-.atsai-header-utilityInner { max-width: 1440px; margin: 0 auto; min-height: 32px; padding: 0 32px; display: flex; align-items: center; justify-content: space-between; gap: 24px; font-size: 11px; letter-spacing: .01em; }
+.atsai-header-utilityInner { max-width: 1440px; margin: 0 auto; min-height: 26px; padding: 0 32px; display: flex; align-items: center; justify-content: space-between; gap: 24px; font-size: 11px; letter-spacing: .01em; }
 .atsai-header-utilityMessage, .atsai-header-utilityLinks, .atsai-header-utilityLinks a { display: flex; align-items: center; gap: 8px; white-space: nowrap; }
 .atsai-header-utilityMessage svg { color: #86b5f4; }
 .atsai-header-utilityLinks { gap: 24px; }
@@ -8,8 +8,9 @@
 .atsai-header-utilityLinks a:hover { color: #fff; }
 .atsai-header-feeNote { padding-right: 24px; border-right: 1px solid #ffffff24; color: #aebdd0; }
 .atsai-header-main { position: relative; max-width: 1440px; margin: 0 auto; padding: 0 32px; }
-.atsai-header-row { height: 88px; display: grid; grid-template-columns: minmax(184px, 1fr) auto minmax(242px, 1fr); align-items: center; gap: 20px; }
+.atsai-header-row { height: 64px; display: grid; grid-template-columns: minmax(184px, 1fr) auto minmax(242px, 1fr); align-items: center; gap: 20px; }
 .atsai-header-brand { display: inline-flex; align-items: center; gap: 12px; justify-self: start; flex-shrink: 0; text-decoration: none; }
+.atsai-header-brand.atsai-brand-logo { width: 176px; }
 .atsai-header-desktopNav { display: flex; align-items: center; gap: 2px; height: 100%; }
 .atsai-header-navLink { position: relative; display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 44px; padding: 0 12px; border-radius: 7px; border: 0; background: transparent; color: #435168; font-size: 13px; line-height: 1; font-weight: 550; white-space: nowrap; flex-shrink: 0; cursor: pointer; transition: color .18s, background .18s; text-decoration: none; }
 .atsai-header-navLink:hover, .atsai-header-selected { background: #f1f5fb; color: #163e78; }
@@ -24,7 +25,7 @@
 .atsai-header-hireButton:hover { background: #102c51; box-shadow: 0 4px 10px #173b6924; }
 .atsai-header-mobileToggle { display: none; width: 44px; height: 44px; align-items: center; justify-content: center; background: #f5f7fa; border: 1px solid #e6ebf2; border-radius: 8px; color: #142338; cursor: pointer; }
 .atsai-header-backdrop { position: fixed; inset: 0; z-index: 45; background: #0b172828; backdrop-filter: blur(2px); }
-.atsai-header-megaMenu { position: absolute; top: 100%; left: 32px; right: 32px; background: white; border: 1px solid #e2e8f0; border-top: 2px solid #173b69; border-radius: 0 0 14px 14px; box-shadow: 0 24px 48px -16px #0b172838; max-height: calc(100dvh - var(--atsai-header-bottom, 120px) - 12px); overflow-y: auto; overscroll-behavior: contain; animation: atsai-header-appear .16s ease-out; }
+.atsai-header-megaMenu { position: absolute; top: 100%; left: 32px; right: 32px; background: white; border: 1px solid #e2e8f0; border-top: 2px solid #173b69; border-radius: 0 0 14px 14px; box-shadow: 0 24px 48px -16px #0b172838; max-height: calc(100dvh - var(--atsai-header-bottom, 91px) - 12px); overflow-y: auto; overscroll-behavior: contain; animation: atsai-header-appear .16s ease-out; }
 .atsai-header-megaGrid { display: grid; grid-template-columns: 285px 1fr; }
 .atsai-header-feature { display: flex; flex-direction: column; align-items: flex-start; padding: 30px; background: #102137; color: #c0cede; }
 .atsai-header-eyebrow { color: #93b5e0; font-size: 9px; font-weight: 650; letter-spacing: 1.6px; }
@@ -59,12 +60,12 @@
 }
 @media (max-width: 1119px) {
   .atsai-header-desktopNav, .atsai-header-workspace, .atsai-header-megaMenu { display: none; }
-  .atsai-header-row { height: 78px; grid-template-columns: 1fr auto; gap: 16px; }
+  .atsai-header-row { height: 64px; grid-template-columns: 1fr auto; gap: 16px; }
   .atsai-header-main { padding: 0 24px; }
   .atsai-header-mobileToggle { display: inline-flex; }
   .atsai-header-utilityInner { padding: 0 24px; font-size: 10px; }
   .atsai-header-feeNote { display: none; }
-  .atsai-header-mobilePanel { display: block; position: absolute; top: 100%; left: 0; right: 0; max-height: calc(100dvh - var(--atsai-header-bottom, 110px)); overflow-y: auto; overscroll-behavior: contain; padding: 16px 24px 24px; background: white; border-top: 1px solid #edf0f5; box-shadow: 0 20px 32px #10213714; animation: atsai-header-appear .16s ease-out; }
+  .atsai-header-mobilePanel { display: block; position: absolute; top: 100%; left: 0; right: 0; max-height: calc(100dvh - var(--atsai-header-bottom, 91px)); overflow-y: auto; overscroll-behavior: contain; padding: 16px 24px 24px; background: white; border-top: 1px solid #edf0f5; box-shadow: 0 20px 32px #10213714; animation: atsai-header-appear .16s ease-out; }
   .atsai-header-mobilePrimary { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding-bottom: 16px; }
   .atsai-header-mobilePrimary a { display: flex; align-items: center; justify-content: space-between; background: #f3f6fb; border: 1px solid #e8edf4; padding: 16px; border-radius: 8px; font-size: 13px; font-weight: 600; color: #173b69; }
   .atsai-header-mobileGroup { border-top: 1px solid #edf0f5; }
@@ -83,12 +84,12 @@
 @media (max-width: 599px) {
   .atsai-header-utility { display: none; }
   .atsai-header-main { padding: 0 18px; }
-  .atsai-header-row { height: 76px; }
-  .atsai-header-brand.atsai-brand-logo { width: 150px; }
+  .atsai-header-row { height: 60px; }
+  .atsai-header-brand.atsai-brand-logo { width: 144px; }
   .atsai-header-actions { gap: 9px; }
   .atsai-header-hireButton { gap: 8px; min-height: 40px; padding: 0 12px; font-size: 11px; }
   .atsai-header-mobileToggle { width: 40px; height: 40px; }
-  .atsai-header-mobilePanel { padding: 14px 18px 20px; max-height: calc(100dvh - var(--atsai-header-bottom, 76px)); }
+  .atsai-header-mobilePanel { padding: 14px 18px 20px; max-height: calc(100dvh - var(--atsai-header-bottom, 61px)); }
 }
 @media (max-width: 359px) { .atsai-header-hireButton { display: none; } }
 @media (prefers-reduced-motion: reduce) { .atsai-header-megaMenu, .atsai-header-mobilePanel { animation: none; } }
