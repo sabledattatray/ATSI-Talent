@@ -227,6 +227,11 @@ test("font size and color survive publishing while unsafe styles are rejected", 
   const html = nativeRequire("react-dom/server").renderToStaticMarkup(nativeRequire("react").createElement(mod.exports.RichContent, { document: stored.content }));
   assert.match(html, /color:#2456aa;font-size:24px/);
   assert.match(html, /<strong>/);
+  const headings = nativeRequire("react-dom/server").renderToStaticMarkup(nativeRequire("react").createElement(mod.exports.RichContent, { document: { type: "doc", content: [1, 2, 3].map(level => ({ type: "heading", attrs: { level }, content: [{ type: "text", text: `Section ${level}` }] })) } }));
+  assert.doesNotMatch(headings, /<h1[\s>]/);
+  assert.equal((headings.match(/<h2[\s>]/g) || []).length, 2);
+  assert.match(headings, /<h3>.*Section 3.*<\/h3>/);
+
 });
 
 

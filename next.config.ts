@@ -4,6 +4,7 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   distDir: process.env.ATSAI_BUILD_DIR || ".next",
   poweredByHeader: false,
+  serverExternalPackages: ["pdf-parse", "word-extractor", "yauzl"],
   outputFileTracingExcludes: { "/*": ["./data/**/*", "./.env", "./.env.*"] },
   async headers() {
     return [{ source: "/:path*", headers: [

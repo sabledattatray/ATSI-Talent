@@ -9,7 +9,8 @@ export function RichContent({ document }: { document: RichNode }) {
     switch (node.type) {
       case "doc": return <div key={key} className="cms-prose">{children}</div>;
       case "text": { let text: ReactNode = node.text; for (const [i, m] of (node.marks || []).entries()) { const k = `${key}-${i}`; if (m.type === "textStyle") text = <span key={k} style={{ color: richColor(m.attrs?.color), fontSize: richFontSize(m.attrs?.fontSize) }}>{text}</span>; if (m.type === "bold") text = <strong key={k}>{text}</strong>; if (m.type === "italic") text = <em key={k}>{text}</em>; if (m.type === "underline") text = <u key={k}>{text}</u>; if (m.type === "strike") text = <s key={k}>{text}</s>; if (m.type === "code") text = <code key={k}>{text}</code>; if (m.type === "highlight") text = <mark key={k}>{text}</mark>; if (m.type === "link") text = <a key={k} href={safeLink(m.attrs?.href)} rel="noopener noreferrer">{text}</a>; } return <span key={key}>{text}</span>; }
-      case "heading": return a.level === 1 ? <h1 key={key} style={style}>{children}</h1> : a.level === 3 ? <h3 key={key} style={style}>{children}</h3> : <h2 key={key} style={style}>{children}</h2>;
+      // The surrounding article or job page supplies the document H1.
+      case "heading": return a.level === 3 ? <h3 key={key} style={style}>{children}</h3> : <h2 key={key} style={style}>{children}</h2>;
       case "paragraph": return <p key={key} style={style}>{children || <br />}</p>;
       case "bulletList": return <ul key={key}>{children}</ul>;
       case "orderedList": return <ol key={key}>{children}</ol>;

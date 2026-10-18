@@ -27,11 +27,14 @@
     "clsx": "^2.1.1",
     "lucide-react": "^1.58.0",
     "next": "16.4.2",
+    "pdf-parse": "^2.4.5",
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "react-hook-form": "^7.90.0",
     "server-only": "^0.0.1",
     "tailwind-merge": "^3.7.0",
+    "word-extractor": "^1.0.4",
+    "yauzl": "^3.4.0",
     "zod": "^4.6.7"
   },
   "devDependencies": {
@@ -39,6 +42,7 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@types/yauzl": "^3.4.0",
     "eslint": "^9",
     "eslint-config-next": "16.4.2",
     "sharp": "^0.35.5",

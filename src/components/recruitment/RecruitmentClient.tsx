@@ -1,4 +1,5 @@
 "use client";
+import { mergeResumeProfile } from "@/lib/resumeMerge";
 /* eslint-disable @next/next/no-img-element -- Uploaded candidate profile photos use native images. */
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -108,7 +109,7 @@ export function CandidatePortal({ initial, defaultTab }: { initial: Dashboard; d
   const [targetRole, setTargetRole] = useState(initial.user.profile.targetRole || "");
   const [employmentType, setEmploymentType] = useState(initial.user.profile.employmentType || "Full-time");
   const [preferredLocation, setPreferredLocation] = useState(initial.user.profile.preferredLocation || "");
-  const [noticePeriod, setNoticePeriod] = useState(initial.user.profile.noticePeriod || "30 Days");
+  const [noticePeriod, setNoticePeriod] = useState(initial.user.profile.noticePeriod || "");
   const [expectedSalary, setExpectedSalary] = useState(initial.user.profile.expectedSalary || "");
   const [openToRelocation, setOpenToRelocation] = useState(initial.user.profile.openToRelocation ?? false);
   const [resumeUrl, setResumeUrl] = useState(initial.user.profile.resumeUrl || "");
@@ -129,6 +130,7 @@ export function CandidatePortal({ initial, defaultTab }: { initial: Dashboard; d
   const [pastedText, setPastedText] = useState("");
   const [pasteError, setPasteError] = useState("");
   const [parsedResult, setParsedResult] = useState<ParsedResume | null>(null);
+  const [replaceFromResume, setReplaceFromResume] = useState(false);
   const [parsedSource, setParsedSource] = useState("");
   const [lastSyncedFile, setLastSyncedFile] = useState("");
 
@@ -151,7 +153,7 @@ export function CandidatePortal({ initial, defaultTab }: { initial: Dashboard; d
       setTargetRole(fresh.user.profile.targetRole || "");
       setEmploymentType(fresh.user.profile.employmentType || "Full-time");
       setPreferredLocation(fresh.user.profile.preferredLocation || "");
-      setNoticePeriod(fresh.user.profile.noticePeriod || "30 Days");
+      setNoticePeriod(fresh.user.profile.noticePeriod || "");
       setExpectedSalary(fresh.user.profile.expectedSalary || "");
       setOpenToRelocation(fresh.user.profile.openToRelocation ?? false);
       setResumeUrl(fresh.user.profile.resumeUrl || "");
@@ -308,11 +310,11 @@ export function CandidatePortal({ initial, defaultTab }: { initial: Dashboard; d
   }
 
   async function handleFileUpload(file: File) {
-    const allowedExtensions = [".pdf", ".docx", ".doc", ".txt", ".rtf", ".md"];
+    const allowedExtensions = [".pdf", ".docx", ".doc", ".txt", ".md"];
     const lowerName = file.name.toLowerCase();
     const hasValidExt = allowedExtensions.some(ext => lowerName.endsWith(ext));
     if (!hasValidExt) {
-      setError("Please choose a valid resume file (PDF, Word .docx/.doc, TXT, RTF, MD).");
+      setError("Please choose a valid resume file (PDF, Word .docx/.doc, TXT, MD).");
       return;
     }
     if (file.size > 8 * 1024 * 1024) {
@@ -328,6 +330,7 @@ export function CandidatePortal({ initial, defaultTab }: { initial: Dashboard; d
       formData.append("file", file);
       const res = await apiUpload("parse-resume", formData);
       if (res.ok && res.parsed) {
+        setReplaceFromResume(false);
         setParsedResult(res.parsed);
         setParsedSource(file.name);
         setSyncModalOpen(true);
@@ -360,6 +363,7 @@ export function CandidatePortal({ initial, defaultTab }: { initial: Dashboard; d
     try {
       const res = await api("parse-resume", { text: pastedText, filename: "pasted_resume.txt" });
       if (res.ok && res.parsed) {
+        setReplaceFromResume(false);
         setParsedResult(res.parsed);
         setParsedSource("Pasted Resume Text");
         setPasteModalOpen(false);
@@ -379,25 +383,26 @@ export function CandidatePortal({ initial, defaultTab }: { initial: Dashboard; d
     if (!parsedResult) return;
     const p = parsedResult;
 
-    const updatedName = p.name || name;
-    const updatedPhotoUrl = p.photoUrl || photoUrl;
-    const updatedHeadline = p.headline || headline;
-    const updatedPhone = p.phone || phone;
-    const updatedLocation = p.location || location;
-    const updatedBio = p.bio || bio;
-    const updatedSkills = p.skills || skills;
-    const updatedExperience = p.experience > 0 ? p.experience : experience;
-    const updatedCertifications = p.certifications || certifications;
-    const updatedTargetRole = p.targetRole || targetRole;
-    const updatedNoticePeriod = p.noticePeriod || noticePeriod;
-    const updatedExpectedSalary = p.expectedSalary || expectedSalary;
-    const updatedOpenToRelocation = p.openToRelocation ?? openToRelocation;
-    const updatedResumeUrl = p.resumeUrl || resumeUrl;
-    const updatedLinkedinUrl = p.linkedinUrl || linkedinUrl;
-    const updatedGithubUrl = p.githubUrl || githubUrl;
-    const updatedPortfolioUrl = p.portfolioUrl || portfolioUrl;
-    const updatedWorkHistory = p.workHistory && p.workHistory.length > 0 ? p.workHistory : workHistory;
-    const updatedEducationHistory = p.educationHistory && p.educationHistory.length > 0 ? p.educationHistory : educationHistory;
+    const merged = mergeResumeProfile({ name, photoUrl, headline, phone, location, bio, skills, experience, certifications, targetRole, employmentType, preferredLocation, noticePeriod, expectedSalary, openToRelocation, resumeUrl, linkedinUrl, githubUrl, portfolioUrl, workHistory, educationHistory }, p, replaceFromResume);
+    const updatedName = merged.name;
+    const updatedPhotoUrl = merged.photoUrl || "";
+    const updatedHeadline = merged.headline || "";
+    const updatedPhone = merged.phone;
+    const updatedLocation = merged.location;
+    const updatedBio = merged.bio || "";
+    const updatedSkills = merged.skills;
+    const updatedExperience = merged.experience;
+    const updatedCertifications = merged.certifications || "";
+    const updatedTargetRole = merged.targetRole || "";
+    const updatedNoticePeriod = merged.noticePeriod || "";
+    const updatedExpectedSalary = merged.expectedSalary || "";
+    const updatedOpenToRelocation = merged.openToRelocation ?? false;
+    const updatedResumeUrl = merged.resumeUrl;
+    const updatedLinkedinUrl = merged.linkedinUrl || "";
+    const updatedGithubUrl = merged.githubUrl || "";
+    const updatedPortfolioUrl = merged.portfolioUrl || "";
+    const updatedWorkHistory = merged.workHistory || [];
+    const updatedEducationHistory = merged.educationHistory || [];
 
     setName(updatedName);
     setPhotoUrl(updatedPhotoUrl);
@@ -449,7 +454,7 @@ export function CandidatePortal({ initial, defaultTab }: { initial: Dashboard; d
         });
       }, `Resume data from "${parsedSource}" applied and saved directly to your profile!`);
     } else {
-      setMessage(`Resume data from "${parsedSource}" applied to all profile fields! Review the sections below and click "Save Complete Profile" when ready.`);
+      setMessage(`Resume data from "${parsedSource}" imported into your profile! Review the sections below and click "Save Complete Profile" when ready.`);
     }
   }
 
@@ -590,7 +595,7 @@ export function CandidatePortal({ initial, defaultTab }: { initial: Dashboard; d
         </article>
         <article>
           <span>Notice / Availability</span>
-          <strong>{noticePeriod || "Immediate"}</strong>
+          <strong>{noticePeriod || "Not specified"}</strong>
         </article>
       </div>
 
@@ -715,7 +720,7 @@ export function CandidatePortal({ initial, defaultTab }: { initial: Dashboard; d
             type="file"
             ref={fileInputRef}
             className="talent-file-input"
-            accept=".pdf,.docx,.doc,.txt,.rtf,.md"
+            accept=".pdf,.docx,.doc,.txt,.md"
             onChange={handleFileChange}
           />
 
@@ -739,7 +744,7 @@ export function CandidatePortal({ initial, defaultTab }: { initial: Dashboard; d
               Auto-Fill Profile with Resume / CV
             </h3>
             <p style={{ margin: "0 auto", maxWidth: "600px", fontSize: "14px", color: "#475569", lineHeight: 1.6 }}>
-              Upload your resume in <strong>PDF, Word (.docx / .doc), TXT, or RTF</strong> format, or paste your resume text. Our intelligent parser will extract your experience, skills, education, and contact details and sync them directly into your candidate profile.
+              Upload your resume in <strong>PDF, Word (.docx / .doc), TXT, or Markdown</strong> format, or paste your resume text. Import your contact details, skills, work experience and education, then review them before saving. Existing profile details are kept unless you choose to replace them.
             </p>
 
             <div className="talent-sync-actions">
@@ -927,6 +932,8 @@ export function CandidatePortal({ initial, defaultTab }: { initial: Dashboard; d
                     value={noticePeriod}
                     onChange={e => setNoticePeriod(e.target.value)}
                   >
+                    <option value="">Not specified</option>
+                    {!!noticePeriod && !["Immediate", "15 Days", "30 Days", "60 Days", "90 Days", "Serving Notice"].includes(noticePeriod) && <option value={noticePeriod}>{noticePeriod}</option>}
                     <option value="Immediate">Immediate (Available now)</option>
                     <option value="15 Days">15 Days</option>
                     <option value="30 Days">30 Days (1 Month)</option>
@@ -1347,7 +1354,7 @@ export function CandidatePortal({ initial, defaultTab }: { initial: Dashboard; d
                     <Award size={14} /> {experience} Years Experience
                   </span>
                   <span className="talent-pill">
-                    <Clock size={14} /> Notice: {noticePeriod || "Immediate"}
+                    <Clock size={14} /> Notice: {noticePeriod || "Not specified"}
                   </span>
                   {expectedSalary && (
                     <span className="talent-pill">
@@ -1527,6 +1534,12 @@ export function CandidatePortal({ initial, defaultTab }: { initial: Dashboard; d
               </button>
             </div>
 
+            <label style={{ display: "flex", gap: 10, alignItems: "center", marginBottom: 16 }}>
+              <input type="checkbox" checked={replaceFromResume} onChange={e => setReplaceFromResume(e.target.checked)} />
+              Replace existing details with detected resume details
+            </label>
+            <p style={{ fontSize: 13, color: "#475569" }}>By default, we fill empty fields and add new skills, roles and education. Your account email stays unchanged.</p>
+            {parsedResult.warnings?.map(warning => <p key={warning} style={{ fontSize: 13, color: "#92400e" }}>{warning}</p>)}
             <div className="talent-sync-preview-grid">
               <div className="talent-sync-stat">
                 <span>Extracted Name</span>
@@ -1564,6 +1577,8 @@ export function CandidatePortal({ initial, defaultTab }: { initial: Dashboard; d
               </div>
             </div>
 
+            {!!parsedResult.workHistory.length && <div style={{ marginBottom: 16 }}><strong>Detected work experience</strong>{parsedResult.workHistory.map(role => <p key={role.id}>{role.title || "Role not detected"} · {role.company || "Company not detected"}<br />{role.startDate} – {role.current ? "Present" : role.endDate}</p>)}</div>}
+            {!!parsedResult.educationHistory.length && <div style={{ marginBottom: 16 }}><strong>Detected education</strong>{parsedResult.educationHistory.map(item => <p key={item.id}>{item.degree} · {item.institution || "Institution not detected"} {item.graduationYear}</p>)}</div>}
             {parsedResult.skills && (
               <div style={{ marginBottom: 16 }}>
                 <span style={{ fontSize: "12px", fontWeight: 700, color: "#334155", display: "block", marginBottom: 6 }}>

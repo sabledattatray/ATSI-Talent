@@ -101,7 +101,8 @@ export async function recruitmentRequest(request: Request, route: string): Promi
       jar.delete(COOKIE); return result({ ok: true });
     }
     if (route === "parse-resume") {
-      await requireCandidate();
+      const candidate = await requireCandidate();
+      await limit(`candidate-resume:${candidate.id}`, 20);
       const contentType = request.headers.get("content-type") || "";
       let extractedText = "";
       let filename = "";
@@ -113,15 +114,18 @@ export async function recruitmentRequest(request: Request, route: string): Promi
         if (file.size > 8 * 1024 * 1024) return result({ error: "File exceeds maximum size of 8 MB." }, 413);
         filename = file.name;
         const bytes = Buffer.from(await file.arrayBuffer());
-        extractedText = extractTextFromBuffer(bytes, file.name);
+        extractedText = await extractTextFromBuffer(bytes, file.name);
       } else {
+        if (Number(request.headers.get("content-length")) > 12_000_000) return result({ error: "Resume request is too large." }, 413);
         const textBody = await request.text();
+        if (Buffer.byteLength(textBody) > 12_000_000) return result({ error: "Resume request is too large." }, 413);
         let parsedJson: { text?: string; base64?: string; filename?: string } = {};
         try { parsedJson = JSON.parse(textBody); } catch { parsedJson = { text: textBody }; }
+        if (!parsedJson || typeof parsedJson !== "object" || (parsedJson.text !== undefined && typeof parsedJson.text !== "string") || (parsedJson.base64 !== undefined && typeof parsedJson.base64 !== "string") || (parsedJson.filename !== undefined && typeof parsedJson.filename !== "string")) return result({ error: "Please provide resume text or a valid resume file." }, 400);
         filename = parsedJson.filename || "";
         if (parsedJson.base64) {
           const bytes = Buffer.from(parsedJson.base64, "base64");
-          extractedText = extractTextFromBuffer(bytes, filename);
+          extractedText = await extractTextFromBuffer(bytes, filename);
         } else {
           extractedText = parsedJson.text || "";
         }
@@ -131,6 +135,8 @@ export async function recruitmentRequest(request: Request, route: string): Promi
         return result({ error: "Could not extract readable text from this file. Ensure the file contains text or paste your resume text." }, 422);
       }
 
+      if (typeof extractedText !== "string" || extractedText.length > 150_000) return result({ error: "Please provide resume text of 150,000 characters or fewer." }, 413);
+      if (extractedText.replace(/[^\p{L}\p{N}]/gu, "").length < 30) return result({ error: "Please provide more readable resume text." }, 422);
       const parsed = parseResumeText(extractedText);
       return result({ ok: true, parsed, filename });
     }

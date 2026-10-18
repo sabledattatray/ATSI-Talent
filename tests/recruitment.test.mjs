@@ -13,7 +13,7 @@ function environment(mode="development") {
   function load(file) {
     const full=path.resolve(file);if(cache.has(full))return cache.get(full).exports;
     const loaded={exports:{}};cache.set(full,loaded);
-    const source=ts.transpileModule(fs.readFileSync(full,"utf8"),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;
+    const source=ts.transpileModule(fs.readFileSync(full,"utf8"),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022,esModuleInterop:true}}).outputText;
     const require=id=>id==="server-only"?{}:id==="next/headers"?{cookies:async()=>cookies}:id.startsWith("@/")?load(`src/${id.slice(2)}.ts`):id.startsWith(".")?load(path.resolve(path.dirname(full),`${id}.ts`)):nativeRequire(id);
     vm.runInContext(`(function(require,module,exports){${source}\n})`,context,{filename:full})(require,loaded,loaded.exports);return loaded.exports;
   }
@@ -208,3 +208,137 @@ test("candidate can upload and manage profile photo, validate format and persist
   assert.equal(dashboard.user.profile.photoUrl,photoUrl);
 });
 
+
+test("resume parsing handles inline sections, several degrees and mixed employment layouts", () => {
+  const e=environment(); const {parseResumeText}=e.load("src/lib/resumeParser.ts");
+  const p=parseResumeText(`PRIYA DESHMUKH
+Data Analyst
+priya@example.test | +91 98765 43210 | Pune, Maharashtra, India
+linkedin.com/in/priyad | github.com/priyad
+Summary: Analyst focused on reliable reporting.
+Technical Skills: SQL, Excel, Power BI; Python
+WORK EXPERIENCE
+Data Analyst | Acme Analytics | Pune | Jan 2022 – Dec 2023
+• Built reporting dashboards.
+Beta Systems
+Senior Data Analyst
+01/2023 to 12/2023
+• Automated reporting with SQL.
+Gamma Ltd | Business Analyst | 2025-01 - 2025-12
+• Analysed product data.
+EDUCATION
+MBA in Finance | Pune University | 2020 - 2022
+B.Com | Mumbai University | 2017 - 2020
+PROJECTS
+Data platform prototype
+CERTIFICATIONS
+Microsoft Power BI
+Notice period: 60 days`,new Date("2026-10-18T00:00:00Z"));
+  assert.equal(p.name,"PRIYA DESHMUKH"); assert.equal(p.phone,"+91 98765 43210");
+  assert.equal(p.location,"Pune, Maharashtra, India"); assert.equal(p.headline,"Data Analyst");
+  assert.equal(p.linkedinUrl,"https://linkedin.com/in/priyad");
+  assert.equal(p.skills,"SQL, Excel, Power BI, Python");
+  assert.equal(p.workHistory.length,3); assert.equal(p.workHistory[0].company,"Acme Analytics");
+  assert.equal(p.workHistory[1].company,"Beta Systems");assert.equal(p.workHistory[1].title,"Senior Data Analyst");
+  assert.equal(p.workHistory[2].company,"Gamma Ltd"); assert.equal(p.experience,3);
+  assert.equal(p.educationHistory.length,2);assert.equal(p.educationHistory[0].graduationYear,"2022");
+  assert.equal(p.educationHistory[1].institution,"Mumbai University");
+  assert.equal(p.noticePeriod,"60 Days");assert.equal(p.openToRelocation,undefined);
+  assert.ok(!p.skills.includes("PROJECTS"));
+});
+
+test("resume parsing avoids dates as phones, invented availability and body cities as home location", () => {
+  const e=environment();const {parseResumeText}=e.load("src/lib/resumeParser.ts");
+  const p=parseResumeText(`José Fernandes
+Software Engineer
+SUMMARY
+Engineer building useful applications.
+SKILLS: TypeScript, React
+EXPERIENCE
+Engineer | Example Ltd
+2020 - 2022
+Developed applications for London clients.
+EDUCATION
+B.Tech | Example University | 2019`);
+  assert.equal(p.name,"José Fernandes");assert.equal(p.phone,"");assert.equal(p.location,"");
+  assert.equal(p.noticePeriod,"");assert.equal(p.openToRelocation,undefined);
+  assert.equal(p.educationHistory[0].institution,"Example University");
+});
+
+test("resume import fills gaps, preserves edits, adds history once and permits explicit replacement", () => {
+  const e=environment();const {parseResumeText}=e.load("src/lib/resumeParser.ts");
+  const {mergeResumeProfile}=e.load("src/lib/resumeMerge.ts");
+  const parsed=parseResumeText(`Jane Doe
+Data Analyst
+Phone: +91 98765 43210
+SKILLS: SQL, Python
+EXPERIENCE
+Analyst | Example Ltd
+Jan 2020 - Dec 2021
+• Built dashboards.
+EDUCATION
+B.Tech | Example University | 2019`);
+  const current={name:"Jane Verified",phone:"+91 91234 56789",location:"Pune",skills:"Excel, SQL",experience:7,noticePeriod:"90 Days",openToRelocation:true,resumeUrl:"https://example.test/resume.pdf",workHistory:[],educationHistory:[]};
+  const merged=mergeResumeProfile(current,parsed);
+  assert.equal(merged.name,current.name);assert.equal(merged.phone,current.phone);assert.equal(merged.headline,"Data Analyst");
+  assert.equal(merged.skills,"Excel, SQL, Python");assert.equal(merged.experience,7);assert.equal(merged.noticePeriod,"90 Days");assert.equal(merged.openToRelocation,true);
+  assert.equal(merged.resumeUrl,current.resumeUrl);assert.equal(merged.workHistory.length,1);
+  assert.equal(mergeResumeProfile(merged,parsed).workHistory.length,1);
+  assert.equal(mergeResumeProfile(merged,parsed).educationHistory.length,1);
+  assert.equal(mergeResumeProfile(current,parsed,true).phone,parsed.phone);
+});
+
+function pdfFixture(lines) {
+  // A valid PDF with hex text and a compressed stream: unsupported by the old reader.
+  const content=Buffer.from("BT /F1 12 Tf 50 780 Td 16 TL\n"+lines.map(s=>`<${Buffer.from(s,"latin1").toString("hex")}> Tj T*`).join("\n")+"\nET");
+  const zip=nativeRequire("node:zlib").deflateSync(content);
+  const objects=["<< /Type /Catalog /Pages 2 0 R >>","<< /Type /Pages /Kids [3 0 R] /Count 1 >>","<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 842] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>","<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",Buffer.concat([Buffer.from(`<< /Length ${zip.length} /Filter /FlateDecode >>\nstream\n`),zip,Buffer.from("\nendstream")])];
+  const chunks=[Buffer.from("%PDF-1.4\n")],offsets=[0];let size=chunks[0].length;
+  for(let i=0;i<objects.length;i++){offsets.push(size);const chunk=Buffer.concat([Buffer.from(`${i+1} 0 obj\n`),Buffer.isBuffer(objects[i])?objects[i]:Buffer.from(objects[i]),Buffer.from("\nendobj\n")]);chunks.push(chunk);size+=chunk.length;}
+  chunks.push(Buffer.from(`xref\n0 ${objects.length+1}\n0000000000 65535 f \n`+offsets.slice(1).map(o=>`${String(o).padStart(10,"0")} 00000 n \n`).join("")+`trailer\n<< /Size 6 /Root 1 0 R >>\nstartxref\n${size}\n%%EOF`));return Buffer.concat(chunks);
+}
+
+function docxFixture(lines) {
+  const xml=lines.map(s=>`<w:p><w:r><w:t>${s.replace(/&/g,"&amp;").replace(/</g,"&lt;")}</w:t></w:r></w:p>`).join("");
+  const files={"[Content_Types].xml":'<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>',"word/document.xml":`<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>${xml}</w:body></w:document>`};
+  const chunks=[],central=[];let offset=0;
+  const crc32=bytes=>{let c=0xffffffff;for(const b of bytes){c^=b;for(let i=0;i<8;i++)c=(c>>>1)^((c&1)?0xedb88320:0);}return (c^0xffffffff)>>>0;};
+  for(const [filename,value] of Object.entries(files)){
+    const name=Buffer.from(filename),data=Buffer.from(value),crc=crc32(data);
+    const local=Buffer.alloc(30);local.writeUInt32LE(0x04034b50);local.writeUInt16LE(20,4);local.writeUInt32LE(crc,14);local.writeUInt32LE(data.length,18);local.writeUInt32LE(data.length,22);local.writeUInt16LE(name.length,26);
+    const entry=Buffer.alloc(46);entry.writeUInt32LE(0x02014b50);entry.writeUInt16LE(20,4);entry.writeUInt16LE(20,6);entry.writeUInt32LE(crc,16);entry.writeUInt32LE(data.length,20);entry.writeUInt32LE(data.length,24);entry.writeUInt16LE(name.length,28);entry.writeUInt32LE(offset,42);
+    chunks.push(local,name,data);central.push(entry,name);offset+=local.length+name.length+data.length;
+  }
+  const directory=Buffer.concat(central),end=Buffer.alloc(22);end.writeUInt32LE(0x06054b50);end.writeUInt16LE(2,8);end.writeUInt16LE(2,10);end.writeUInt32LE(directory.length,12);end.writeUInt32LE(offset,16);return Buffer.concat([...chunks,directory,end]);
+}
+
+test("PDF and Word uploads extract actual document text through the candidate API", async () => {
+  const e=environment();await e.call("auth/signup",person);
+  const lines=["Jane Doe","Data Analyst","Phone: +91 98765 43210","Location: Pune, India","SKILLS: SQL, Excel, Power BI","EXPERIENCE","Analyst | Acme Ltd | Pune","Jan 2020 - Dec 2022","Built useful reporting dashboards.","EDUCATION","B.Tech | Example University | 2019"];
+  for(const [name,bytes] of [["resume.pdf",pdfFixture(lines)],["resume.docx",docxFixture(lines)]]){
+    const form=new FormData();form.append("file",new File([bytes],name));
+    const response=await e.callFormData("parse-resume",form);const body=await response.json();
+    assert.equal(response.status,200,JSON.stringify(body));assert.equal(body.parsed.name,"Jane Doe");
+    assert.equal(body.parsed.phone,"+91 98765 43210");assert.equal(body.parsed.workHistory.length,1);
+    assert.equal(body.parsed.educationHistory[0].institution,"Example University");
+    assert.ok(body.parsed.skills.includes("Power BI"));
+  }
+});
+
+test("unreadable resume files and invalid text are actionable failures, not binary profile data", async () => {
+  const e=environment();await e.call("auth/signup",person);
+  for(const [filename,bytes] of [["broken.pdf",Buffer.from("%PDF-invalid")],["broken.docx",Buffer.from("PK invalid archive")],["scan.pdf",pdfFixture([])],["resume.rtf",Buffer.from("{\\rtf1 Jane Doe}")]]){
+    const response=await e.call("parse-resume",{filename,base64:bytes.toString("base64")});
+    assert.ok([400,422].includes(response.status),`${filename}: ${response.status}`);assert.ok((await response.json()).error);
+  }
+  assert.equal((await e.call("parse-resume",{text:"a".repeat(150001)})).status,413);
+  assert.equal((await e.call("parse-resume",{text:{bad:true}})).status,400);
+});
+
+
+test("table separators and ongoing education preserve field boundaries", () => {
+  const e=environment();const {parseResumeText}=e.load("src/lib/resumeParser.ts");
+  const parsed=parseResumeText("Jane Doe\nData Analyst\nTECHNICAL SKILLS & TOOLS\nSQL\tExcel\tPower BI\nEXPERIENCE\nData Analyst\tAcme Ltd\tJan 2020 - Dec 2021\nBuilt useful dashboards.\nEDUCATION\nMBA in Finance | Example University | 2025 - Present");
+  assert.equal(parsed.workHistory[0].title,"Data Analyst");assert.equal(parsed.workHistory[0].company,"Acme Ltd");
+  assert.equal(parsed.skills,"SQL, Excel, Power BI");assert.equal(parsed.educationHistory[0].graduationYear,"");
+});
