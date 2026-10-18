@@ -18,7 +18,7 @@ const nextConfig: NextConfig = {
     }] : PRIVATE_SEARCH_PATHS.map(path => ({
       source: `${path}/:path*`,
       headers: [{ key: "X-Robots-Tag", value: "noindex, nofollow" }],
-    })))];
+    }))), ...(PUBLIC_INDEXING ? [{ source: "/api/media/:path*", headers: [{ key: "X-Robots-Tag", value: "index, follow" }] }] : [])];
   },
   cacheComponents: true,
   partialPrefetching: true,

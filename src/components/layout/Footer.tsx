@@ -88,7 +88,7 @@ export function Footer() {
                 <Link href="/candidates/how-it-works" className="hover:text-white transition-colors">How We Represent You</Link>
               </li>
               <li>
-                <Link href="/resources" className="hover:text-white transition-colors">Resume &amp; Interview Guides</Link>
+                <Link href="/blog" className="hover:text-white transition-colors">Resume &amp; Interview Guides</Link>
               </li>
               <li>
                 <Link href="/candidate/dashboard" className="hover:text-white transition-colors">Application Tracker</Link>

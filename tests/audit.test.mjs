@@ -24,7 +24,7 @@ function app(environment = "development") {
     if (cache.has(full)) return cache.get(full).exports;
     const loaded = { exports: {} }; cache.set(full, loaded);
     const source = ts.transpileModule(fs.readFileSync(full,"utf8"), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText;
-    const localRequire = id => id === "server-only" ? {} : id === "next/headers" ? { cookies: async () => ({ get: () => undefined }) } : id.startsWith("@/") ? load(`src/${id.slice(2)}.ts`) : id.startsWith(".") ? load(path.relative(path.resolve(__dirname,".."),path.resolve(path.dirname(full),id+".ts"))) : nativeRequire(id);
+    const localRequire = id => id === "next/server" ? { ...nativeRequire("next/server"), connection: async () => {} } : id === "server-only" ? {} : id === "next/headers" ? { cookies: async () => ({ get: () => undefined }) } : id.startsWith("@/") ? load(`src/${id.slice(2)}.ts`) : id.startsWith(".") ? load(path.relative(path.resolve(__dirname,".."),path.resolve(path.dirname(full),id+".ts"))) : nativeRequire(id);
     const fn = vm.runInContext(`(function(require,module,exports){${source}\n})`,context,{filename:full});
     fn(localRequire,loaded,loaded.exports); return loaded.exports;
   }
@@ -99,10 +99,10 @@ test("production job API is empty and status has no invented metrics",async()=>{
   const status=await load("src/app/api/v1/status/route.ts").GET().json();assert.equal(status.status,"available");assert.equal(status.services.authentication,"candidate-and-admin-sessions");assert.equal(status.services.database,"local-sqlite");assert.equal(status.services.recruitmentSubmissions,"database-inbox");assert.equal(status.uptime,undefined);
 });
 
-test("sitemap lists existing public routes on the live www host without database access", () => {
+test("sitemap lists canonical public routes and excludes duplicate resources", async () => {
   const { load } = app("production");
-  const entries = load("src/app/sitemap.ts").default();
-  assert.equal(entries.length, 17);
+  const entries = await load("src/app/sitemap.ts").default();
+  assert.equal(entries.length, 16);
   assert.equal(new Set(entries.map(e => e.url)).size, entries.length);
   for (const entry of entries) {
     const url = new URL(entry.url);
@@ -118,7 +118,8 @@ test("production robots permit public pages without blocking candidates and empl
   const { load } = app("production");
   const robots = load("src/app/robots.ts").default();
   assert.equal(robots.sitemap, "https://www.atsai.pro/sitemap.xml");
-  assert.equal(robots.rules.allow, "/");
+  assert.ok(robots.rules.allow.includes("/"));
+  assert.ok(robots.rules.allow.includes("/api/media/"));
   assert.ok(robots.rules.disallow.includes("/admin/"));
   assert.ok(robots.rules.disallow.includes("/candidate$"));
   assert.ok(!robots.rules.disallow.includes("/candidate"));
@@ -136,4 +137,50 @@ test("preview deployments stay noindex while production limits noindex headers t
   assert.ok(!headers.some(rule => rule.source === "/:path*" && rule.headers.some(h => h.key === "X-Robots-Tag")));
   assert.ok(headers.some(rule => rule.source === "/admin/:path*" && rule.headers.some(h => h.key === "X-Robots-Tag")));
   assert.equal(app().load("src/app/robots.ts").default().rules.disallow, "/");
+});
+
+test("public metadata has distinct titles, canonical URLs and complete sharing cards", () => {
+  const { load } = app("production");
+  const seo = load("src/lib/seo.ts");
+  const titles = new Set();
+  for (const route of seo.PUBLIC_SITEMAP_PATHS) {
+    const meta = seo.staticMetadata(route);
+    assert.ok(meta.description.length > 50);
+    assert.equal(meta.alternates.canonical, new URL(route, seo.SITE_URL).href);
+    assert.equal(meta.openGraph.url, meta.alternates.canonical);
+    assert.equal(meta.twitter.card, "summary_large_image");
+    assert.equal(meta.robots.index, true);
+    assert.ok(!titles.has(meta.title.absolute)); titles.add(meta.title.absolute);
+  }
+  assert.equal(seo.pageMetadata("/jobs/example", "Example | ATSAI", "Description").title.absolute, "Example | ATSAI");
+});
+
+test("job schema uses confirmed facts, full descriptions and excludes expired or unconfirmed jobs", () => {
+  const { load } = app("production");
+  const { jobPosting, jsonLd, articlePosting } = load("src/lib/structured-data.ts");
+  const base = { ...load("src/lib/admin/types.ts").blankRecord("job", "Fixture Owner"), id: "schema-test", slug: "analyst", title: "Data Analyst", company: "Fixture Company", location: "Pune, Maharashtra, India", status: "published", publishedAt: "2026-10-01T00:00:00Z", googleJobs: true, jobOriginalDate: "2026-09-30", jobCity: "Pune", jobRegion: "Maharashtra", jobCountry: "IN", workMode: "Hybrid", content: { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "Analyse data & report findings." }] }, { type: "bulletList", content: [{ type: "listItem", content: [{ type: "paragraph", content: [{ type: "text", text: "Strong SQL skills required." }] }] }] }] } };
+  const now = Date.parse("2026-10-18T00:00:00Z");
+  const schema = jobPosting(base, now);
+  assert.equal(schema.datePosted, "2026-09-30");
+  assert.equal(schema.hiringOrganization.name, "Fixture Company");
+  assert.equal(schema.jobLocation.address.addressCountry, "IN");
+  assert.ok(schema.description.includes("<ul>"));
+  assert.ok(schema.description.includes("Strong SQL"));
+  assert.ok(!("baseSalary" in schema));
+  assert.ok(!("directApply" in schema));
+  assert.ok(!("validThrough" in schema));
+  assert.equal(jobPosting({ ...base, googleJobs: false }, now), null);
+  assert.equal(jobPosting({ ...base, jobOriginalDate: "" }, now), null);
+  assert.equal(jobPosting({ ...base, status: "draft" }, now), null);
+  assert.equal(jobPosting({ ...base, expiresAt: "2026-10-17" }, now), null);
+  const remote = jobPosting({ ...base, workMode: "Remote", jobCity: "" }, now);
+  assert.equal(remote.jobLocationType, "TELECOMMUTE");
+  assert.equal(remote.applicantLocationRequirements.name, "IN");
+  assert.ok(!("jobLocation" in remote));
+  const attack = { headline: "</script><script>alert(1)</script>" };
+  assert.ok(!jsonLd(attack).includes("<"));
+  assert.equal(JSON.parse(jsonLd(attack)).headline, attack.headline);
+  const article = articlePosting({ ...base, kind: "post", author: "Datta Sable", updatedAt: "2026-10-17T00:00:00Z" });
+  assert.equal(article.author.name, "Datta Sable");
+  assert.equal(article.dateModified, "2026-10-17T00:00:00Z");
 });

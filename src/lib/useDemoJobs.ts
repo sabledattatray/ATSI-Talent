@@ -9,8 +9,8 @@ function subscribe(listener: () => void) {
   window.addEventListener("atsai-demo-change", listener);
   return () => window.removeEventListener("atsai-demo-change", listener);
 }
-export function useDemoJobs(): JobListing[] {
-  const [published, setPublished] = useState<JobListing[]>([]);
+export function useDemoJobs(initialJobs: JobListing[] = []): JobListing[] {
+  const [published, setPublished] = useState<JobListing[]>(initialJobs);
   useEffect(() => {
     const controller = new AbortController();
     const load = () => fetch("/api/published/jobs", { cache: "no-store", signal: controller.signal }).then(r => { if (!r.ok) throw new Error("Jobs unavailable"); return r.json(); }).then(data => setPublished(data.jobs)).catch(() => {});

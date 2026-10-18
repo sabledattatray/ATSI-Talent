@@ -1,3 +1,6 @@
+import { staticMetadata, PAGE_SEO, absoluteUrl, SITE_URL } from "@/lib/seo";
+import { StructuredData } from "@/components/common/StructuredData";
+import { breadcrumbs } from "@/lib/structured-data";
 import {
   ArrowLeft,
   ArrowRight,
@@ -24,7 +27,7 @@ interface ServiceData {
 const SERVICE_REGISTRY: Record<string, ServiceData> = {
   "permanent-recruitment": {
     title: "Permanent Contingent Recruitment",
-    subtitle: "End-to-end talent acquisition with calibrated shortlists and guaranteed replacement protection.",
+    subtitle: "End-to-end talent acquisition with calibrated shortlists and replacement provisions agreed in writing.",
     whoItServes: "Mid-market to enterprise companies looking to fill permanent corporate vacancies without upfront retainers.",
     methodology: [
       { step: "Mandate Calibration", desc: "Detailed intake of team culture, reporting lines, technical expectations, and salary bands." },
@@ -184,6 +187,11 @@ function ServiceDetailSkeleton() {
   );
 }
 
+export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = await params;
+  return PAGE_SEO[`/services/${slug}`] ? staticMetadata(`/services/${slug}`) : { title: "Service not found", robots: { index: false } };
+}
+
 export default function ServiceDetailPage({
   params,
 }: {
@@ -203,6 +211,7 @@ async function ServiceDetailContent({
 }) {
   const resolvedParams = await params;
   const service = SERVICE_REGISTRY[resolvedParams.slug];
+  const servicePath = `/services/${resolvedParams.slug}`;
 
   if (!service) {
     notFound();
@@ -222,6 +231,8 @@ async function ServiceDetailContent({
           <span className="text-slate-800 font-semibold">{service.title}</span>
         </nav>
 
+        <StructuredData data={breadcrumbs([{ name: "Recruitment services", path: "/services" }, { name: service.title, path: servicePath }])} />
+        <StructuredData data={{ "@context": "https://schema.org", "@type": "Service", name: service.title, description: PAGE_SEO[servicePath].description, url: absoluteUrl(servicePath), provider: { "@id": `${SITE_URL}/#organization` }, areaServed: { "@type": "Country", name: "India" } }} />
         {/* Header Hero */}
         <div className="bg-white rounded-3xl p-8 sm:p-12 border border-slate-200 shadow-xs mb-8">
           <span className="text-xs font-bold text-blue-600 uppercase tracking-wider">
@@ -237,7 +248,7 @@ async function ServiceDetailContent({
           <div className="mt-6 pt-6 border-t border-slate-100 flex flex-wrap gap-4 items-center justify-between">
             <div className="flex items-center gap-2 text-xs text-slate-600">
               <ShieldCheck className="w-4 h-4 text-emerald-600" />
-              <span>Standard 90-Day Replacement Warranty Included</span>
+              <span>Scope and replacement provisions agreed in writing</span>
             </div>
             <Link
               href="/employers/request-talent"
@@ -287,7 +298,7 @@ async function ServiceDetailContent({
             {/* Deliverables */}
             <div className="bg-white rounded-2xl p-6 sm:p-8 border border-slate-200 shadow-2xs">
               <h2 className="text-base font-bold text-[#0b1728] uppercase tracking-wider mb-4">
-                Guaranteed Client Deliverables
+                Recruitment deliverables
               </h2>
               <ul className="space-y-3">
                 {service.deliverables.map((d, idx) => (

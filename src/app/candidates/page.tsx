@@ -1,3 +1,4 @@
+import { staticMetadata } from "@/lib/seo";
 import {
   Briefcase,
   FileText,
@@ -7,10 +8,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 
-export const metadata = {
-  title: "Candidate Career Advocacy & Representation",
-  description: "How ATSAI Talent Solutions represents job seekers with zero fees, role-specific consent, and human recruiter guidance.",
-};
+export const metadata = staticMetadata("/candidates");
 
 export default function CandidatesPage() {
   return (

@@ -1,3 +1,4 @@
+import { staticMetadata } from "@/lib/seo";
 import {
   ArrowRight,
   Briefcase,
@@ -9,10 +10,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 
-export const metadata = {
-  title: "Recruitment Services & Practice Methodologies",
-  description: "Specialized recruitment solutions in Permanent Recruitment, IT & Analytics, BFSI & Risk Management, Executive Search, and Contract Staffing.",
-};
+export const metadata = staticMetadata("/services");
 
 export default function ServicesIndexPage() {
   const services = [

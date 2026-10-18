@@ -1,5 +1,6 @@
+import { pageMetadata } from "@/lib/seo";
 import { connection } from "next/server";
-import { records, settings } from "@/lib/admin/db";
+import { records } from "@/lib/admin/db";
 import { toJobListing } from "@/lib/admin/public";
 import { ManagedJob } from "@/components/admin/ManagedJob";
 import { INITIAL_JOBS } from "@/lib/store";
@@ -19,31 +20,12 @@ export async function generateMetadata({
   const managed = (await records("job", true)).find(j => j.slug === slug || j.id === slug);
   const job = managed ? toJobListing(managed) : INITIAL_JOBS.find((j) => j.slug === slug || j.id === slug);
 
-  if (!job) {
-    return {
-      title: "Job Not Found | ATSAI Talent Solutions",
-      description: "The requested job requisition is not available or has expired.",
-    };
-  }
+  if (!job) notFound();
 
   const employerDisplay = job.isEmployerConfidential ? "Confidential Employer" : job.employerName;
-  const title = managed?.seoTitle || `${job.title} | ${employerDisplay} - ATSAI`;
+  const title = managed?.seoTitle || `${job.title} at ${employerDisplay}`;
   const description = managed?.seoDescription || job.summary.slice(0, 160);
-  const publicOrigin = managed ? (await settings()).siteUrl : "https://atsai.pro";
-
-  return {
-    title,
-    description,
-    openGraph: {
-      title,
-      description,
-      url: `${publicOrigin}/jobs/${job.slug}`,
-      type: "article",
-    },
-    alternates: {
-      canonical: `${publicOrigin}/jobs/${job.slug}`,
-    },
-  };
+  return pageMetadata(`/jobs/${job.slug}`, title, description, managed?.cover || undefined);
 }
 
 export default function JobDetailPage({

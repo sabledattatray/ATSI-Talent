@@ -15,7 +15,7 @@ function environment(mode = "development", overrides = {}, clientFactory) {
     const full = path.resolve(root, file); if (cache.has(full)) return cache.get(full).exports;
     const loaded = { exports: {} }; cache.set(full, loaded);
     const source = ts.transpileModule(fs.readFileSync(full, "utf8"), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText;
-    const require = id => id === "@libsql/client" && clientFactory ? { createClient: clientFactory } : id === "server-only" ? {} : id === "next/headers" ? { cookies: async () => cookieJar } : id.startsWith("@/") ? load(`src/${id.slice(2)}.ts`) : id.startsWith(".") ? load(path.resolve(path.dirname(full), `${id}.ts`)) : nativeRequire(id);
+    const require = id => id === "@libsql/client" && clientFactory ? { createClient: clientFactory } : id === "next/server" ? { ...nativeRequire("next/server"), connection: async () => {} } : id === "server-only" ? {} : id === "next/headers" ? { cookies: async () => cookieJar } : id.startsWith("@/") ? load(`src/${id.slice(2)}.ts`) : id.startsWith(".") ? load(path.resolve(path.dirname(full), `${id}.ts`)) : nativeRequire(id);
     vm.runInContext(`(function(require,module,exports){${source}\n})`, context, { filename: full })(require, loaded, loaded.exports); return loaded.exports;
   }
   const route = load("src/app/api/admin/[...path]/route.ts");
@@ -227,4 +227,24 @@ test("font size and color survive publishing while unsafe styles are rejected", 
   const html = nativeRequire("react-dom/server").renderToStaticMarkup(nativeRequire("react").createElement(mod.exports.RichContent, { document: stored.content }));
   assert.match(html, /color:#2456aa;font-size:24px/);
   assert.match(html, /<strong>/);
+});
+
+
+test("sitemap updates after publishing and excludes drafts, expired and archived jobs", async () => {
+  const e = environment();
+  await e.request("auth/signup", owner);
+  const blank = e.load("src/lib/admin/types.ts").blankRecord("job", "Owner Fixture");
+  const job = { ...blank, title: "Sitemap Analyst", slug: "sitemap-analyst", company: "Fixture Company", location: "Pune", excerpt: "A useful opportunity for analysts.", content: { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "A complete description of an analytics role for the sitemap test." }] }] } };
+  const response = await e.request("content", job);
+  const draft = (await response.json()).record;
+  const sitemap = e.load("src/app/sitemap.ts").default;
+  assert.ok(!(await sitemap()).some(entry => entry.url.endsWith("/sitemap-analyst")));
+  const published = (await (await e.request("content", { ...draft, status: "published" })).json()).record;
+  const entries = await sitemap();
+  assert.ok(entries.some(entry => entry.url === "https://www.atsai.pro/jobs/sitemap-analyst" && entry.lastModified.toISOString() === published.updatedAt));
+  const storage = e.load("src/lib/admin/db.ts").db();
+  const expired = { ...published, expiresAt: "2000-01-01T00:00:00Z" };
+  await storage.prepare("UPDATE content SET document=? WHERE id=?").run(JSON.stringify(expired), published.id);
+  assert.ok(!(await sitemap()).some(entry => entry.url.endsWith("/sitemap-analyst")));
+  assert.equal((await e.request("content", { ...job, googleJobs: true, jobOriginalDate: "2026-02-31", jobCountry: "IN", jobCity: "Pune" })).status, 400);
 });
