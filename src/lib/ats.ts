@@ -37,7 +37,14 @@ export async function employerWorkspace(user:Employer):Promise<EmployerWorkspace
     db().prepare("SELECT id,applicationId,title,startsAt,timeZone,location,status,createdAt FROM ats_interviews WHERE organizationId=? ORDER BY startsAt").all(org),
     db().prepare("SELECT id,name,email,role FROM ats_employers WHERE organizationId=? ORDER BY createdAt").all(org),
   ]);
-  return {user,jobs:(rows as {document:string}[]).map(r=>JSON.parse(r.document)),applications:applications as Applicant[],events:events as TrackingEvent[],interviews:interviews as Interview[],team:team as EmployerWorkspace["team"]};
+  return {
+    user: { ...user },
+    jobs: (rows as { document: string }[]).map(r => JSON.parse(r.document)),
+    applications: (applications as Applicant[]).map(a => ({ ...a })),
+    events: (events as TrackingEvent[]).map(e => ({ ...e })),
+    interviews: (interviews as Interview[]).map(i => ({ ...i })),
+    team: (team as EmployerWorkspace["team"]).map(t => ({ ...t })),
+  };
 }
 async function readBody(request:Request){if(Number(request.headers.get("content-length"))>200_000)fail("Request is too large.",413);const value=await request.text();if(Buffer.byteLength(value)>200_000)fail("Request is too large.",413);try{return JSON.parse(value);}catch{fail("Invalid request.");}}
 export async function atsRequest(request:Request,route:string):Promise<Response>{

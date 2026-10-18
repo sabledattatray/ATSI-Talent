@@ -56,7 +56,27 @@ export async function candidateDashboard(user: Candidate) {
     db().prepare("SELECT jobId FROM candidate_saved_jobs WHERE candidateId=?").all(user.id) as Promise<{ jobId: string }[]>,
     records("job", true),
   ]);
-  return { user, applications: applications as Application[], savedJobs: jobs.filter(job => saved.some(row => row.jobId === job.id)).map(job => ({ id: job.id, title: job.title, slug: job.slug, company: job.company, location: job.location })) };
+  return {
+    user: {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      createdAt: user.createdAt,
+      profile: { ...user.profile },
+    },
+    applications: (applications as Application[]).map(a => ({
+      id: a.id,
+      candidateId: a.candidateId,
+      jobId: a.jobId,
+      jobTitle: a.jobTitle,
+      company: a.company,
+      status: a.status,
+      createdAt: a.createdAt,
+      updatedAt: a.updatedAt,
+      document: a.document || "",
+    })),
+    savedJobs: jobs.filter(job => saved.some(row => row.jobId === job.id)).map(job => ({ id: job.id, title: job.title, slug: job.slug, company: job.company, location: job.location })),
+  };
 }
 async function json(request: Request) {
   if (Number(request.headers.get("content-length")) > 100_000) throw Object.assign(new Error("Request is too large."), { status: 413 });

@@ -97,13 +97,24 @@ async function execute(sql: string, args: InValue[]) {
   return localOperation(() => connection.execute({ sql, args }));
 }
 
+function toPlainRow<T>(row: T): T {
+  if (!row || typeof row !== "object" || Array.isArray(row)) return row;
+  return { ...row };
+}
+
 // A small async adapter keeps all queries parameterized across local and Turso storage.
 const database = {
   prepare(sql: string) {
     return {
       async run(...args: InValue[]) { return { changes: (await execute(sql, args)).rowsAffected }; },
-      async get(...args: InValue[]): Promise<unknown> { return (await execute(sql, args)).rows[0]; },
-      async all(...args: InValue[]): Promise<unknown[]> { return (await execute(sql, args)).rows; },
+      async get(...args: InValue[]): Promise<unknown> {
+        const row = (await execute(sql, args)).rows[0];
+        return toPlainRow(row);
+      },
+      async all(...args: InValue[]): Promise<unknown[]> {
+        const rows = (await execute(sql, args)).rows;
+        return rows.map(toPlainRow);
+      },
     };
   },
 };
