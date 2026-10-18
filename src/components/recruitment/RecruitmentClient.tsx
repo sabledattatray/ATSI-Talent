@@ -621,19 +621,26 @@ export function CandidatePortal({ initial, defaultTab }: { initial: Dashboard; d
       <div className="talent-tabs-wrapper">
         <div className="talent-tabs">
           <button className={tab === "applications" ? "active" : ""} onClick={() => { setTab("applications"); setMessage(""); setError(""); }}>
-            Applications <span className="talent-tab-badge">{data.applications.length}</span>
+            <span className="talent-tab-full">Applications</span>
+            <span className="talent-tab-short">Applied</span>
+            <span className="talent-tab-badge">{data.applications.length}</span>
           </button>
           <button className={tab === "saved" ? "active" : ""} onClick={() => { setTab("saved"); setMessage(""); setError(""); }}>
-            Saved Jobs <span className="talent-tab-badge">{data.savedJobs.length}</span>
+            <span className="talent-tab-full">Saved Jobs</span>
+            <span className="talent-tab-short">Saved</span>
+            <span className="talent-tab-badge">{data.savedJobs.length}</span>
           </button>
           <button className={tab === "profile" ? "active" : ""} onClick={() => { setTab("profile"); setMessage(""); setError(""); }}>
-            Complete Profile <span className="talent-tab-badge" style={{ background: completeness.score === 100 ? "#059669" : "#2563eb" }}>{completeness.score}%</span>
+            <span className="talent-tab-full">Complete Profile</span>
+            <span className="talent-tab-short">Profile</span>
+            <span className="talent-tab-badge" style={{ background: completeness.score === 100 ? "#059669" : "#2563eb" }}>{completeness.score}%</span>
           </button>
           <button className={tab === "preview" ? "active" : ""} onClick={() => { setTab("preview"); setMessage(""); setError(""); }}>
-            <Eye size={14} style={{ display: "inline", verticalAlign: "text-bottom", marginRight: 4 }} /> Preview Profile
+            <Eye size={13} style={{ display: "inline", verticalAlign: "middle", marginRight: 3 }} />
+            <span>Preview</span>
           </button>
           <button className={tab === "account" ? "active" : ""} onClick={() => { setTab("account"); setMessage(""); setError(""); }}>
-            Account & Privacy
+            <span>Account & Privacy</span>
           </button>
         </div>
       </div>
@@ -642,7 +649,7 @@ export function CandidatePortal({ initial, defaultTab }: { initial: Dashboard; d
 
       {/* TAB 1: APPLICATIONS */}
       {tab === "applications" && (
-        <section className="talent-card">
+        <section className="talent-card talent-applications-tab-card">
           <h2>Your applications</h2>
           {data.applications.length ? (
             data.applications.map(app => (

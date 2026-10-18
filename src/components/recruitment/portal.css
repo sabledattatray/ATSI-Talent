@@ -325,37 +325,33 @@
   width: 100%;
 }
 
+.talent-tab-short {
+  display: none;
+}
+.talent-tab-full {
+  display: inline;
+}
+
 @media(max-width: 768px) {
-  .talent-tabs-wrapper {
-    margin: 12px 0 16px;
+  .talent-applications-tab-card {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+    margin: 12px 0 !important;
   }
-  .talent-tabs-wrapper::after {
-    content: "";
-    position: absolute;
-    top: 0;
-    right: 0;
-    bottom: 8px;
-    width: 24px;
-    pointer-events: none;
-    background: linear-gradient(90deg, transparent, rgba(248, 250, 252, 0.95));
-    border-radius: 0 12px 12px 0;
-  }
-  .talent-tabs {
-    gap: 8px;
-    padding: 2px 2px 8px;
-    scroll-snap-type: x proximity;
-  }
-  .talent-tabs button {
-    padding: 8px 13px !important;
-    font-size: 12px !important;
-    min-height: 38px !important;
-    border-radius: 10px !important;
-    scroll-snap-align: start;
+  .talent-applications-tab-card > h2 {
+    font-size: 20px !important;
+    margin: 0 0 14px 0 !important;
+    padding-left: 2px;
   }
   .talent-candidate-app-card {
-    padding: 18px 14px;
-    border-radius: 14px;
+    padding: 16px 14px;
+    border-radius: 16px;
     margin-bottom: 16px;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);
   }
   .talent-candidate-app-head {
     flex-direction: column;
@@ -376,4 +372,58 @@
     border-bottom: 1px solid #f1f5f9;
   }
 }
+
+@media(max-width: 640px) {
+  .talent-tabs-wrapper {
+    margin: 10px 0 16px !important;
+  }
+  .talent-tabs-wrapper::after {
+    display: none !important;
+  }
+  .talent-tabs {
+    display: grid !important;
+    grid-template-columns: repeat(6, 1fr) !important;
+    gap: 7px !important;
+    padding: 0 !important;
+    overflow: visible !important;
+    scrollbar-width: none !important;
+    -ms-overflow-style: none !important;
+  }
+  .talent-tabs::-webkit-scrollbar {
+    display: none !important;
+  }
+  .talent-tabs button {
+    margin: 0 !important;
+    padding: 9px 4px !important;
+    font-size: 11.5px !important;
+    min-height: 40px !important;
+    border-radius: 10px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    text-align: center !important;
+    width: 100% !important;
+    white-space: nowrap !important;
+    gap: 4px !important;
+    box-sizing: border-box !important;
+  }
+  .talent-tabs button:nth-child(1) { grid-column: span 2; }
+  .talent-tabs button:nth-child(2) { grid-column: span 2; }
+  .talent-tabs button:nth-child(3) { grid-column: span 2; }
+  .talent-tabs button:nth-child(4) { grid-column: span 3; }
+  .talent-tabs button:nth-child(5) { grid-column: span 3; }
+
+  .talent-tab-full {
+    display: none !important;
+  }
+  .talent-tab-short {
+    display: inline !important;
+  }
+  .talent-tab-badge {
+    margin-left: 3px !important;
+    padding: 1px 5px !important;
+    font-size: 9.5px !important;
+  }
+}
+
 

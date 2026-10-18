@@ -197,7 +197,8 @@ export function ApplicationTracking({ id }: { id: string }) {
       {/* Visual Stepper Track for Active Stages */}
       {!isTerminal ? (
         <div className="ats-stepper-wrap" ref={stepperWrapRef}>
-          <div className="ats-stepper-track">
+          {/* Desktop Horizontal Stepper Track */}
+          <div className="ats-stepper-track ats-desktop-stepper">
             {PIPELINE_STAGES.map((s, idx) => {
               const isCompleted = currentStageIndex > idx && data.events.some(event => event.stage === s.key);
               const isCurrent = currentStageIndex === idx;
@@ -212,6 +213,42 @@ export function ApplicationTracking({ id }: { id: string }) {
                   </div>
                   <span className="ats-stepper-label">{s.label}</span>
                   <span className="ats-stepper-hint">{s.hint}</span>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Mobile Vertical Stepper (Zero horizontal scroll on small devices) */}
+          <div className="ats-vertical-stepper">
+            {PIPELINE_STAGES.map((s, idx) => {
+              const isCompleted = currentStageIndex > idx && data.events.some(event => event.stage === s.key);
+              const isCurrent = currentStageIndex === idx;
+              const isUpcoming = idx > currentStageIndex;
+              return (
+                <div
+                  key={s.key}
+                  className={`ats-vstep-item ${isCompleted ? "completed" : ""} ${isCurrent ? "current" : ""} ${isUpcoming ? "upcoming" : ""}`}
+                >
+                  <div className="ats-vstep-left">
+                    <div className="ats-vstep-node">
+                      {isCompleted ? <Check size={12} strokeWidth={2.5} /> : idx + 1}
+                    </div>
+                    {idx < PIPELINE_STAGES.length - 1 && (
+                      <div className={`ats-vstep-line ${isCompleted ? "completed" : ""}`} />
+                    )}
+                  </div>
+                  <div className="ats-vstep-content">
+                    <div className="ats-vstep-header">
+                      <span className="ats-vstep-label">{s.label}</span>
+                      {isCurrent && (
+                        <span className="ats-vstep-current-tag">Current stage</span>
+                      )}
+                      {isCompleted && (
+                        <span className="ats-vstep-done-tag">Done</span>
+                      )}
+                    </div>
+                    <span className="ats-vstep-hint">{s.hint}</span>
+                  </div>
                 </div>
               );
             })}
