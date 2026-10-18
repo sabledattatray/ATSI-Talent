@@ -85,7 +85,16 @@ export function Footer() {
         {/* Footer Bottom Bar (Fully Responsive on All Mobile Devices) */}
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-white/10 pt-6 text-[11px] sm:text-xs text-slate-400 text-center sm:text-left">
           <span className="leading-normal">
-            © 2026 ATSAI Talent Solutions. Created by Datta Sable.
+            © 2026 ATSAI Talent Solutions. Created by{" "}
+            <a
+              href="https://dattasable.com/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-slate-300 hover:text-white underline underline-offset-2 decoration-slate-600 hover:decoration-white transition-colors"
+            >
+              Datta Sable
+            </a>
+            .
           </span>
           <div className="flex flex-wrap items-center justify-center sm:justify-end gap-x-5 gap-y-2">
             <Link
