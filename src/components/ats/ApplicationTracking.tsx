@@ -63,6 +63,18 @@ export function ApplicationTracking({ id }: { id: string }) {
   const [expanded, setExpanded] = useState(false);
   const [lastSynced, setLastSynced] = useState<string>("");
 
+  const currentStepRef = useRef<HTMLDivElement | null>(null);
+  const stepperWrapRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (currentStepRef.current && stepperWrapRef.current) {
+      const wrap = stepperWrapRef.current;
+      const item = currentStepRef.current;
+      const scrollLeft = item.offsetLeft - (wrap.clientWidth / 2) + (item.clientWidth / 2);
+      wrap.scrollTo({ left: Math.max(0, scrollLeft), behavior: "smooth" });
+    }
+  }, [data?.status]);
+
   const request = useRef<{ controller: AbortController; id: string } | null>(null);
   const load = useCallback(() => {
     request.current?.controller.abort();
@@ -124,18 +136,6 @@ export function ApplicationTracking({ id }: { id: string }) {
 
   const currentStageIndex = PIPELINE_STAGES.findIndex((s) => s.key === data.status);
   const isTerminal = data.status === "rejected" || data.status === "withdrawn";
-
-  const currentStepRef = useRef<HTMLDivElement | null>(null);
-  const stepperWrapRef = useRef<HTMLDivElement | null>(null);
-
-  useEffect(() => {
-    if (currentStepRef.current && stepperWrapRef.current) {
-      const wrap = stepperWrapRef.current;
-      const item = currentStepRef.current;
-      const scrollLeft = item.offsetLeft - (wrap.clientWidth / 2) + (item.clientWidth / 2);
-      wrap.scrollTo({ left: Math.max(0, scrollLeft), behavior: "smooth" });
-    }
-  }, [data?.status]);
 
   return (
     <div className="ats-tracker-container">
