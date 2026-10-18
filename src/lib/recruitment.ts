@@ -4,8 +4,11 @@ import { cookies } from "next/headers";
 import { z } from "zod";
 import { db, limit, records, transaction, audit } from "@/lib/admin/db";
 import { assertOrigin, hashPassword, verifyPassword, tokenHash, requireUser } from "@/lib/admin/auth";
+import { extractTextFromBuffer, parseResumeText } from "@/lib/resumeParser";
 
-export type CandidateProfile = { phone: string; location: string; skills: string; experience: number; resumeUrl: string };
+export type WorkExperience = { id: string; title: string; company: string; location?: string; startDate: string; endDate?: string; current?: boolean; description?: string };
+export type Education = { id: string; degree: string; field?: string; institution: string; graduationYear?: string };
+export type CandidateProfile = { photoUrl?: string; phone: string; location: string; headline?: string; bio?: string; skills: string; experience: number; certifications?: string; targetRole?: string; employmentType?: string; preferredLocation?: string; noticePeriod?: string; expectedSalary?: string; openToRelocation?: boolean; resumeUrl: string; linkedinUrl?: string; githubUrl?: string; portfolioUrl?: string; workHistory?: WorkExperience[]; educationHistory?: Education[] };
 export type Candidate = { id: string; name: string; email: string; profile: CandidateProfile; createdAt: string };
 export type Application = { id: string; candidateId: string; jobId: string; jobTitle: string; company: string; status: string; document: string; createdAt: string; updatedAt: string };
 export type Inquiry = { id: string; kind: string; name: string; email: string; phone: string; company: string; subject: string; message: string; status: string; createdAt: string; updatedAt: string };
@@ -15,14 +18,21 @@ const text = (max: number) => z.string().trim().max(max);
 const email = z.email().max(254).transform(value => value.toLowerCase().trim());
 const credentials = z.object({ email, password: z.string().min(12).max(128) });
 const registration = credentials.extend({ name: text(80).min(2), consent: z.literal(true), website: text(0).optional() });
-const profileSchema = z.object({ name: text(80).min(2), phone: text(35), location: text(160), skills: text(1500), experience: z.number().min(0).max(60), resumeUrl: text(1500).refine(value => { if (!value) return true; try { return new URL(value).protocol === "https:"; } catch { return false; } }, "Use a complete HTTPS resume link.") });
+const httpsUrl = (label: string) => text(1500).default("").refine(value => { if (!value) return true; try { return new URL(value).protocol === "https:"; } catch { return false; } }, `Use a complete HTTPS ${label} link.`);
+const mediaOrHttpsUrl = (label: string) => text(1500).default("").refine(value => { if (!value) return true; if (value.startsWith("/api/media/")) return true; try { return new URL(value).protocol === "https:"; } catch { return false; } }, `Use a complete HTTPS or uploaded ${label} link.`);
+const workItemSchema = z.object({ id: text(50).default(""), title: text(120).default(""), company: text(120).default(""), location: text(120).default(""), startDate: text(50).default(""), endDate: text(50).default(""), current: z.boolean().default(false), description: text(2500).default("") });
+const educationItemSchema = z.object({ id: text(50).default(""), degree: text(120).default(""), field: text(120).default(""), institution: text(160).default(""), graduationYear: text(30).default("") });
+const profileSchema = z.object({ name: text(80).min(2), photoUrl: mediaOrHttpsUrl("photo"), phone: text(35).default(""), location: text(160).default(""), headline: text(160).default(""), bio: text(4000).default(""), skills: text(2500).default(""), experience: z.coerce.number().min(0).max(60).default(0), certifications: text(2500).default(""), targetRole: text(120).default(""), employmentType: text(60).default(""), preferredLocation: text(160).default(""), noticePeriod: text(60).default(""), expectedSalary: text(80).default(""), openToRelocation: z.boolean().default(false), resumeUrl: httpsUrl("resume"), linkedinUrl: httpsUrl("LinkedIn"), githubUrl: httpsUrl("GitHub"), portfolioUrl: httpsUrl("portfolio or website"), workHistory: z.array(workItemSchema).max(25).default([]), educationHistory: z.array(educationItemSchema).max(20).default([]) });
 const inquirySchema = z.object({ kind: z.enum(["contact", "employer", "report", "privacy", "account"]), name: text(80).min(2), email, phone: text(35).default(""), company: text(160).default(""), subject: text(180).min(3), message: text(6000).min(20), consent: z.literal(true), website: text(0).optional() });
-const emptyProfile: CandidateProfile = { phone: "", location: "", skills: "", experience: 0, resumeUrl: "" };
+const emptyProfile: CandidateProfile = { photoUrl: "", phone: "", location: "", headline: "", bio: "", skills: "", experience: 0, certifications: "", targetRole: "", employmentType: "", preferredLocation: "", noticePeriod: "", expectedSalary: "", openToRelocation: false, resumeUrl: "", linkedinUrl: "", githubUrl: "", portfolioUrl: "", workHistory: [], educationHistory: [] };
 export async function candidateUser(): Promise<Candidate | null> {
   const token = (await cookies()).get(COOKIE)?.value;
   if (!token || token.length !== 64) return null;
   const row = await db().prepare("SELECT c.id,c.name,c.email,c.profile,c.createdAt FROM candidate_accounts c JOIN candidate_sessions s ON s.candidateId=c.id WHERE s.hash=? AND s.expiresAt>?").get(tokenHash(token), Date.now()) as (Omit<Candidate, "profile"> & { profile: string }) | undefined;
-  return row ? { ...row, profile: JSON.parse(row.profile) } : null;
+  if (!row) return null;
+  let parsed: Partial<CandidateProfile> = {};
+  try { parsed = JSON.parse(row.profile); } catch {}
+  return { ...row, profile: { ...emptyProfile, ...parsed } };
 }
 export async function requireCandidate() {
   const user = await candidateUser();
@@ -89,6 +99,60 @@ export async function recruitmentRequest(request: Request, route: string): Promi
       const jar = await cookies(); const token = jar.get(COOKIE)?.value;
       if (token) await db().prepare("DELETE FROM candidate_sessions WHERE hash=?").run(tokenHash(token));
       jar.delete(COOKIE); return result({ ok: true });
+    }
+    if (route === "parse-resume") {
+      await requireCandidate();
+      const contentType = request.headers.get("content-type") || "";
+      let extractedText = "";
+      let filename = "";
+
+      if (contentType.includes("multipart/form-data")) {
+        const formData = await request.formData();
+        const file = formData.get("file");
+        if (!file || typeof file === "string") return result({ error: "Please choose a resume file to upload." }, 400);
+        if (file.size > 8 * 1024 * 1024) return result({ error: "File exceeds maximum size of 8 MB." }, 413);
+        filename = file.name;
+        const bytes = Buffer.from(await file.arrayBuffer());
+        extractedText = extractTextFromBuffer(bytes, file.name);
+      } else {
+        const textBody = await request.text();
+        let parsedJson: { text?: string; base64?: string; filename?: string } = {};
+        try { parsedJson = JSON.parse(textBody); } catch { parsedJson = { text: textBody }; }
+        filename = parsedJson.filename || "";
+        if (parsedJson.base64) {
+          const bytes = Buffer.from(parsedJson.base64, "base64");
+          extractedText = extractTextFromBuffer(bytes, filename);
+        } else {
+          extractedText = parsedJson.text || "";
+        }
+      }
+
+      if (!extractedText.trim()) {
+        return result({ error: "Could not extract readable text from this file. Ensure the file contains text or paste your resume text." }, 422);
+      }
+
+      const parsed = parseResumeText(extractedText);
+      return result({ ok: true, parsed, filename });
+    }
+    if (route === "photo") {
+      const user = await requireCandidate();
+      await limit(`candidate-photo:${user.id}`, 30);
+      const formData = await request.formData();
+      const file = formData.get("file");
+      if (!file || typeof file === "string" || !file.size) return result({ error: "Please select an image file to upload." }, 400);
+      if (file.size > 5 * 1024 * 1024) return result({ error: "Image exceeds maximum size of 5 MB." }, 413);
+      const bytes = Buffer.from(await file.arrayBuffer());
+      const type = bytes.subarray(0, 8).equals(Buffer.from([137,80,78,71,13,10,26,10])) ? "image/png"
+        : bytes[0] === 255 && bytes[1] === 216 && bytes[2] === 255 ? "image/jpeg"
+        : bytes.toString("ascii", 0, 4) === "RIFF" && bytes.toString("ascii", 8, 12) === "WEBP" ? "image/webp"
+        : "";
+      if (!type) return result({ error: "Use a PNG, JPEG, or WebP image. SVG and executable uploads are not accepted." }, 400);
+      const id = randomUUID();
+      const name = file.name.replace(/[^\w. -]/g, "").slice(0, 140) || "profile-photo";
+      const createdAt = new Date().toISOString();
+      await db().prepare("INSERT INTO media VALUES (?,?,?,?,?,?)").run(id, name, type, bytes.length, bytes, createdAt);
+      const photoUrl = `/api/media/${id}`;
+      return result({ ok: true, photoUrl });
     }
     const body = await json(request);
     if (route.startsWith("auth/")) {

@@ -21,11 +21,15 @@ function environment(mode="development") {
     const request=new Request(`https://atsai.test/api/recruitment/${route}`,{method,headers:{origin,"content-type":"application/json"},body:method==="GET"?undefined:JSON.stringify(body)});
     return load("src/lib/recruitment.ts").recruitmentRequest(request,route.split("?")[0]);
   }
+  async function callFormData(route,formData,origin="https://atsai.test") {
+    const request=new Request(`https://atsai.test/api/recruitment/${route}`,{method:"POST",headers:{origin},body:formData});
+    return load("src/lib/recruitment.ts").recruitmentRequest(request,route.split("?")[0]);
+  }
   async function owner() {
     const request=new Request("https://atsai.test/api/admin/auth/signup",{method:"POST",headers:{origin:"https://atsai.test","content-type":"application/json"},body:JSON.stringify({name:"Owner Fixture",email:"owner@example.test",password:"Owner-test-password-2026",setupToken:"fixture-owner-setup-secret-at-least-32-characters"})});
     assert.equal((await load("src/app/api/admin/[...path]/route.ts").POST(request,{params:Promise.resolve({path:["auth","signup"]})})).status,201);
   }
-  return {load,call,owner,jar,options};
+  return {load,call,callFormData,owner,jar,options};
 }
 const person={name:"Candidate Fixture",email:"candidate@example.test",password:"Candidate-test-password-2026",consent:true};
 async function job(e,overrides={}) {
@@ -109,3 +113,98 @@ test("candidate password changes revoke the old session and require the current 
   assert.equal((await e.call("password",{currentPassword:person.password,password:"Another-long-password-2026"})).status,200);
   const current=e.jar.get("atsai_candidate_session");e.jar.set("atsai_candidate_session",previous);assert.equal((await e.call("dashboard")).status,401);e.jar.set("atsai_candidate_session",current);assert.equal((await e.call("dashboard")).status,200);
 });
+
+test("complete candidate profile stores structured history, preferences, and validates secure links",async()=>{
+  const e=environment();await e.call("auth/signup",person);
+  const fullProfile={
+    name:"Full Candidate",
+    phone:"+91 98765 43210",
+    location:"Bengaluru, India",
+    headline:"Senior Full-Stack Engineer | Next.js, Node & TypeScript",
+    bio:"Over 6 years of experience scaling modern web applications.",
+    skills:"TypeScript, React, Next.js, Node.js, PostgreSQL",
+    experience:6.5,
+    certifications:"AWS Certified Solutions Architect",
+    targetRole:"Lead Frontend Engineer",
+    employmentType:"Full-time",
+    preferredLocation:"Remote / Bengaluru",
+    noticePeriod:"30 Days",
+    expectedSalary:"₹28 LPA",
+    openToRelocation:true,
+    resumeUrl:"https://example.test/resume.pdf",
+    linkedinUrl:"https://linkedin.com/in/candidate",
+    githubUrl:"https://github.com/candidate",
+    portfolioUrl:"https://candidate.test",
+    workHistory:[{id:"w1",title:"Senior Engineer",company:"Acme Tech",location:"Remote",startDate:"2022-01",endDate:"",current:true,description:"Spearheaded frontend platform team."}],
+    educationHistory:[{id:"e1",degree:"B.Tech",field:"Computer Science",institution:"National Tech University",graduationYear:"2019"}]
+  };
+  assert.equal((await e.call("profile",{...fullProfile,linkedinUrl:"http://insecure.test"})).status,400);
+  assert.equal((await e.call("profile",{...fullProfile,githubUrl:"ftp://insecure.test"})).status,400);
+  assert.equal((await e.call("profile",fullProfile)).status,200);
+  const dashboard=await (await e.call("dashboard")).json();
+  assert.equal(dashboard.user.profile.headline,"Senior Full-Stack Engineer | Next.js, Node & TypeScript");
+  assert.equal(dashboard.user.profile.workHistory.length,1);
+  assert.equal(dashboard.user.profile.workHistory[0].title,"Senior Engineer");
+  assert.equal(dashboard.user.profile.educationHistory.length,1);
+  assert.equal(dashboard.user.profile.openToRelocation,true);
+});
+
+test("candidate resume parser extracts structured details from resume text and files",async()=>{
+  const e=environment();await e.call("auth/signup",person);
+  const resumeText=`
+Jane Doe
+Senior Full-Stack Engineer
+Email: jane.doe@example.test | Phone: +91 91234 56789 | Location: Pune, India
+LinkedIn: https://linkedin.com/in/janedoe | GitHub: https://github.com/janedoe
+
+PROFESSIONAL SUMMARY
+Experienced software engineer with 5 years of background in cloud platforms and web engineering.
+
+SKILLS
+React, Next.js, TypeScript, PostgreSQL, Docker, AWS
+
+WORK EXPERIENCE
+Senior Engineer | CloudCorp | Pune
+Jan 2021 - Present
+- Built multi-tenant cloud services.
+
+EDUCATION
+B.Tech in Computer Science
+Pune University | 2020
+`;
+  const res=await e.call("parse-resume",{text:resumeText});
+  assert.equal(res.status,200);
+  const data=await res.json();
+  assert.equal(data.ok,true);
+  assert.equal(data.parsed.name,"Jane Doe");
+  assert.equal(data.parsed.headline,"Senior Full-Stack Engineer");
+  assert.equal(data.parsed.phone,"+91 91234 56789");
+  assert.equal(data.parsed.location,"Pune, India");
+  assert.equal(data.parsed.workHistory.length,1);
+  assert.equal(data.parsed.workHistory[0].title,"Senior Engineer");
+  assert.equal(data.parsed.workHistory[0].company,"CloudCorp");
+  assert.equal(data.parsed.workHistory[0].current,true);
+  assert.equal(data.parsed.educationHistory.length,1);
+});
+
+test("candidate can upload and manage profile photo, validate format and persist to profile",async()=>{
+  const e=environment();await e.call("auth/signup",person);
+  const pngBytes=Buffer.from([137,80,78,71,13,10,26,10,0,0,0,13,73,72,68,82,0,0,0,1,0,0,0,1,8,6,0,0,0,31,21,196,137]);
+  const pngFile=new File([pngBytes],"avatar.png",{type:"image/png"});
+  const form=new FormData();
+  form.append("file",pngFile);
+  const uploadRes=await e.callFormData("photo",form);
+  assert.equal(uploadRes.status,200);
+  const {photoUrl}=await uploadRes.json();
+  assert.match(photoUrl,/^\/api\/media\//);
+
+  const textFile=new File(["not an image"],"bad.txt",{type:"text/plain"});
+  const badForm=new FormData();
+  badForm.append("file",textFile);
+  assert.equal((await e.callFormData("photo",badForm)).status,400);
+
+  assert.equal((await e.call("profile",{name:person.name,photoUrl})).status,200);
+  const dashboard=await (await e.call("dashboard")).json();
+  assert.equal(dashboard.user.profile.photoUrl,photoUrl);
+});
+

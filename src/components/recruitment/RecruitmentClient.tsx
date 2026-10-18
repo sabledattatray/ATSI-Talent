@@ -1,14 +1,55 @@
 "use client";
+/* eslint-disable @next/next/no-img-element -- Uploaded candidate profile photos use native images. */
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useState, type FormEvent } from "react";
-import { ArrowRight, Bookmark, BriefcaseBusiness, CheckCircle2, Mail, ShieldCheck, UserRound } from "lucide-react";
-import type { Candidate, CandidateProfile, Application, Inquiry, Recruiter } from "@/lib/recruitment";
+import { useEffect, useState, useMemo, useRef, type FormEvent } from "react";
+import {
+  ArrowRight,
+  Bookmark,
+  BriefcaseBusiness,
+  CheckCircle2,
+  Mail,
+  ShieldCheck,
+  UserRound,
+  Sparkles,
+  Award,
+  Plus,
+  Trash2,
+  ExternalLink,
+  Eye,
+  Building2,
+  GraduationCap,
+  MapPin,
+  Clock,
+  FileText,
+  Globe,
+  Edit3,
+  UploadCloud,
+  FileUp,
+  Clipboard,
+  Loader2,
+  Check,
+  X,
+  Camera
+} from "lucide-react";
+import type { Candidate, CandidateProfile, Application, Inquiry, Recruiter, WorkExperience, Education } from "@/lib/recruitment";
+import type { ParsedResume } from "@/lib/resumeParser";
 
 async function api(path: string, body?: unknown) {
   const response = await fetch(`/api/recruitment/${path}`, { method: body === undefined ? "GET" : "POST", cache: "no-store", headers: body === undefined ? {} : { "Content-Type": "application/json" }, body: body === undefined ? undefined : JSON.stringify(body) });
   const result = await response.json();
   if (!response.ok) throw Object.assign(new Error(result.error || "Please try again."), { status: response.status });
+  return result;
+}
+
+async function apiUpload(path: string, formData: FormData) {
+  const response = await fetch(`/api/recruitment/${path}`, {
+    method: "POST",
+    cache: "no-store",
+    body: formData,
+  });
+  const result = await response.json();
+  if (!response.ok) throw Object.assign(new Error(result.error || "Failed to process file."), { status: response.status });
   return result;
 }
 const date = (value: string) => new Date(value).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
@@ -44,23 +85,1682 @@ export function InquiryForm({ kind = "contact" }: { kind?: "contact" | "employer
 }
 
 type Dashboard = { user: Candidate; applications: Application[]; savedJobs: { id: string; title: string; slug: string; company: string; location: string }[] };
-export function CandidatePortal({ initial }: { initial: Dashboard }) {
-  const router = useRouter(); const [data, setData] = useState(initial); const [tab, setTab] = useState("applications"); const [busy, setBusy] = useState(false); const [error, setError] = useState(""); const [message, setMessage] = useState("");
-  async function run(task: () => Promise<void>, success: string) { setBusy(true); setError(""); setMessage(""); try { await task(); setData(await api("dashboard")); setMessage(success); } catch (error) { setError((error as Error).message); } finally { setBusy(false); } }
-  async function profile(event: FormEvent<HTMLFormElement>) { event.preventDefault(); const values = Object.fromEntries(new FormData(event.currentTarget)); await run(async () => { await api("profile", { ...values, experience: Number(values.experience) }); }, "Your profile is saved."); }
-  async function password(event: FormEvent<HTMLFormElement>) { event.preventDefault(); const form = event.currentTarget; const values = Object.fromEntries(new FormData(form)); await run(async () => { await api("password", values); form.reset(); }, "Your password is updated. Other sessions have been signed out."); }
-  return <div className="talent-container"><div className="talent-page-title"><div><span className="talent-eyebrow">CANDIDATE WORKSPACE</span><h1>Hello, {data.user.name.split(" ")[0]}.</h1><p>Your next opportunity starts with a clear next step.</p></div><div className="talent-actions"><Link className="talent-button" href="/jobs">Explore jobs<ArrowRight size={17} /></Link><button className="talent-button talent-secondary" onClick={async () => { try { await api("auth/logout", {}); router.replace("/candidate/login"); router.refresh(); } catch (error) { setError((error as Error).message); } }}>Sign out</button></div></div><div className="talent-stats"><article><span>Applications</span><strong>{data.applications.length}</strong></article><article><span>Saved opportunities</span><strong>{data.savedJobs.length}</strong></article><article><span>Your profile</span><strong>{data.user.profile.skills && data.user.profile.location ? "Ready" : "Add details"}</strong></article></div><div className="talent-tabs">{["applications", "saved", "profile", "account"].map(key => <button key={key} onClick={() => { setTab(key); setMessage(""); setError(""); }} className={tab === key ? "active" : ""}>{key === "saved" ? "Saved jobs" : label(key)}</button>)}</div><Notice error={error} message={message} />
-    {tab === "applications" && <section className="talent-card"><h2>Your applications</h2>{data.applications.length ? data.applications.map(app => <article className="talent-list-item" key={app.id}><div><Link href={`/jobs/${app.jobId}`}><h3>{app.jobTitle}</h3></Link><p>{app.company} · Applied {date(app.createdAt)}</p><small>Reference APP-{app.id.slice(0,8).toUpperCase()}</small></div><div><span className="talent-status">{label(app.status)}</span>{!["withdrawn", "hired", "rejected"].includes(app.status) && <button className="talent-text-button" disabled={busy} onClick={() => { if (confirm("Withdraw this application? This will tell the team you no longer want to proceed.")) void run(async () => { await api("withdraw", { id: app.id }); }, "Application withdrawn."); }}>Withdraw</button>}</div></article>) : <div className="talent-empty"><BriefcaseBusiness size={32} /><h3>Your next chapter starts here.</h3><p>Applications you submit through ATSAI will appear here. Applications on external employer sites are managed by that employer.</p><Link href="/jobs">Explore current openings →</Link></div>}</section>}
-    {tab === "saved" && <section className="talent-card"><h2>Saved for your next step</h2>{data.savedJobs.length ? data.savedJobs.map(job => <article className="talent-list-item" key={job.id}><div><Link href={`/jobs/${job.slug}`}><h3>{job.title}</h3></Link><p>{job.company} · {job.location}</p></div><button className="talent-text-button" disabled={busy} onClick={() => void run(async () => { await api("saved", { jobId: job.id }); }, "Removed from saved jobs.")}>Remove</button></article>) : <div className="talent-empty"><Bookmark size={32} /><h3>A shortlist of your own.</h3><p>Save a job to return to it later. Closed and expired roles are removed from this list.</p><Link href="/jobs">Find a role to save →</Link></div>}</section>}
-    {tab === "profile" && <section className="talent-card"><h2>Your professional profile</h2><p>When you apply, a snapshot of these details is shared with the ATSAI team for that role. Updating your profile does not change previous applications.</p><form onSubmit={profile} className="talent-form"><label>Full name<input name="name" required defaultValue={data.user.name} minLength={2} maxLength={80} /></label><div className="talent-form-grid"><label>Phone<input name="phone" type="tel" defaultValue={data.user.profile.phone} maxLength={35} /></label><label>Location<input name="location" defaultValue={data.user.profile.location} maxLength={160} /></label></div><label>Skills<textarea name="skills" rows={3} defaultValue={data.user.profile.skills} maxLength={1500} /></label><div className="talent-form-grid"><label>Years of experience<input name="experience" type="number" min={0} max={60} step={0.5} defaultValue={data.user.profile.experience} required /></label><label>Resume or portfolio link <small>Optional HTTPS link</small><input name="resumeUrl" type="url" pattern="https://.*" defaultValue={data.user.profile.resumeUrl} maxLength={1500} placeholder="https://…" /></label></div><button className="talent-button" disabled={busy}>Save profile</button></form></section>}
-    {tab === "account" && <section className="talent-card"><h2>Account & privacy</h2><p>Account email: <strong>{data.user.email}</strong></p><form className="talent-form" onSubmit={password}><label>Current password<input name="currentPassword" type="password" required autoComplete="current-password" maxLength={128} /></label><label>New password<input name="password" type="password" required minLength={12} maxLength={128} autoComplete="new-password" /></label><button className="talent-button" disabled={busy}>Change password</button></form><hr /><h3>Request access, correction, or account deletion</h3><p>Send a data request and the team will review it with you.</p><Link className="talent-button talent-secondary" href="/privacy-request">Make a privacy request</Link></section>}
-  </div>;
+
+export function CandidatePortal({ initial, defaultTab }: { initial: Dashboard; defaultTab?: string }) {
+  const router = useRouter();
+  const [data, setData] = useState(initial);
+  const validTabs = ["applications", "saved", "profile", "preview", "account"];
+  const [tab, setTab] = useState(defaultTab && validTabs.includes(defaultTab) ? defaultTab : "applications");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const [message, setMessage] = useState("");
+
+  // Complete profile state
+  const [name, setName] = useState(initial.user.name || "");
+  const [photoUrl, setPhotoUrl] = useState(initial.user.profile.photoUrl || "");
+  const [phone, setPhone] = useState(initial.user.profile.phone || "");
+  const [location, setLocation] = useState(initial.user.profile.location || "");
+  const [headline, setHeadline] = useState(initial.user.profile.headline || "");
+  const [bio, setBio] = useState(initial.user.profile.bio || "");
+  const [skills, setSkills] = useState(initial.user.profile.skills || "");
+  const [experience, setExperience] = useState(initial.user.profile.experience ?? 0);
+  const [certifications, setCertifications] = useState(initial.user.profile.certifications || "");
+  const [targetRole, setTargetRole] = useState(initial.user.profile.targetRole || "");
+  const [employmentType, setEmploymentType] = useState(initial.user.profile.employmentType || "Full-time");
+  const [preferredLocation, setPreferredLocation] = useState(initial.user.profile.preferredLocation || "");
+  const [noticePeriod, setNoticePeriod] = useState(initial.user.profile.noticePeriod || "30 Days");
+  const [expectedSalary, setExpectedSalary] = useState(initial.user.profile.expectedSalary || "");
+  const [openToRelocation, setOpenToRelocation] = useState(initial.user.profile.openToRelocation ?? false);
+  const [resumeUrl, setResumeUrl] = useState(initial.user.profile.resumeUrl || "");
+  const [linkedinUrl, setLinkedinUrl] = useState(initial.user.profile.linkedinUrl || "");
+  const [githubUrl, setGithubUrl] = useState(initial.user.profile.githubUrl || "");
+  const [portfolioUrl, setPortfolioUrl] = useState(initial.user.profile.portfolioUrl || "");
+  const [workHistory, setWorkHistory] = useState<WorkExperience[]>(initial.user.profile.workHistory || []);
+  const [educationHistory, setEducationHistory] = useState<Education[]>(initial.user.profile.educationHistory || []);
+
+  // Photo & Resume Parsing states
+  const photoInputRef = useRef<HTMLInputElement>(null);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [parsingBusy, setParsingBusy] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
+  const [syncModalOpen, setSyncModalOpen] = useState(false);
+  const [pasteModalOpen, setPasteModalOpen] = useState(false);
+  const [pastedText, setPastedText] = useState("");
+  const [pasteError, setPasteError] = useState("");
+  const [parsedResult, setParsedResult] = useState<ParsedResume | null>(null);
+  const [parsedSource, setParsedSource] = useState("");
+  const [lastSyncedFile, setLastSyncedFile] = useState("");
+
+  // Helper to run actions and update fresh data
+  async function run(task: () => Promise<void>, success: string) {
+    setBusy(true); setError(""); setMessage("");
+    try {
+      await task();
+      const fresh = await api("dashboard");
+      setData(fresh);
+      setName(fresh.user.name || "");
+      setPhotoUrl(fresh.user.profile.photoUrl || "");
+      setPhone(fresh.user.profile.phone || "");
+      setLocation(fresh.user.profile.location || "");
+      setHeadline(fresh.user.profile.headline || "");
+      setBio(fresh.user.profile.bio || "");
+      setSkills(fresh.user.profile.skills || "");
+      setExperience(fresh.user.profile.experience ?? 0);
+      setCertifications(fresh.user.profile.certifications || "");
+      setTargetRole(fresh.user.profile.targetRole || "");
+      setEmploymentType(fresh.user.profile.employmentType || "Full-time");
+      setPreferredLocation(fresh.user.profile.preferredLocation || "");
+      setNoticePeriod(fresh.user.profile.noticePeriod || "30 Days");
+      setExpectedSalary(fresh.user.profile.expectedSalary || "");
+      setOpenToRelocation(fresh.user.profile.openToRelocation ?? false);
+      setResumeUrl(fresh.user.profile.resumeUrl || "");
+      setLinkedinUrl(fresh.user.profile.linkedinUrl || "");
+      setGithubUrl(fresh.user.profile.githubUrl || "");
+      setPortfolioUrl(fresh.user.profile.portfolioUrl || "");
+      setWorkHistory(fresh.user.profile.workHistory || []);
+      setEducationHistory(fresh.user.profile.educationHistory || []);
+      setMessage(success);
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  // Dynamically calculate completeness
+  const completeness = useMemo(() => {
+    const checks = [
+      { id: "photo", label: "Profile Photo", ok: !!photoUrl.trim(), weight: 5 },
+      { id: "contact", label: "Phone & Location", ok: !!phone.trim() && !!location.trim(), weight: 10 },
+      { id: "headline", label: "Professional Headline", ok: !!headline.trim(), weight: 15 },
+      { id: "bio", label: "Summary / Bio", ok: !!bio.trim(), weight: 10 },
+      { id: "skills", label: "Core Skills", ok: !!skills.trim(), weight: 15 },
+      { id: "experience", label: "Experience Years", ok: Number(experience) > 0, weight: 10 },
+      { id: "preferences", label: "Target Role & Notice Period", ok: !!targetRole.trim() || !!expectedSalary.trim(), weight: 10 },
+      { id: "workHistory", label: "Work Experience", ok: workHistory.length > 0 && !!workHistory[0].title.trim(), weight: 10 },
+      { id: "education", label: "Education", ok: educationHistory.length > 0 && !!educationHistory[0].degree.trim(), weight: 5 },
+      { id: "resume", label: "Resume Link", ok: !!resumeUrl.trim(), weight: 10 },
+    ];
+    const score = checks.reduce((sum, item) => sum + (item.ok ? item.weight : 0), 0);
+    const missing = checks.filter(c => !c.ok).map(c => c.label);
+    return { score, missing };
+  }, [photoUrl, phone, location, headline, bio, skills, experience, targetRole, expectedSalary, workHistory, educationHistory, resumeUrl]);
+
+
+  async function handleSaveProfile(event: FormEvent) {
+    event.preventDefault();
+    await run(async () => {
+      await api("profile", {
+        name,
+        photoUrl,
+        phone,
+        location,
+        headline,
+        bio,
+        skills,
+        experience: Number(experience) || 0,
+        certifications,
+        targetRole,
+        employmentType,
+        preferredLocation,
+        noticePeriod,
+        expectedSalary,
+        openToRelocation,
+        resumeUrl,
+        linkedinUrl,
+        githubUrl,
+        portfolioUrl,
+        workHistory,
+        educationHistory,
+      });
+    }, "Your complete profile has been saved successfully.");
+  }
+
+  async function handlePassword(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const values = Object.fromEntries(new FormData(form));
+    await run(async () => {
+      await api("password", values);
+      form.reset();
+    }, "Your password is updated. Other sessions have been signed out.");
+  }
+
+  function addWork() {
+    setWorkHistory(prev => [
+      ...prev,
+      {
+        id: `work_${Date.now()}`,
+        title: "",
+        company: "",
+        location: "",
+        startDate: "",
+        endDate: "",
+        current: false,
+        description: "",
+      },
+    ]);
+  }
+
+  function updateWork(index: number, patch: Partial<WorkExperience>) {
+    setWorkHistory(prev => prev.map((item, i) => (i === index ? { ...item, ...patch } : item)));
+  }
+
+  function removeWork(index: number) {
+    setWorkHistory(prev => prev.filter((_, i) => i !== index));
+  }
+
+  function addEducation() {
+    setEducationHistory(prev => [
+      ...prev,
+      {
+        id: `edu_${Date.now()}`,
+        degree: "",
+        field: "",
+        institution: "",
+        graduationYear: "",
+      },
+    ]);
+  }
+
+  function updateEducation(index: number, patch: Partial<Education>) {
+    setEducationHistory(prev => prev.map((item, i) => (i === index ? { ...item, ...patch } : item)));
+  }
+
+  function removeEducation(index: number) {
+    setEducationHistory(prev => prev.filter((_, i) => i !== index));
+  }
+
+  async function handlePhotoUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const validTypes = ["image/jpeg", "image/png", "image/webp"];
+    if (!validTypes.includes(file.type)) {
+      setError("Please choose a JPG, PNG, or WebP image.");
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setError("Image size exceeds 5 MB. Please choose a smaller photo.");
+      return;
+    }
+
+    setUploadingPhoto(true);
+    setError("");
+    setMessage("");
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await apiUpload("photo", formData);
+      if (res.ok && res.photoUrl) {
+        setPhotoUrl(res.photoUrl);
+        setMessage("Profile photo uploaded! Click Save Complete Profile to persist changes.");
+      } else {
+        setError(res.error || "Failed to upload photo.");
+      }
+    } catch (err) {
+      setError((err as Error).message || "Photo upload failed.");
+    } finally {
+      setUploadingPhoto(false);
+      if (photoInputRef.current) photoInputRef.current.value = "";
+    }
+  }
+
+  async function handleFileUpload(file: File) {
+    const allowedExtensions = [".pdf", ".docx", ".doc", ".txt", ".rtf", ".md"];
+    const lowerName = file.name.toLowerCase();
+    const hasValidExt = allowedExtensions.some(ext => lowerName.endsWith(ext));
+    if (!hasValidExt) {
+      setError("Please choose a valid resume file (PDF, Word .docx/.doc, TXT, RTF, MD).");
+      return;
+    }
+    if (file.size > 8 * 1024 * 1024) {
+      setError("Resume file exceeds the 8 MB size limit.");
+      return;
+    }
+
+    setParsingBusy(true);
+    setError("");
+    setMessage("");
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await apiUpload("parse-resume", formData);
+      if (res.ok && res.parsed) {
+        setParsedResult(res.parsed);
+        setParsedSource(file.name);
+        setSyncModalOpen(true);
+      } else {
+        setError(res.error || "Could not extract resume details.");
+      }
+    } catch (err) {
+      setError((err as Error).message || "Failed to parse resume file.");
+    } finally {
+      setParsingBusy(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  }
+
+  function handleFileChange(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    if (file) {
+      void handleFileUpload(file);
+    }
+  }
+
+  async function handlePasteSubmit() {
+    if (!pastedText.trim() || pastedText.trim().length < 30) {
+      setPasteError("Please paste resume text with at least 30 characters.");
+      return;
+    }
+
+    setParsingBusy(true);
+    setPasteError("");
+    try {
+      const res = await api("parse-resume", { text: pastedText, filename: "pasted_resume.txt" });
+      if (res.ok && res.parsed) {
+        setParsedResult(res.parsed);
+        setParsedSource("Pasted Resume Text");
+        setPasteModalOpen(false);
+        setPastedText("");
+        setSyncModalOpen(true);
+      } else {
+        setPasteError(res.error || "Could not extract resume details.");
+      }
+    } catch (err) {
+      setPasteError((err as Error).message || "Failed to analyze resume text.");
+    } finally {
+      setParsingBusy(false);
+    }
+  }
+
+  async function applyParsedResume(autoSave = false) {
+    if (!parsedResult) return;
+    const p = parsedResult;
+
+    const updatedName = p.name || name;
+    const updatedPhotoUrl = p.photoUrl || photoUrl;
+    const updatedHeadline = p.headline || headline;
+    const updatedPhone = p.phone || phone;
+    const updatedLocation = p.location || location;
+    const updatedBio = p.bio || bio;
+    const updatedSkills = p.skills || skills;
+    const updatedExperience = p.experience > 0 ? p.experience : experience;
+    const updatedCertifications = p.certifications || certifications;
+    const updatedTargetRole = p.targetRole || targetRole;
+    const updatedNoticePeriod = p.noticePeriod || noticePeriod;
+    const updatedExpectedSalary = p.expectedSalary || expectedSalary;
+    const updatedOpenToRelocation = p.openToRelocation ?? openToRelocation;
+    const updatedResumeUrl = p.resumeUrl || resumeUrl;
+    const updatedLinkedinUrl = p.linkedinUrl || linkedinUrl;
+    const updatedGithubUrl = p.githubUrl || githubUrl;
+    const updatedPortfolioUrl = p.portfolioUrl || portfolioUrl;
+    const updatedWorkHistory = p.workHistory && p.workHistory.length > 0 ? p.workHistory : workHistory;
+    const updatedEducationHistory = p.educationHistory && p.educationHistory.length > 0 ? p.educationHistory : educationHistory;
+
+    setName(updatedName);
+    setPhotoUrl(updatedPhotoUrl);
+    setHeadline(updatedHeadline);
+    setPhone(updatedPhone);
+    setLocation(updatedLocation);
+    setBio(updatedBio);
+    setSkills(updatedSkills);
+    setExperience(updatedExperience);
+    setCertifications(updatedCertifications);
+    setTargetRole(updatedTargetRole);
+    setNoticePeriod(updatedNoticePeriod);
+    setExpectedSalary(updatedExpectedSalary);
+    setOpenToRelocation(updatedOpenToRelocation);
+    setResumeUrl(updatedResumeUrl);
+    setLinkedinUrl(updatedLinkedinUrl);
+    setGithubUrl(updatedGithubUrl);
+    setPortfolioUrl(updatedPortfolioUrl);
+    setWorkHistory(updatedWorkHistory);
+    setEducationHistory(updatedEducationHistory);
+
+    setSyncModalOpen(false);
+    setLastSyncedFile(parsedSource);
+
+    if (autoSave) {
+      await run(async () => {
+        await api("profile", {
+          name: updatedName,
+          photoUrl: updatedPhotoUrl,
+          phone: updatedPhone,
+          location: updatedLocation,
+          headline: updatedHeadline,
+          bio: updatedBio,
+          skills: updatedSkills,
+          experience: Number(updatedExperience) || 0,
+          certifications: updatedCertifications,
+          targetRole: updatedTargetRole,
+          employmentType,
+          preferredLocation,
+          noticePeriod: updatedNoticePeriod,
+          expectedSalary: updatedExpectedSalary,
+          openToRelocation: updatedOpenToRelocation,
+          resumeUrl: updatedResumeUrl,
+          linkedinUrl: updatedLinkedinUrl,
+          githubUrl: updatedGithubUrl,
+          portfolioUrl: updatedPortfolioUrl,
+          workHistory: updatedWorkHistory,
+          educationHistory: updatedEducationHistory,
+        });
+      }, `Resume data from "${parsedSource}" applied and saved directly to your profile!`);
+    } else {
+      setMessage(`Resume data from "${parsedSource}" applied to all profile fields! Review the sections below and click "Save Complete Profile" when ready.`);
+    }
+  }
+
+  const skillChips = useMemo(() => {
+    return skills.split(/[,;\n]+/).map(s => s.trim()).filter(Boolean);
+  }, [skills]);
+
+  const initials = useMemo(() => {
+    const parts = name.trim().split(/\s+/);
+    if (!parts.length || !parts[0]) return "CA";
+    return parts.length > 1 ? `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase() : parts[0].slice(0, 2).toUpperCase();
+  }, [name]);
+
+  return (
+    <div className="talent-container">
+      {/* Workspace Header */}
+      <div className="talent-page-title">
+        <div style={{ display: "flex", alignItems: "center", gap: 18 }}>
+          {photoUrl ? (
+            <img src={photoUrl} alt={name} style={{ width: 62, height: 62, borderRadius: "20px", objectFit: "cover", boxShadow: "0 6px 18px rgba(37,99,235,0.2)", border: "2px solid #fff", flexShrink: 0 }} />
+          ) : (
+            <div style={{ width: 62, height: 62, borderRadius: "20px", background: "linear-gradient(135deg, #2563eb, #3b82f6)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, fontWeight: 700, flexShrink: 0, boxShadow: "0 6px 18px rgba(37,99,235,0.2)", border: "2px solid #fff" }}>
+              {initials}
+            </div>
+          )}
+          <div>
+            <span className="talent-eyebrow">CANDIDATE WORKSPACE</span>
+            <h1>Hello, {name.split(" ")[0] || "Candidate"}.</h1>
+            <p>Manage your applications, job shortlist, and your complete verified candidate profile.</p>
+          </div>
+        </div>
+        <div className="talent-actions">
+          <Link className="talent-button" href="/jobs">
+            Explore jobs <ArrowRight size={17} />
+          </Link>
+          <button
+            className="talent-button talent-secondary"
+            onClick={async () => {
+              try {
+                await api("auth/logout", {});
+                router.replace("/candidate/login");
+                router.refresh();
+              } catch (err) {
+                setError((err as Error).message);
+              }
+            }}
+          >
+            Sign out
+          </button>
+        </div>
+      </div>
+
+      {/* Prominent Profile Completeness Banner */}
+      {completeness.score < 100 ? (
+        <div className="talent-completeness-banner">
+          <div className="talent-completeness-content">
+            <div className="talent-completeness-header">
+              <Sparkles size={20} color="#6ee7b7" />
+              <span className="talent-completeness-score">{completeness.score}%</span>
+              <span className="talent-completeness-label">
+                {completeness.score >= 80 ? "Almost complete · High visibility" : completeness.score >= 50 ? "Profile in progress" : "Complete your profile"}
+              </span>
+            </div>
+            <p style={{ margin: "4px 0 8px", fontSize: "14px", color: "#cbd5e1" }}>
+              A complete profile stands out to hiring managers and enables 1-click express applications across all ATSAI roles.
+            </p>
+            <div className="talent-progress-track">
+              <div className="talent-progress-fill" style={{ width: `${Math.max(completeness.score, 6)}%` }} />
+            </div>
+            <div className="talent-completeness-tips">
+              {completeness.missing.slice(0, 3).map(tip => (
+                <span key={tip} className="talent-tip-chip">+ Add {tip}</span>
+              ))}
+            </div>
+          </div>
+          <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", alignItems: "center" }}>
+            <button
+              type="button"
+              className="talent-button"
+              onClick={() => { setTab("profile"); setMessage(""); setError(""); }}
+              style={{ whiteSpace: "nowrap" }}
+            >
+              Create / Edit Complete Profile <ArrowRight size={16} />
+            </button>
+            <button
+              type="button"
+              className="talent-button talent-secondary"
+              onClick={() => {
+                setTab("profile");
+                setMessage("");
+                setError("");
+                setTimeout(() => fileInputRef.current?.click(), 100);
+              }}
+              style={{ whiteSpace: "nowrap", borderColor: "rgba(255,255,255,0.25)", color: "#fff", background: "rgba(255,255,255,0.1)" }}
+            >
+              <FileUp size={16} /> Auto-Fill with Resume ⚡
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="talent-completeness-banner" style={{ background: "linear-gradient(135deg, #064e3b, #065f46)" }}>
+          <div className="talent-completeness-content">
+            <div className="talent-completeness-header">
+              <Award size={20} color="#6ee7b7" />
+              <span className="talent-completeness-score">100%</span>
+              <span className="talent-completeness-label">All-Star Profile · Recruiter Ready</span>
+            </div>
+            <p style={{ margin: "4px 0", fontSize: "14px", color: "#d1fae5" }}>
+              Your profile is 100% complete. Recruiters and hiring partners have full visibility into your skills, experience, and career goals.
+            </p>
+          </div>
+          <button
+            type="button"
+            className="talent-button talent-secondary"
+            onClick={() => { setTab("preview"); setMessage(""); setError(""); }}
+            style={{ whiteSpace: "nowrap" }}
+          >
+            <Eye size={16} /> Preview Candidate Profile
+          </button>
+        </div>
+      )}
+
+      {/* Metrics Grid */}
+      <div className="talent-stats">
+        <article>
+          <span>Applications</span>
+          <strong>{data.applications.length}</strong>
+        </article>
+        <article>
+          <span>Saved opportunities</span>
+          <strong>{data.savedJobs.length}</strong>
+        </article>
+        <article>
+          <span>Profile Completeness</span>
+          <strong style={{ color: completeness.score >= 80 ? "#059669" : completeness.score >= 50 ? "#2563eb" : "#d97706" }}>
+            {completeness.score}%
+          </strong>
+        </article>
+        <article>
+          <span>Notice / Availability</span>
+          <strong>{noticePeriod || "Immediate"}</strong>
+        </article>
+      </div>
+
+      {/* Navigation Tabs */}
+      <div className="talent-tabs">
+        <button className={tab === "applications" ? "active" : ""} onClick={() => { setTab("applications"); setMessage(""); setError(""); }}>
+          Applications <span className="talent-tab-badge">{data.applications.length}</span>
+        </button>
+        <button className={tab === "saved" ? "active" : ""} onClick={() => { setTab("saved"); setMessage(""); setError(""); }}>
+          Saved Jobs <span className="talent-tab-badge">{data.savedJobs.length}</span>
+        </button>
+        <button className={tab === "profile" ? "active" : ""} onClick={() => { setTab("profile"); setMessage(""); setError(""); }}>
+          Complete Profile <span className="talent-tab-badge" style={{ background: completeness.score === 100 ? "#059669" : "#2563eb" }}>{completeness.score}%</span>
+        </button>
+        <button className={tab === "preview" ? "active" : ""} onClick={() => { setTab("preview"); setMessage(""); setError(""); }}>
+          <Eye size={14} style={{ display: "inline", verticalAlign: "text-bottom", marginRight: 4 }} /> Preview Profile
+        </button>
+        <button className={tab === "account" ? "active" : ""} onClick={() => { setTab("account"); setMessage(""); setError(""); }}>
+          Account & Privacy
+        </button>
+      </div>
+
+      <Notice error={error} message={message} />
+
+      {/* TAB 1: APPLICATIONS */}
+      {tab === "applications" && (
+        <section className="talent-card">
+          <h2>Your applications</h2>
+          {data.applications.length ? (
+            data.applications.map(app => (
+              <article className="talent-list-item" key={app.id}>
+                <div>
+                  <Link href={`/jobs/${app.jobId}`}>
+                    <h3>{app.jobTitle}</h3>
+                  </Link>
+                  <p>{app.company} · Applied {date(app.createdAt)}</p>
+                  <small>Reference APP-{app.id.slice(0, 8).toUpperCase()}</small>
+                </div>
+                <div>
+                  <span className="talent-status">{label(app.status)}</span>
+                  {!["withdrawn", "hired", "rejected"].includes(app.status) && (
+                    <button
+                      className="talent-text-button"
+                      disabled={busy}
+                      onClick={() => {
+                        if (confirm("Withdraw this application? This will inform the team you no longer wish to proceed.")) {
+                          void run(async () => { await api("withdraw", { id: app.id }); }, "Application withdrawn.");
+                        }
+                      }}
+                    >
+                      Withdraw
+                    </button>
+                  )}
+                </div>
+              </article>
+            ))
+          ) : (
+            <div className="talent-empty">
+              <BriefcaseBusiness size={32} />
+              <h3>Your next chapter starts here.</h3>
+              <p>Applications you submit through ATSAI will appear here. Applications on external employer sites are managed by that employer.</p>
+              <Link href="/jobs">Explore current openings →</Link>
+            </div>
+          )}
+        </section>
+      )}
+
+      {/* TAB 2: SAVED JOBS */}
+      {tab === "saved" && (
+        <section className="talent-card">
+          <h2>Saved for your next step</h2>
+          {data.savedJobs.length ? (
+            data.savedJobs.map(job => (
+              <article className="talent-list-item" key={job.id}>
+                <div>
+                  <Link href={`/jobs/${job.slug}`}>
+                    <h3>{job.title}</h3>
+                  </Link>
+                  <p>{job.company} · {job.location}</p>
+                </div>
+                <button
+                  className="talent-text-button"
+                  disabled={busy}
+                  onClick={() => void run(async () => { await api("saved", { jobId: job.id }); }, "Removed from saved jobs.")}
+                >
+                  Remove
+                </button>
+              </article>
+            ))
+          ) : (
+            <div className="talent-empty">
+              <Bookmark size={32} />
+              <h3>A shortlist of your own.</h3>
+              <p>Save a job to return to it later. Closed and expired roles are removed from this list.</p>
+              <Link href="/jobs">Find a role to save →</Link>
+            </div>
+          )}
+        </section>
+      )}
+
+      {/* TAB 3: COMPLETE PROFILE EDITOR */}
+      {tab === "profile" && (
+        <section className="talent-card">
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 14 }}>
+            <div>
+              <h2>Create your complete profile</h2>
+              <p style={{ margin: "4px 0 0" }}>
+                Keep your details updated. When you apply, a verified snapshot is bundled with your application.
+              </p>
+            </div>
+            <button
+              type="button"
+              className="talent-button talent-secondary"
+              onClick={() => { setTab("preview"); setMessage(""); setError(""); }}
+              style={{ minHeight: "38px", padding: "8px 16px" }}
+            >
+              <Eye size={15} /> Preview As Recruiter
+            </button>
+          </div>
+
+          <input
+            type="file"
+            ref={fileInputRef}
+            className="talent-file-input"
+            accept=".pdf,.docx,.doc,.txt,.rtf,.md"
+            onChange={handleFileChange}
+          />
+
+          {/* Professional Resume Sync Card */}
+          <div
+            className={`talent-resume-sync-card ${isDragging ? "dragging" : ""}`}
+            onDragOver={e => { e.preventDefault(); e.stopPropagation(); setIsDragging(true); }}
+            onDragLeave={e => { e.preventDefault(); e.stopPropagation(); setIsDragging(false); }}
+            onDrop={e => {
+              e.preventDefault();
+              e.stopPropagation();
+              setIsDragging(false);
+              const file = e.dataTransfer.files?.[0];
+              if (file) void handleFileUpload(file);
+            }}
+          >
+            <div className="talent-sync-icon-circle">
+              {parsingBusy ? <Loader2 size={26} className="talent-spin" /> : <UploadCloud size={26} />}
+            </div>
+            <h3 style={{ margin: "0 0 6px", fontSize: "19px", fontWeight: 700, color: "#0f172a" }}>
+              Auto-Fill Profile with Resume / CV
+            </h3>
+            <p style={{ margin: "0 auto", maxWidth: "600px", fontSize: "14px", color: "#475569", lineHeight: 1.6 }}>
+              Upload your resume in <strong>PDF, Word (.docx / .doc), TXT, or RTF</strong> format, or paste your resume text. Our intelligent parser will extract your experience, skills, education, and contact details and sync them directly into your candidate profile.
+            </p>
+
+            <div className="talent-sync-actions">
+              <button
+                type="button"
+                className="talent-button"
+                disabled={parsingBusy || busy}
+                onClick={() => fileInputRef.current?.click()}
+                style={{ display: "inline-flex", alignItems: "center", gap: 8 }}
+              >
+                {parsingBusy ? (
+                  <>
+                    <Loader2 size={16} className="talent-spin" />
+                    Analyzing resume…
+                  </>
+                ) : (
+                  <>
+                    <FileUp size={16} />
+                    Upload Resume (PDF / Word)
+                  </>
+                )}
+              </button>
+              <button
+                type="button"
+                className="talent-button talent-secondary"
+                disabled={parsingBusy || busy}
+                onClick={() => { setPasteModalOpen(true); setPasteError(""); }}
+                style={{ display: "inline-flex", alignItems: "center", gap: 8 }}
+              >
+                <Clipboard size={16} />
+                Paste Resume Text
+              </button>
+            </div>
+            <small style={{ display: "block", marginTop: 12, color: "#64748b", fontSize: "12px" }}>
+              Supports up to 8 MB · Instant semantic field mapping · You can review or adjust all fields before saving
+            </small>
+          </div>
+
+          {lastSyncedFile && (
+            <div style={{ background: "#f0fdf4", border: "1px solid #bbf7d0", color: "#166534", padding: "12px 16px", borderRadius: "12px", fontSize: "13px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, margin: "0 0 20px" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <CheckCircle2 size={17} color="#16a34a" />
+                <span>Profile details synced from <strong>{lastSyncedFile}</strong>. All fields have been populated below.</span>
+              </div>
+              <span className="talent-sync-badge">✓ Synced</span>
+            </div>
+          )}
+
+          <form onSubmit={handleSaveProfile} className="talent-form" style={{ maxWidth: "100%" }}>
+            {/* Section 1: Identity & Professional Headline */}
+            <div className="talent-section-card">
+              <h3><UserRound size={18} color="#2563eb" /> Identity & Headline</h3>
+              <p className="sub">This headline and photo are the first things hiring managers and recruiters see.</p>
+
+              {/* Profile Photo Upload */}
+              <div className="talent-photo-uploader">
+                <div className="talent-photo-avatar-wrap">
+                  {photoUrl ? (
+                    <img src={photoUrl} alt={name || "Profile Photo"} className="talent-photo-avatar-img" />
+                  ) : (
+                    <div className="talent-photo-avatar-initials">{initials}</div>
+                  )}
+                  {uploadingPhoto && (
+                    <div className="talent-photo-loading-overlay">
+                      <Loader2 size={22} className="talent-spin" />
+                    </div>
+                  )}
+                </div>
+                <div className="talent-photo-details">
+                  <div className="talent-photo-title">Profile Photo</div>
+                  <p className="talent-photo-desc">
+                    Upload a clear headshot or avatar. Supported formats: JPG, PNG, WebP (max 5 MB).
+                  </p>
+                  <div className="talent-photo-actions">
+                    <input
+                      type="file"
+                      ref={photoInputRef}
+                      accept="image/png,image/jpeg,image/webp"
+                      style={{ display: "none" }}
+                      onChange={handlePhotoUpload}
+                    />
+                    <button
+                      type="button"
+                      className="talent-button talent-secondary"
+                      style={{ minHeight: "36px", padding: "6px 14px", fontSize: "12px" }}
+                      disabled={uploadingPhoto || busy}
+                      onClick={() => photoInputRef.current?.click()}
+                    >
+                      <Camera size={14} /> {photoUrl ? "Change photo" : "Upload photo"}
+                    </button>
+                    {photoUrl && (
+                      <button
+                        type="button"
+                        className="talent-text-button"
+                        style={{ color: "#ef4444", margin: 0, textDecoration: "none", fontSize: "12px", display: "inline-flex", alignItems: "center", gap: 4 }}
+                        disabled={uploadingPhoto || busy}
+                        onClick={() => { setPhotoUrl(""); setMessage("Profile photo removed. Save your profile to confirm."); }}
+                      >
+                        <Trash2 size={13} /> Remove
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div className="talent-form-grid">
+                <label>
+                  Full name *
+                  <input
+                    value={name}
+                    onChange={e => setName(e.target.value)}
+                    required
+                    minLength={2}
+                    maxLength={80}
+                    placeholder="e.g. Alex Morgan"
+                  />
+                </label>
+                <label>
+                  Professional headline
+                  <input
+                    value={headline}
+                    onChange={e => setHeadline(e.target.value)}
+                    maxLength={160}
+                    placeholder="e.g. Senior Full-Stack Engineer | Next.js, Node.js & Cloud"
+                  />
+                  <small>Max 160 characters. Highlight your main title and key tech stack.</small>
+                </label>
+              </div>
+              <label style={{ marginTop: 14 }}>
+                Executive summary / Bio
+                <textarea
+                  value={bio}
+                  onChange={e => setBio(e.target.value)}
+                  rows={4}
+                  maxLength={4000}
+                  placeholder="Summarize your experience, leadership, key milestones, and what problems you love solving..."
+                />
+              </label>
+            </div>
+
+            {/* Section 2: Contact Details */}
+            <div className="talent-section-card">
+              <h3><MapPin size={18} color="#2563eb" /> Contact & Location</h3>
+              <p className="sub">Recruiters will use these details to contact you regarding interviews.</p>
+              <div className="talent-form-grid">
+                <label>
+                  Phone number
+                  <input
+                    type="tel"
+                    value={phone}
+                    onChange={e => setPhone(e.target.value)}
+                    maxLength={35}
+                    placeholder="+91 98765 43210"
+                  />
+                </label>
+                <label>
+                  Current location (City, Country)
+                  <input
+                    value={location}
+                    onChange={e => setLocation(e.target.value)}
+                    maxLength={160}
+                    placeholder="e.g. Pune, India or Bengaluru, India"
+                  />
+                </label>
+              </div>
+            </div>
+
+            {/* Section 3: Career Preferences & Availability */}
+            <div className="talent-section-card">
+              <h3><Clock size={18} color="#2563eb" /> Career Preferences & Availability</h3>
+              <p className="sub">Helps match you with opportunities aligned with your expectations.</p>
+              <div className="talent-form-grid">
+                <label>
+                  Target role / Desired job title
+                  <input
+                    value={targetRole}
+                    onChange={e => setTargetRole(e.target.value)}
+                    maxLength={120}
+                    placeholder="e.g. Lead Frontend Engineer or Staff Architect"
+                  />
+                </label>
+                <label>
+                  Notice period / Availability
+                  <select
+                    value={noticePeriod}
+                    onChange={e => setNoticePeriod(e.target.value)}
+                  >
+                    <option value="Immediate">Immediate (Available now)</option>
+                    <option value="15 Days">15 Days</option>
+                    <option value="30 Days">30 Days (1 Month)</option>
+                    <option value="60 Days">60 Days (2 Months)</option>
+                    <option value="90 Days">90 Days (3 Months)</option>
+                    <option value="Serving Notice">Currently Serving Notice</option>
+                  </select>
+                </label>
+              </div>
+
+              <div className="talent-form-grid" style={{ marginTop: 14 }}>
+                <label>
+                  Preferred employment type
+                  <select
+                    value={employmentType}
+                    onChange={e => setEmploymentType(e.target.value)}
+                  >
+                    <option value="Full-time">Full-time Permanent</option>
+                    <option value="Contract">Contract / Consulting</option>
+                    <option value="Remote">Remote Only</option>
+                    <option value="Part-time">Part-time</option>
+                    <option value="Any">Open to Any</option>
+                  </select>
+                </label>
+                <label>
+                  Expected CTC / Salary
+                  <input
+                    value={expectedSalary}
+                    onChange={e => setExpectedSalary(e.target.value)}
+                    maxLength={80}
+                    placeholder="e.g. ₹25 - 30 LPA or $120k / yr"
+                  />
+                </label>
+              </div>
+
+              <div className="talent-form-grid" style={{ marginTop: 14 }}>
+                <label>
+                  Preferred job locations
+                  <input
+                    value={preferredLocation}
+                    onChange={e => setPreferredLocation(e.target.value)}
+                    maxLength={160}
+                    placeholder="e.g. Remote, Mumbai, Pune, Bangalore"
+                  />
+                </label>
+                <label style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer", marginTop: 24 }}>
+                  <input
+                    type="checkbox"
+                    checked={openToRelocation}
+                    onChange={e => setOpenToRelocation(e.target.checked)}
+                    style={{ width: "18px", height: "18px", accentColor: "#2563eb", margin: 0 }}
+                  />
+                  <span>Open to relocation for the right opportunity</span>
+                </label>
+              </div>
+            </div>
+
+            {/* Section 4: Skills & Total Experience */}
+            <div className="talent-section-card">
+              <h3><Award size={18} color="#2563eb" /> Skills & Experience</h3>
+              <p className="sub">Highlight your core technical skills, frameworks, and domain expertise.</p>
+              <div className="talent-form-grid">
+                <label>
+                  Total years of professional experience *
+                  <input
+                    type="number"
+                    min={0}
+                    max={60}
+                    step={0.5}
+                    value={experience}
+                    onChange={e => setExperience(Number(e.target.value) || 0)}
+                    required
+                  />
+                </label>
+                <label>
+                  Certifications & credentials
+                  <input
+                    value={certifications}
+                    onChange={e => setCertifications(e.target.value)}
+                    maxLength={2500}
+                    placeholder="e.g. AWS Solutions Architect, PMP, CKA"
+                  />
+                </label>
+              </div>
+
+              <label style={{ marginTop: 14 }}>
+                Key skills (comma or newline separated)
+                <textarea
+                  value={skills}
+                  onChange={e => setSkills(e.target.value)}
+                  rows={3}
+                  maxLength={2500}
+                  placeholder="e.g. React, Next.js, TypeScript, Node.js, PostgreSQL, Docker, AWS, GraphQL"
+                />
+              </label>
+
+              {skillChips.length > 0 && (
+                <div className="talent-skill-tags">
+                  {skillChips.map((skill, index) => (
+                    <span key={index} className="talent-skill-tag">
+                      {skill}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Section 5: Work Experience */}
+            <div className="talent-section-card">
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+                <div>
+                  <h3><Building2 size={18} color="#2563eb" /> Work Experience</h3>
+                  <p className="sub" style={{ margin: 0 }}>Add your previous and current roles.</p>
+                </div>
+                <button type="button" className="talent-add-btn" onClick={addWork}>
+                  <Plus size={16} /> Add Experience
+                </button>
+              </div>
+
+              {workHistory.length === 0 ? (
+                <div style={{ padding: "20px", textAlign: "center", background: "#f8fafc", borderRadius: "12px", border: "1px dashed #cbd5e1" }}>
+                  <p style={{ margin: "0 0 10px", fontSize: "14px", color: "#64748b" }}>No work experience added yet.</p>
+                  <button type="button" className="talent-add-btn" onClick={addWork}>
+                    <Plus size={15} /> Add your first experience
+                  </button>
+                </div>
+              ) : (
+                <div className="talent-repeatable-list">
+                  {workHistory.map((item, idx) => (
+                    <div key={item.id || idx} className="talent-repeatable-item">
+                      <div className="talent-repeatable-head">
+                        <h4>Role #{idx + 1}: {item.title || "Job Title"} {item.company ? `at ${item.company}` : ""}</h4>
+                        <button type="button" className="talent-delete-btn" onClick={() => removeWork(idx)}>
+                          <Trash2 size={14} /> Remove
+                        </button>
+                      </div>
+                      <div className="talent-form-grid">
+                        <label>
+                          Job title / Role *
+                          <input
+                            value={item.title}
+                            onChange={e => updateWork(idx, { title: e.target.value })}
+                            placeholder="e.g. Lead Frontend Engineer"
+                            maxLength={120}
+                          />
+                        </label>
+                        <label>
+                          Company / Organization *
+                          <input
+                            value={item.company}
+                            onChange={e => updateWork(idx, { company: e.target.value })}
+                            placeholder="e.g. Acme Tech Solutions"
+                            maxLength={120}
+                          />
+                        </label>
+                      </div>
+                      <div className="talent-form-grid" style={{ marginTop: 12 }}>
+                        <label>
+                          Location
+                          <input
+                            value={item.location || ""}
+                            onChange={e => updateWork(idx, { location: e.target.value })}
+                            placeholder="e.g. Remote / Bengaluru"
+                            maxLength={120}
+                          />
+                        </label>
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                          <label>
+                            Start date
+                            <input
+                              value={item.startDate}
+                              onChange={e => updateWork(idx, { startDate: e.target.value })}
+                              placeholder="e.g. Jan 2022"
+                              maxLength={50}
+                            />
+                          </label>
+                          <label>
+                            End date
+                            <input
+                              value={item.current ? "Present" : item.endDate || ""}
+                              disabled={item.current}
+                              onChange={e => updateWork(idx, { endDate: e.target.value })}
+                              placeholder="e.g. Dec 2024"
+                              maxLength={50}
+                            />
+                          </label>
+                        </div>
+                      </div>
+                      <label style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 10, cursor: "pointer" }}>
+                        <input
+                          type="checkbox"
+                          checked={item.current ?? false}
+                          onChange={e => updateWork(idx, { current: e.target.checked, endDate: e.target.checked ? "" : item.endDate })}
+                          style={{ width: "16px", height: "16px", accentColor: "#2563eb", margin: 0 }}
+                        />
+                        <span>I currently work here</span>
+                      </label>
+                      <label style={{ marginTop: 12 }}>
+                        Responsibilities & key accomplishments
+                        <textarea
+                          value={item.description || ""}
+                          onChange={e => updateWork(idx, { description: e.target.value })}
+                          rows={3}
+                          maxLength={2500}
+                          placeholder="Describe your contributions, impact on metrics, and leadership responsibilities..."
+                        />
+                      </label>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Section 6: Education & Qualifications */}
+            <div className="talent-section-card">
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+                <div>
+                  <h3><GraduationCap size={18} color="#2563eb" /> Education & Degrees</h3>
+                  <p className="sub" style={{ margin: 0 }}>List your educational qualifications, degrees, or certifications.</p>
+                </div>
+                <button type="button" className="talent-add-btn" onClick={addEducation}>
+                  <Plus size={16} /> Add Education
+                </button>
+              </div>
+
+              {educationHistory.length === 0 ? (
+                <div style={{ padding: "20px", textAlign: "center", background: "#f8fafc", borderRadius: "12px", border: "1px dashed #cbd5e1" }}>
+                  <p style={{ margin: "0 0 10px", fontSize: "14px", color: "#64748b" }}>No education records added yet.</p>
+                  <button type="button" className="talent-add-btn" onClick={addEducation}>
+                    <Plus size={15} /> Add Education
+                  </button>
+                </div>
+              ) : (
+                <div className="talent-repeatable-list">
+                  {educationHistory.map((item, idx) => (
+                    <div key={item.id || idx} className="talent-repeatable-item">
+                      <div className="talent-repeatable-head">
+                        <h4>Qualification #{idx + 1}: {item.degree || "Degree"}</h4>
+                        <button type="button" className="talent-delete-btn" onClick={() => removeEducation(idx)}>
+                          <Trash2 size={14} /> Remove
+                        </button>
+                      </div>
+                      <div className="talent-form-grid">
+                        <label>
+                          Degree / Diploma *
+                          <input
+                            value={item.degree}
+                            onChange={e => updateEducation(idx, { degree: e.target.value })}
+                            placeholder="e.g. B.Tech / B.E. / M.S. / MBA"
+                            maxLength={120}
+                          />
+                        </label>
+                        <label>
+                          Field of study / Major
+                          <input
+                            value={item.field || ""}
+                            onChange={e => updateEducation(idx, { field: e.target.value })}
+                            placeholder="e.g. Computer Science & Engineering"
+                            maxLength={120}
+                          />
+                        </label>
+                      </div>
+                      <div className="talent-form-grid" style={{ marginTop: 12 }}>
+                        <label>
+                          College / University *
+                          <input
+                            value={item.institution}
+                            onChange={e => updateEducation(idx, { institution: e.target.value })}
+                            placeholder="e.g. Pune University / IIT Bombay"
+                            maxLength={160}
+                          />
+                        </label>
+                        <label>
+                          Graduation year
+                          <input
+                            value={item.graduationYear || ""}
+                            onChange={e => updateEducation(idx, { graduationYear: e.target.value })}
+                            placeholder="e.g. 2021"
+                            maxLength={30}
+                          />
+                        </label>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Section 7: Resume, Portfolio & Social Profiles */}
+            <div className="talent-section-card">
+              <h3><FileText size={18} color="#2563eb" /> Resume & Professional Links</h3>
+              <p className="sub">All links must begin with <code>https://</code>.</p>
+              <div className="talent-form-grid">
+                <label>
+                  Resume / CV link (HTTPS)
+                  <input
+                    type="url"
+                    pattern="https://.*"
+                    value={resumeUrl}
+                    onChange={e => setResumeUrl(e.target.value)}
+                    maxLength={1500}
+                    placeholder="https://drive.google.com/..."
+                  />
+                  <small>
+                    Host on Google Drive, Dropbox, OneDrive, or personal site.{" "}
+                    {resumeUrl && (
+                      <a href={resumeUrl} target="_blank" rel="noreferrer" style={{ fontWeight: 600 }}>
+                        Test link ↗
+                      </a>
+                    )}
+                  </small>
+                </label>
+                <label>
+                  LinkedIn profile link (HTTPS)
+                  <input
+                    type="url"
+                    pattern="https://.*"
+                    value={linkedinUrl}
+                    onChange={e => setLinkedinUrl(e.target.value)}
+                    maxLength={1500}
+                    placeholder="https://linkedin.com/in/username"
+                  />
+                </label>
+              </div>
+
+              <div className="talent-form-grid" style={{ marginTop: 14 }}>
+                <label>
+                  GitHub profile link (HTTPS)
+                  <input
+                    type="url"
+                    pattern="https://.*"
+                    value={githubUrl}
+                    onChange={e => setGithubUrl(e.target.value)}
+                    maxLength={1500}
+                    placeholder="https://github.com/username"
+                  />
+                </label>
+                <label>
+                  Portfolio / Personal website (HTTPS)
+                  <input
+                    type="url"
+                    pattern="https://.*"
+                    value={portfolioUrl}
+                    onChange={e => setPortfolioUrl(e.target.value)}
+                    maxLength={1500}
+                    placeholder="https://yourname.dev"
+                  />
+                </label>
+              </div>
+            </div>
+
+            {/* Action Bar */}
+            <div style={{ display: "flex", gap: 14, alignItems: "center", flexWrap: "wrap", marginTop: 24 }}>
+              <button className="talent-button" disabled={busy} type="submit" style={{ minWidth: "180px" }}>
+                {busy ? "Saving profile…" : "Save Complete Profile"}
+                <CheckCircle2 size={17} />
+              </button>
+              <button
+                type="button"
+                className="talent-button talent-secondary"
+                onClick={() => { setTab("preview"); setMessage(""); setError(""); }}
+              >
+                <Eye size={16} /> Preview As Recruiter
+              </button>
+            </div>
+          </form>
+        </section>
+      )}
+
+      {/* TAB 4: PROFILE PREVIEW (HOW RECRUITERS SEE IT) */}
+      {tab === "preview" && (
+        <section className="talent-card">
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 14, marginBottom: 20 }}>
+            <div>
+              <span className="talent-eyebrow">RECRUITER PERSPECTIVE</span>
+              <h2>Candidate Profile Preview</h2>
+              <p style={{ margin: "4px 0 0" }}>
+                This is how your verified profile appears to ATSAI recruitment partners and employers.
+              </p>
+            </div>
+            <button
+              type="button"
+              className="talent-button"
+              onClick={() => { setTab("profile"); setMessage(""); setError(""); }}
+            >
+              <Edit3 size={15} /> Edit Profile Details
+            </button>
+          </div>
+
+          <div style={{ background: "#fbfcfe", border: "1px solid #e2e8f0", borderRadius: "20px", padding: "32px" }}>
+            {/* Candidate Dossier Header */}
+            <div className="talent-preview-hero">
+              <div className="talent-avatar" style={{ overflow: "hidden" }}>
+                {photoUrl ? (
+                  <img src={photoUrl} alt={name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                ) : (
+                  initials
+                )}
+              </div>
+              <div className="talent-preview-info" style={{ flex: 1 }}>
+                <h3>{name}</h3>
+                {headline ? (
+                  <p className="talent-preview-headline">{headline}</p>
+                ) : (
+                  <p style={{ color: "#94a3b8", fontStyle: "italic", margin: "0 0 8px", fontSize: "14px" }}>
+                    No headline set yet. <button type="button" onClick={() => setTab("profile")} style={{ background: "none", border: "none", color: "#2563eb", cursor: "pointer", textDecoration: "underline" }}>Add headline</button>
+                  </p>
+                )}
+                <div className="talent-preview-meta">
+                  {location && <span><MapPin size={15} color="#64748b" /> {location}</span>}
+                  {phone && <span>📞 {phone}</span>}
+                  <span>✉️ {data.user.email} (Verified)</span>
+                </div>
+
+                {/* Badges */}
+                <div className="talent-preview-badges">
+                  <span className="talent-pill talent-pill-highlight">
+                    <Award size={14} /> {experience} Years Experience
+                  </span>
+                  <span className="talent-pill">
+                    <Clock size={14} /> Notice: {noticePeriod || "Immediate"}
+                  </span>
+                  {expectedSalary && (
+                    <span className="talent-pill">
+                      💰 Expected: {expectedSalary}
+                    </span>
+                  )}
+                  {employmentType && (
+                    <span className="talent-pill">
+                      💼 {employmentType}
+                    </span>
+                  )}
+                  {openToRelocation && (
+                    <span className="talent-pill talent-pill-success">
+                      ✈️ Open to Relocation
+                    </span>
+                  )}
+                </div>
+
+                {/* External links */}
+                <div className="talent-links-row">
+                  {resumeUrl && (
+                    <a className="talent-link-btn primary" href={resumeUrl} target="_blank" rel="noreferrer">
+                      <FileText size={15} /> View Resume / CV <ExternalLink size={13} />
+                    </a>
+                  )}
+                  {linkedinUrl && (
+                    <a className="talent-link-btn" href={linkedinUrl} target="_blank" rel="noreferrer">
+                      <Globe size={15} /> LinkedIn <ExternalLink size={13} />
+                    </a>
+                  )}
+                  {githubUrl && (
+                    <a className="talent-link-btn" href={githubUrl} target="_blank" rel="noreferrer">
+                      <Globe size={15} /> GitHub <ExternalLink size={13} />
+                    </a>
+                  )}
+                  {portfolioUrl && (
+                    <a className="talent-link-btn" href={portfolioUrl} target="_blank" rel="noreferrer">
+                      <Globe size={15} /> Portfolio <ExternalLink size={13} />
+                    </a>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* About / Bio */}
+            {bio && (
+              <div className="talent-preview-section">
+                <h4><UserRound size={17} color="#2563eb" /> Executive Summary</h4>
+                <p style={{ fontSize: "14px", lineHeight: "1.8", color: "#334155", whiteSpace: "pre-wrap", margin: 0 }}>
+                  {bio}
+                </p>
+              </div>
+            )}
+
+            {/* Core Skills */}
+            {skillChips.length > 0 && (
+              <div className="talent-preview-section">
+                <h4><Sparkles size={17} color="#2563eb" /> Core Skills & Competencies</h4>
+                <div className="talent-skill-tags">
+                  {skillChips.map((skill, index) => (
+                    <span key={index} className="talent-skill-tag" style={{ fontSize: "13px", padding: "6px 13px" }}>
+                      {skill}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Work History */}
+            {workHistory.length > 0 && (
+              <div className="talent-preview-section">
+                <h4><Building2 size={17} color="#2563eb" /> Experience History</h4>
+                <div className="talent-timeline-list">
+                  {workHistory.map((work, idx) => (
+                    <div key={work.id || idx} className="talent-timeline-card">
+                      <h5>{work.title || "Role"}</h5>
+                      <div className="talent-timeline-company">{work.company} {work.location ? `· ${work.location}` : ""}</div>
+                      <div className="talent-timeline-dates">
+                        {work.startDate} — {work.current ? "Present" : work.endDate || "Present"}
+                      </div>
+                      {work.description && <div className="talent-timeline-desc">{work.description}</div>}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Education History */}
+            {educationHistory.length > 0 && (
+              <div className="talent-preview-section">
+                <h4><GraduationCap size={17} color="#2563eb" /> Education & Academic Credentials</h4>
+                <div className="talent-repeatable-list">
+                  {educationHistory.map((edu, idx) => (
+                    <div key={edu.id || idx} style={{ background: "#fff", border: "1px solid #e2e8f0", padding: "16px 20px", borderRadius: "12px" }}>
+                      <strong style={{ fontSize: "15px", color: "#0f172a" }}>{edu.degree}</strong>
+                      {edu.field && <span style={{ color: "#2563eb", marginLeft: 6 }}>in {edu.field}</span>}
+                      <p style={{ margin: "4px 0 0", fontSize: "13px", color: "#64748b" }}>
+                        {edu.institution} {edu.graduationYear ? `· Class of ${edu.graduationYear}` : ""}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Certifications */}
+            {certifications && (
+              <div className="talent-preview-section">
+                <h4><Award size={17} color="#2563eb" /> Certifications & Licenses</h4>
+                <p style={{ fontSize: "14px", color: "#334155", margin: 0, whiteSpace: "pre-wrap" }}>
+                  {certifications}
+                </p>
+              </div>
+            )}
+
+            <div style={{ marginTop: 24, paddingTop: 18, borderTop: "1px solid #e2e8f0", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
+              <small style={{ color: "#64748b" }}>
+                ✓ This profile snapshot is attached automatically to applications you submit through ATSAI.
+              </small>
+              <button
+                type="button"
+                className="talent-button"
+                onClick={() => { setTab("profile"); setMessage(""); setError(""); }}
+              >
+                <Edit3 size={15} /> Edit Profile
+              </button>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* TAB 5: ACCOUNT & SECURITY */}
+      {tab === "account" && (
+        <section className="talent-card">
+          <h2>Account & privacy</h2>
+          <p>Account email: <strong>{data.user.email}</strong></p>
+          <form className="talent-form" onSubmit={handlePassword}>
+            <label>
+              Current password
+              <input name="currentPassword" type="password" required autoComplete="current-password" maxLength={128} />
+            </label>
+            <label>
+              New password
+              <input name="password" type="password" required minLength={12} maxLength={128} autoComplete="new-password" />
+            </label>
+            <button className="talent-button" disabled={busy}>Change password</button>
+          </form>
+          <hr />
+          <h3>Request access, correction, or account deletion</h3>
+          <p>Send a data request and the team will review it with you.</p>
+          <Link className="talent-button talent-secondary" href="/privacy-request">
+            Make a privacy request
+          </Link>
+        </section>
+      )}
+
+      {/* SYNC CONFIRMATION MODAL */}
+      {syncModalOpen && parsedResult && (
+        <div className="talent-sync-modal-backdrop" onClick={() => setSyncModalOpen(false)}>
+          <div className="talent-sync-modal" onClick={e => e.stopPropagation()}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 }}>
+              <div>
+                <span className="talent-eyebrow" style={{ color: "#2563eb", display: "inline-flex", alignItems: "center", gap: 6 }}>
+                  <Sparkles size={14} /> INTELLIGENT RESUME SYNC
+                </span>
+                <h2 style={{ fontSize: "22px", margin: "4px 0 2px", color: "#0f172a" }}>Review Extracted Profile Data</h2>
+                <p style={{ margin: 0, fontSize: "13px", color: "#64748b" }}>
+                  Source: <strong>{parsedSource}</strong> · Parsed & mapped to candidate profile fields.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSyncModalOpen(false)}
+                style={{ background: "#f1f5f9", border: "none", borderRadius: "50%", width: 32, height: 32, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="talent-sync-preview-grid">
+              <div className="talent-sync-stat">
+                <span>Extracted Name</span>
+                <strong>{parsedResult.name || name || "(Unchanged)"}</strong>
+              </div>
+              <div className="talent-sync-stat">
+                <span>Headline / Title</span>
+                <strong title={parsedResult.headline}>{parsedResult.headline || headline || "(Unchanged)"}</strong>
+              </div>
+              <div className="talent-sync-stat">
+                <span>Phone Number</span>
+                <strong>{parsedResult.phone || phone || "(None detected)"}</strong>
+              </div>
+              <div className="talent-sync-stat">
+                <span>Location</span>
+                <strong>{parsedResult.location || location || "(None detected)"}</strong>
+              </div>
+              <div className="talent-sync-stat">
+                <span>Total Experience</span>
+                <strong>{parsedResult.experience > 0 ? `${parsedResult.experience} Years` : `${experience} Years`}</strong>
+              </div>
+              <div className="talent-sync-stat">
+                <span>Work History</span>
+                <strong>{parsedResult.workHistory?.length || 0} Roles Extracted</strong>
+              </div>
+              <div className="talent-sync-stat">
+                <span>Education</span>
+                <strong>{parsedResult.educationHistory?.length || 0} Degrees Extracted</strong>
+              </div>
+              <div className="talent-sync-stat">
+                <span>Links & Portfolios</span>
+                <strong>
+                  {[parsedResult.linkedinUrl && "LinkedIn", parsedResult.githubUrl && "GitHub", parsedResult.portfolioUrl && "Portfolio"].filter(Boolean).join(", ") || "None"}
+                </strong>
+              </div>
+            </div>
+
+            {parsedResult.skills && (
+              <div style={{ marginBottom: 16 }}>
+                <span style={{ fontSize: "12px", fontWeight: 700, color: "#334155", display: "block", marginBottom: 6 }}>
+                  Extracted Skills:
+                </span>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 6, maxHeight: "90px", overflowY: "auto", padding: "8px", background: "#f8fafc", borderRadius: "10px", border: "1px solid #e2e8f0" }}>
+                  {parsedResult.skills.split(/[,;\n]+/).map(s => s.trim()).filter(Boolean).map((s, idx) => (
+                    <span key={idx} className="talent-skill-tag" style={{ fontSize: "11px", padding: "3px 8px" }}>
+                      {s}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {parsedResult.bio && (
+              <div style={{ marginBottom: 18, background: "#f8fafc", padding: "12px 14px", borderRadius: "10px", border: "1px solid #e2e8f0" }}>
+                <span style={{ fontSize: "12px", fontWeight: 700, color: "#334155", display: "block", marginBottom: 4 }}>
+                  Summary / Bio Extracted:
+                </span>
+                <p style={{ margin: 0, fontSize: "13px", color: "#475569", lineHeight: 1.5, maxHeight: "80px", overflowY: "auto" }}>
+                  {parsedResult.bio}
+                </p>
+              </div>
+            )}
+
+            <div style={{ display: "flex", gap: 12, justifyContent: "flex-end", flexWrap: "wrap", marginTop: 22, paddingTop: 16, borderTop: "1px solid #e2e8f0" }}>
+              <button
+                type="button"
+                className="talent-button talent-secondary"
+                onClick={() => setSyncModalOpen(false)}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="talent-button talent-secondary"
+                disabled={busy}
+                onClick={() => applyParsedResume(false)}
+                style={{ borderColor: "#2563eb", color: "#2563eb" }}
+              >
+                Apply to Form & Review
+              </button>
+              <button
+                type="button"
+                className="talent-button"
+                disabled={busy}
+                onClick={() => applyParsedResume(true)}
+              >
+                <Check size={16} /> Apply & Save Profile Immediately
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* PASTE RESUME TEXT MODAL */}
+      {pasteModalOpen && (
+        <div className="talent-sync-modal-backdrop" onClick={() => setPasteModalOpen(false)}>
+          <div className="talent-sync-modal" onClick={e => e.stopPropagation()}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 }}>
+              <div>
+                <span className="talent-eyebrow" style={{ color: "#2563eb" }}>PASTE & SYNC</span>
+                <h2 style={{ fontSize: "22px", margin: "4px 0 2px", color: "#0f172a" }}>Paste Resume or CV Text</h2>
+                <p style={{ margin: 0, fontSize: "13px", color: "#64748b" }}>
+                  Copy plain text from any document (Word, Google Doc, LinkedIn export, or text file) and paste it below.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setPasteModalOpen(false)}
+                style={{ background: "#f1f5f9", border: "none", borderRadius: "50%", width: 32, height: 32, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {pasteError && <div className="talent-alert" style={{ margin: "12px 0" }}>{pasteError}</div>}
+
+            <textarea
+              value={pastedText}
+              onChange={e => setPastedText(e.target.value)}
+              placeholder="Paste your full resume text here...&#10;&#10;e.g.:&#10;John Doe&#10;Senior Full-Stack Engineer&#10;Email: john@example.com | Phone: +91 9876543210&#10;&#10;SUMMARY&#10;Over 6 years of experience building web applications...&#10;&#10;SKILLS&#10;React, Next.js, Node.js, TypeScript, PostgreSQL&#10;&#10;EXPERIENCE&#10;Senior Software Engineer | Tech Corp | 2021 - Present&#10;..."
+              rows={12}
+              style={{ width: "100%", padding: "14px", borderRadius: "12px", border: "1px solid #cbd5e1", fontSize: "13px", lineHeight: 1.6, fontFamily: "inherit", resize: "vertical" }}
+            />
+
+            <div style={{ display: "flex", gap: 12, justifyContent: "flex-end", marginTop: 16 }}>
+              <button
+                type="button"
+                className="talent-button talent-secondary"
+                onClick={() => { setPasteModalOpen(false); setPastedText(""); }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="talent-button"
+                disabled={parsingBusy || !pastedText.trim()}
+                onClick={handlePasteSubmit}
+              >
+                {parsingBusy ? (
+                  <>
+                    <Loader2 size={16} className="talent-spin" /> Analyzing resume…
+                  </>
+                ) : (
+                  <>
+                    <Sparkles size={16} /> Analyze & Extract Fields
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }
 
 export function CandidateApply({ job, user }: { job: { id: string; title: string; company: string }; user: Candidate }) {
-  const [busy, setBusy] = useState(false); const [error, setError] = useState(""); const [reference, setReference] = useState("");
-  async function submit(event: FormEvent<HTMLFormElement>) { event.preventDefault(); const values = Object.fromEntries(new FormData(event.currentTarget)); setBusy(true); setError(""); try { const response = await api("apply", { jobId: job.id, coverLetter: values.coverLetter, consent: values.consent === "on" }); setReference(response.reference); } catch (error) { setError((error as Error).message); } finally { setBusy(false); } }
-  return <div className="talent-container talent-narrow"><span className="talent-eyebrow">YOUR NEXT OPPORTUNITY</span><h1>{job.title}</h1><p>{job.company}</p><section className="talent-card">{reference ? <><Notice message={`Application saved. Reference ${reference}`} /><p>Track updates in your candidate workspace. No email confirmation has been sent.</p><Link className="talent-button" href="/candidate/dashboard">View my applications</Link></> : <><h2>A thoughtful introduction.</h2><p>Applying as <strong>{user.name}</strong> · {user.email}</p><p>Your current profile will be included with this application. <Link href="/candidate/dashboard">Review your profile first</Link>.</p><Notice error={error} /><form className="talent-form" onSubmit={submit}><label>Introduce yourself <small>Optional</small><textarea name="coverLetter" rows={6} maxLength={6000} /></label><Consent label={<>I want to apply for this role and consent to ATSAI reviewing my profile and application for this opportunity. See the <Link href="/legal/privacy-policy">privacy notice</Link>.</>} /><button className="talent-button" disabled={busy}>{busy ? "Submitting…" : "Submit application"}<ArrowRight size={17} /></button></form></>}</section></div>;
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const [reference, setReference] = useState("");
+
+  async function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const values = Object.fromEntries(new FormData(event.currentTarget));
+    setBusy(true); setError("");
+    try {
+      const response = await api("apply", { jobId: job.id, coverLetter: values.coverLetter, consent: values.consent === "on" });
+      setReference(response.reference);
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const isProfileComplete = !!user.profile.skills && !!user.profile.location && !!user.profile.headline;
+
+  return (
+    <div className="talent-container talent-narrow">
+      <span className="talent-eyebrow">YOUR NEXT OPPORTUNITY</span>
+      <h1>{job.title}</h1>
+      <p>{job.company}</p>
+      <section className="talent-card">
+        {reference ? (
+          <>
+            <Notice message={`Application saved. Reference ${reference}`} />
+            <p>Track updates in your candidate workspace. No email confirmation has been sent.</p>
+            <Link className="talent-button" href="/candidate/dashboard">View my applications</Link>
+          </>
+        ) : (
+          <>
+            <h2>A thoughtful introduction.</h2>
+            <p>Applying as <strong>{user.name}</strong> · {user.email}</p>
+            {user.profile.headline && (
+              <p style={{ fontWeight: 600, color: "#2563eb", margin: "-6px 0 12px" }}>
+                {user.profile.headline}
+              </p>
+            )}
+            <p>
+              Your verified profile snapshot will be included with this application.{" "}
+              <Link href="/candidate/dashboard?tab=profile">Review or edit your profile first</Link>.
+            </p>
+            {!isProfileComplete && (
+              <div className="talent-alert" style={{ background: "#eff6ff", borderColor: "#bfdbfe", color: "#1e40af", display: "flex", gap: 8, alignItems: "center" }}>
+                <Sparkles size={18} color="#2563eb" />
+                <span>
+                  Tip: Adding your headline, work history, and resume link helps employers assess your application faster.{" "}
+                  <Link href="/candidate/dashboard?tab=profile" style={{ fontWeight: 600, textDecoration: "underline" }}>Complete Profile</Link>
+                </span>
+              </div>
+            )}
+            <Notice error={error} />
+            <form className="talent-form" onSubmit={submit}>
+              <label>
+                Introduce yourself <small>Optional cover note</small>
+                <textarea name="coverLetter" rows={6} maxLength={6000} placeholder="Share why this role excites you and what relevant impact you bring..." />
+              </label>
+              <Consent
+                label={
+                  <>
+                    I want to apply for this role and consent to ATSAI reviewing my profile and application for this opportunity. See the <Link href="/legal/privacy-policy">privacy notice</Link>.
+                  </>
+                }
+              />
+              <button className="talent-button" disabled={busy}>
+                {busy ? "Submitting…" : "Submit application"}
+                <ArrowRight size={17} />
+              </button>
+            </form>
+          </>
+        )}
+      </section>
+    </div>
+  );
 }
 
 export function JobActions({ id }: { id: string }) {
@@ -79,5 +1779,141 @@ export function RecruitmentInbox() {
   useEffect(() => { let active = true; api("admin").then(result => { if (active) setData(result); }).catch(error => { if (active) setError(error.message); }); return () => { active = false; }; }, []);
   async function update(path: string, body: unknown) { setBusy(true); setError(""); try { await api(`admin/${path}`, body); setData(await api("admin")); } catch (error) { setError((error as Error).message); } finally { setBusy(false); } }
   function status(id: string, kind: "inquiry" | "application", value: string) { return <select aria-label={`Status for ${id}`} disabled={busy || value === "withdrawn"} value={value} onChange={event => void update("status", { id, kind, status: event.target.value })}>{(kind === "inquiry" ? ["new", "in-progress", "resolved"] : ["submitted", "review", "shortlisted", "interview", "offer", "hired", "rejected", ...(value === "withdrawn" ? ["withdrawn"] : [])]).map(state => <option key={state} value={state}>{label(state)}</option>)}</select>; }
-  return <section className="talent-card"><div className="talent-tabs">{["inquiries", "applications", "candidates", "recruiters"].map(key => <button key={key} className={tab === key ? "active" : ""} onClick={() => setTab(key)}>{label(key)} {data ? `(${data[key as keyof Inbox].length})` : ""}</button>)}</div><Notice error={error} />{!data && !error && <p>Loading recruitment inbox…</p>}{data && <>{tab === "inquiries" && <>{!data.inquiries.length && <p>No requests yet.</p>}{data.inquiries.map(item => <article key={item.id} className="talent-inbox-item"><header><div><span className="talent-eyebrow">{item.kind} · ATS-{item.id.slice(0,8).toUpperCase()}</span><h3>{item.subject}</h3><p>{item.name} · <a href={`mailto:${item.email}`}>{item.email}</a>{item.phone ? ` · ${item.phone}` : ""}</p><small>{item.company} · {date(item.createdAt)}</small></div>{status(item.id,"inquiry",item.status)}</header><p className="talent-preserve">{item.message}</p></article>)}</>}{tab === "applications" && <>{!data.applications.length && <p>No applications yet.</p>}{data.applications.map(item => { const document = JSON.parse(item.document) as { profile: CandidateProfile; coverLetter: string }; return <article key={item.id} className="talent-inbox-item"><header><div><span className="talent-eyebrow">APP-{item.id.slice(0,8).toUpperCase()}</span><h3>{item.name} · {item.jobTitle}</h3><p><a href={`mailto:${item.email}`}>{item.email}</a> · {date(item.createdAt)}</p></div>{status(item.id,"application",item.status)}</header><p>{document.profile.location} · {document.profile.experience} years · {document.profile.skills}</p>{document.profile.resumeUrl && <a href={document.profile.resumeUrl} target="_blank" rel="noreferrer">View resume / portfolio ↗</a>}<p className="talent-preserve">{document.coverLetter}</p></article>; })}</>}{tab === "candidates" && <>{!data.candidates.length && <p>No registered candidates yet.</p>}{data.candidates.map(item => { const profile = JSON.parse(item.profile) as CandidateProfile; return <article className="talent-inbox-item" key={item.id}><h3>{item.name}</h3><p><a href={`mailto:${item.email}`}>{item.email}</a> · Joined {date(item.createdAt)}</p><p>{profile.location} · {profile.skills}</p></article>; })}</>}{tab === "recruiters" && <><h3>Public recruiter directory</h3><p>Only add people whose work email and authority you have confirmed. Active entries are publicly searchable by exact email or ID.</p><form className="talent-form" onSubmit={event => { event.preventDefault(); const form = event.currentTarget; void update("recruiter", Object.fromEntries(new FormData(form))); }}><div className="talent-form-grid"><label>Name<input name="name" required minLength={2} maxLength={80} /></label><label>Work email<input name="email" type="email" required maxLength={254} /></label></div><label>Role / title<input name="title" required minLength={2} maxLength={120} /></label><button className="talent-button" disabled={busy}>Add to public directory</button></form>{data.recruiters.map(item => <article key={item.id} className="talent-list-item"><div><h3>{item.name}</h3><p>{item.email} · {item.title}</p><small>ID: {item.id}</small></div><button className="talent-button talent-secondary" disabled={busy} onClick={() => void update("recruiter-status", { id: item.id, active: !item.active })}>{item.active ? "Deactivate" : "Activate"}</button></article>)}</>}</>}<div className="talent-auth-bottom"><Mail size={15} /><small>Up to 300 recent requests, applications, and accounts are shown. Email replies open your own email app.</small></div></section>;
+  return (
+    <section className="talent-card">
+      <div className="talent-tabs">{["inquiries", "applications", "candidates", "recruiters"].map(key => <button key={key} className={tab === key ? "active" : ""} onClick={() => setTab(key)}>{label(key)} {data ? `(${data[key as keyof Inbox].length})` : ""}</button>)}</div>
+      <Notice error={error} />
+      {!data && !error && <p>Loading recruitment inbox…</p>}
+      {data && (
+        <>
+          {tab === "inquiries" && (
+            <>
+              {!data.inquiries.length && <p>No requests yet.</p>}
+              {data.inquiries.map(item => (
+                <article key={item.id} className="talent-inbox-item">
+                  <header>
+                    <div>
+                      <span className="talent-eyebrow">{item.kind} · ATS-{item.id.slice(0, 8).toUpperCase()}</span>
+                      <h3>{item.subject}</h3>
+                      <p>{item.name} · <a href={`mailto:${item.email}`}>{item.email}</a>{item.phone ? ` · ${item.phone}` : ""}</p>
+                      <small>{item.company} · {date(item.createdAt)}</small>
+                    </div>
+                    {status(item.id, "inquiry", item.status)}
+                  </header>
+                  <p className="talent-preserve">{item.message}</p>
+                </article>
+              ))}
+            </>
+          )}
+          {tab === "applications" && (
+            <>
+              {!data.applications.length && <p>No applications yet.</p>}
+              {data.applications.map(item => {
+                let document: { profile: CandidateProfile; coverLetter: string };
+                try {
+                  document = JSON.parse(item.document);
+                } catch {
+                  document = { profile: { phone: "", location: "", skills: "", experience: 0, resumeUrl: "" }, coverLetter: "" };
+                }
+                const p = document.profile;
+                return (
+                  <article key={item.id} className="talent-inbox-item">
+                    <header>
+                      <div>
+                        <span className="talent-eyebrow">APP-{item.id.slice(0, 8).toUpperCase()}</span>
+                        <h3>{item.name} · {item.jobTitle}</h3>
+                        {p.headline && <p style={{ fontWeight: 600, color: "#2563eb", margin: "2px 0 4px" }}>{p.headline}</p>}
+                        <p><a href={`mailto:${item.email}`}>{item.email}</a> · {date(item.createdAt)}</p>
+                      </div>
+                      {status(item.id, "application", item.status)}
+                    </header>
+                    <p style={{ margin: "6px 0" }}>
+                      {p.location ? `${p.location} · ` : ""}{p.experience ?? 0} years experience · {p.skills}
+                    </p>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 12, margin: "6px 0 10px", fontSize: "13px" }}>
+                      {p.noticePeriod && <span style={{ color: "#475569" }}>🕒 Notice: <strong>{p.noticePeriod}</strong></span>}
+                      {p.expectedSalary && <span style={{ color: "#475569" }}>💰 Expected: <strong>{p.expectedSalary}</strong></span>}
+                      {p.resumeUrl && <a href={p.resumeUrl} target="_blank" rel="noreferrer" style={{ fontWeight: 600 }}>Resume ↗</a>}
+                      {p.linkedinUrl && <a href={p.linkedinUrl} target="_blank" rel="noreferrer">LinkedIn ↗</a>}
+                      {p.githubUrl && <a href={p.githubUrl} target="_blank" rel="noreferrer">GitHub ↗</a>}
+                      {p.portfolioUrl && <a href={p.portfolioUrl} target="_blank" rel="noreferrer">Portfolio ↗</a>}
+                    </div>
+                    {p.workHistory && p.workHistory.length > 0 && (
+                      <div style={{ background: "#f8fafc", padding: "10px 14px", borderRadius: "8px", margin: "8px 0", fontSize: "13px" }}>
+                        <strong>Recent experience:</strong> {p.workHistory[0].title} at {p.workHistory[0].company} ({p.workHistory[0].startDate} - {p.workHistory[0].current ? "Present" : p.workHistory[0].endDate || "Present"})
+                      </div>
+                    )}
+                    {document.coverLetter && <p className="talent-preserve">{document.coverLetter}</p>}
+                  </article>
+                );
+              })}
+            </>
+          )}
+          {tab === "candidates" && (
+            <>
+              {!data.candidates.length && <p>No registered candidates yet.</p>}
+              {data.candidates.map(item => {
+                let profile: CandidateProfile;
+                try {
+                  profile = JSON.parse(item.profile);
+                } catch {
+                  profile = { phone: "", location: "", skills: "", experience: 0, resumeUrl: "" };
+                }
+                return (
+                  <article className="talent-inbox-item" key={item.id}>
+                    <h3>{item.name}</h3>
+                    {profile.headline && <p style={{ fontWeight: 600, color: "#2563eb", margin: "2px 0 4px" }}>{profile.headline}</p>}
+                    <p><a href={`mailto:${item.email}`}>{item.email}</a> · Joined {date(item.createdAt)}</p>
+                    <p>{profile.location ? `${profile.location} · ` : ""}{profile.experience ?? 0} years experience · {profile.skills}</p>
+                    {profile.resumeUrl && <a href={profile.resumeUrl} target="_blank" rel="noreferrer" style={{ fontSize: "13px", fontWeight: 600 }}>View resume / portfolio ↗</a>}
+                  </article>
+                );
+              })}
+            </>
+          )}
+          {tab === "recruiters" && (
+            <>
+              <h3>Public recruiter directory</h3>
+              <p>Only add people whose work email and authority you have confirmed. Active entries are publicly searchable by exact email or ID.</p>
+              <form
+                className="talent-form"
+                onSubmit={event => {
+                  event.preventDefault();
+                  const form = event.currentTarget;
+                  void update("recruiter", Object.fromEntries(new FormData(form)));
+                }}
+              >
+                <div className="talent-form-grid">
+                  <label>Name<input name="name" required minLength={2} maxLength={80} /></label>
+                  <label>Work email<input name="email" type="email" required maxLength={254} /></label>
+                </div>
+                <label>Role / title<input name="title" required minLength={2} maxLength={120} /></label>
+                <button className="talent-button" disabled={busy}>Add to public directory</button>
+              </form>
+              {data.recruiters.map(item => (
+                <article key={item.id} className="talent-list-item">
+                  <div>
+                    <h3>{item.name}</h3>
+                    <p>{item.email} · {item.title}</p>
+                    <small>ID: {item.id}</small>
+                  </div>
+                  <button
+                    className="talent-button talent-secondary"
+                    disabled={busy}
+                    onClick={() => void update("recruiter-status", { id: item.id, active: !item.active })}
+                  >
+                    {item.active ? "Deactivate" : "Activate"}
+                  </button>
+                </article>
+              ))}
+            </>
+          )}
+        </>
+      )}
+      <div className="talent-auth-bottom">
+        <Mail size={15} />
+        <small>Up to 300 recent requests, applications, and accounts are shown. Email replies open your own email app.</small>
+      </div>
+    </section>
+  );
 }
