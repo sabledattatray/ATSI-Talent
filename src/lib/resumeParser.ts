@@ -1,3 +1,4 @@
+import { COUNTRIES } from "@/lib/countries";
 import type { WorkExperience, Education } from "@/lib/recruitment";
 
 export type ParsedResume = {
@@ -106,6 +107,27 @@ const sectionNames: Record<string, string> = {
   "certifications": "certifications", "certifications and training": "certifications", "licenses": "certifications", "courses": "certifications", "credentials": "certifications",
   "projects": "other", "personal projects": "other", "academic projects": "other", "achievements": "other", "awards": "other", "languages": "other", "interests": "other", "hobbies": "other", "references": "other", "personal details": "other", "declaration": "other", "publications": "other", "additional information": "other",
 };
+// Resume templates often use decorative spacing, bullets or alternate headings.
+const headingKey = (value: string) => value.toLowerCase().replace(/&/g, "and").replace(/[^a-z]/g, "");
+const headingAliases: Record<string, string> = {
+  "key competencies": "skills", "skill set": "skills", "skill sets": "skills", "professional skills": "skills",
+  "technical competencies": "skills", "technical proficiencies": "skills", "areas of expertise": "skills", "core expertise": "skills", "expertise": "skills", "tools": "skills", "tools and platforms": "skills",
+  "career summary and objective": "summary", "professional overview": "summary",
+  "professional background": "experience", "career experience": "experience", "employment details": "experience", "work experience and achievements": "experience",
+  "educational background": "education", "education and qualifications": "education", "education details": "education", "educational details": "education", "academic details": "education", "academic credentials": "education", "academic profile": "education", "education and training": "education",
+  "personal details": "contact", "contact details": "contact", "personal information": "contact", "contact information": "contact",
+};
+const headings = new Map(Object.entries({ ...sectionNames, ...headingAliases }).map(([label, key]) => [headingKey(label), key]));
+function sectionHeading(line: string): { key: string; remainder: string } | undefined {
+  const whole = headings.get(headingKey(line));
+  if (whole) return { key: whole, remainder: "" };
+  const split = line.match(/^(.{1,80}?)(?:\s*[:|]\s*|\s+[–—]\s+)(.+)$/);
+  const key = split && headings.get(headingKey(split[1]));
+  return key ? { key, remainder: split![2].trim() } : undefined;
+}
+const identityKey = (value: string) => value.toLowerCase().replace(/[^\p{L}\p{N}]/gu, "");
+const institutionLike = (value: string) => /university|college|institute|school|academy/i.test(value);
+
 const stripBullet = (s: string) => s.replace(/^[•●▪◦*\-]\s*/, "").trim();
 const roleLike = (s: string) => /\b(?:engineer|developer|analyst|manager|consultant|specialist|executive|officer|lead|intern|designer|architect|accountant|scientist|administrator|associate|director|recruiter|coordinator|head|president|founder)\b/i.test(s);
 const degreeLike = (s: string) => /\b(?:bachelor|master|doctor|ph\.?d|b\.?\s?tech|m\.?\s?tech|b\.?\s?e\.?|m\.?\s?e\.?|b\.?\s?sc|m\.?\s?sc|b\.?\s?com|m\.?\s?com|mba|bba|bca|mca|diploma|hsc|ssc|secondary|12th|10th)\b/i.test(s);
@@ -121,7 +143,10 @@ function monthNumber(value: string, end = false): number | null {
   return Number(year[0]) * 12 + Math.max(0, month);
 }
 
-function workEntries(lines: string[]): WorkExperience[] {
+function workEntries(source: string[], candidateName: string): WorkExperience[] {
+  const isCandidateName = (value: string) => !!candidateName && identityKey(value) === identityKey(candidateName);
+  // Repeated page headers are not employers or work descriptions.
+  const lines = source.filter(line => !isCandidateName(line) && !/^page \d+(?: of \d+)?$/i.test(line));
   const entries: WorkExperience[] = []; let previousEnd = -1;
   const dateIndexes = lines.flatMap((s,i) => rangePattern.test(s) ? [i] : []);
   for (let n = 0; n < dateIndexes.length; n++) {
@@ -129,12 +154,13 @@ function workEntries(lines: string[]): WorkExperience[] {
     const inline = lines[i].replace(match[0], "").replace(/^[\s|,()–—-]+|[\s|,()–—-]+$/g, "");
     const preceding: string[] = [];
     for (let j = i - 1; j > previousEnd && preceding.length < 2; j--) {
-      if (/^[•●▪◦*\-]/.test(lines[j]) || lines[j].length > 140 || /[.!]$/.test(lines[j])) break;
+      if (/^[•●▪◦*\-]/.test(lines[j]) || lines[j].length > 140 || (/[.!]$/.test(lines[j]) && !/\b(?:ltd|inc|co|corp|pvt)\.$/i.test(lines[j]))) break;
       preceding.unshift(lines[j]);
     }
     const headerLines = [...preceding, inline].filter(Boolean);
-    const parts = headerLines.flatMap(s => s.split(/\s*\|\s*|\s+at\s+|\s+@\s+|\s+[–—-]\s+/i)).map(s => s.trim()).filter(Boolean);
+    const parts = headerLines.flatMap(s => s.split(/\s*\|\s*|\s+at\s+|\s+@\s+|\s+[–—-]\s+/i)).map(s => s.trim()).filter(s => !!s && !isCandidateName(s));
     const titleIndex = parts.findIndex(roleLike);
+    if (titleIndex < 0 && parts.some(degreeLike)) continue;
     const title = titleIndex >= 0 ? parts[titleIndex] : parts.length > 1 ? parts[0] : "";
     const company = parts.find((_,index) => index !== (titleIndex >= 0 ? titleIndex : 0)) || (title ? "" : parts[0] || "");
     if (!title && !company) continue;
@@ -143,7 +169,7 @@ function workEntries(lines: string[]): WorkExperience[] {
     if (nextDate < lines.length) {
       descriptionEnd = nextDate;
       for (let j = nextDate-1; j > i && nextDate-j <= 2; j--) {
-        if (/^[•●▪◦*\-]/.test(lines[j]) || lines[j].length > 140 || /[.!]$/.test(lines[j])) break;
+        if (/^[•●▪◦*\-]/.test(lines[j]) || lines[j].length > 140 || (/[.!]$/.test(lines[j]) && !/\b(?:ltd|inc|co|corp|pvt)\.$/i.test(lines[j]))) break;
         descriptionEnd = j;
       }
     }
@@ -159,10 +185,11 @@ function educationEntries(lines: string[]): Education[] {
   for (let n=0; n<degreeIndexes.length; n++) {
     const index = degreeIndexes[n], next = degreeIndexes[n+1] ?? lines.length;
     const parts = lines[index].split(/\s*\|\s*|\t|\s+[–—-]\s+/).map(s=>s.trim());
+    const degree = parts.find(degreeLike) || parts[0];
     const block = [lines[index], ...lines.slice(index+1,next)];
-    const institution = parts.slice(1).find(s => /[a-z]/i.test(s) && !/^\d/.test(s)) || lines.slice(index+1,next).find(s=>/university|college|institute|school|academy/i.test(s)) || (index>0 && !degreeLike(lines[index-1]) && /university|college|institute|school|academy/i.test(lines[index-1]) ? lines[index-1] : "");
+    const institution = parts.find(s => s !== degree && institutionLike(s)) || parts.find(s => s !== degree && /[a-z]/i.test(s) && !/^\d/.test(s)) || lines.slice(index+1,next).find(institutionLike) || (index>0 && !degreeLike(lines[index-1]) && institutionLike(lines[index-1]) ? lines[index-1] : "");
     const years = [...block.join(" ").matchAll(/\b(?:19|20)\d{2}\b/g)].map(m=>m[0]);
-    entries.push({ id: `e_${entries.length+1}`, degree: parts[0].replace(/\b(?:19|20)\d{2}\b.*$/, "").trim().slice(0,120), field: (parts[0].match(/\bin\s+(.+)/i)?.[1] || "").slice(0,120), institution: institution.slice(0,160), graduationYear: /\b(?:present|pursuing|ongoing|current)\b/i.test(block.join(" ")) ? "" : years.at(-1) || "" });
+    entries.push({ id: `e_${entries.length+1}`, degree: degree.replace(/\b(?:19|20)\d{2}\b.*$/, "").trim().slice(0,120), field: (degree.match(/\bin\s+(.+)/i)?.[1] || "").slice(0,120), institution: institution.slice(0,160), graduationYear: /\b(?:present|pursuing|ongoing|current)\b/i.test(block.join(" ")) ? "" : years.at(-1) || "" });
   }
   return entries.slice(0,20);
 }
@@ -172,13 +199,13 @@ export function parseResumeText(rawText: string, now = new Date()): ParsedResume
   const sections: Record<string,string[]> = {}; const contact: string[] = []; let section = "";
   for (const original of lines) {
     const line = original.replace(/^#{1,6}\s+/, "");
-    const colon = line.indexOf(":"); const label = (colon>=0 ? line.slice(0,colon) : line).replace(/\s*[:–—-]\s*$/, "").trim().toLowerCase();
-    const key = sectionNames[label];
-    if (key) { section = key; sections[key] ||= []; if (colon>=0 && line.slice(colon+1).trim()) sections[key].push(line.slice(colon+1).trim()); }
+    const heading = sectionHeading(line);
+    if (heading) { section = heading.key; sections[section] ||= []; if (heading.remainder) sections[section].push(heading.remainder); }
     else if (section) sections[section].push(original);
     else contact.push(original);
   }
-  const header = contact.slice(0,15).join("\n");
+  contact.push(...(sections.contact || []));
+  const header = contact.slice(0,20).join("\n");
   const email = (text.match(/[\w.%+-]+@[\w.-]+\.[a-z]{2,}/i)?.[0] || "").toLowerCase();
   const phoneLines = [...lines.filter(s=>/\b(?:phone|mobile|tel|contact|cell)\b/i.test(s)), ...contact];
   let phone = "";
@@ -191,13 +218,22 @@ export function parseResumeText(rawText: string, now = new Date()): ParsedResume
   const linkedinUrl = links.find(s=>/^https:\/\/(?:www\.)?linkedin\.com\/in\//i.test(s)) || "";
   const githubUrl = links.find(s=>/^https:\/\/(?:www\.)?github\.com\//i.test(s)) || "";
   const portfolioUrl = links.find(s=>!/^https:\/\/(?:www\.)?(?:linkedin\.com|github\.com)(?:\/|$)/i.test(s)) || "";
-  const explicitLocation = header.match(/(?:^|[\n|•])\s*(?:current location|location|address|city|based in)\s*:\s*([^\n|•]+)/i)?.[1];
-  const cityPattern = /\b(?:Pune|Bengaluru|Bangalore|Mumbai|Navi Mumbai|New Delhi|Delhi|Hyderabad|Chennai|Gurugram|Gurgaon|Noida|Kolkata|Ahmedabad|Nagpur|Nashik|Indore|Jaipur|Chandigarh|Kochi|Surat|Lucknow|San Francisco|New York|London|Singapore|Dubai|Berlin|Toronto|Seattle|Austin|Boston)\b(?:,\s*[\p{L} .-]+){0,2}/iu;
-  const location = (explicitLocation || contact.find(s=>cityPattern.test(s))?.match(cityPattern)?.[0] || "").trim().slice(0,160);
+  const explicitLocation = header.match(/(?:^|[\n|•])\s*(?:(?:current location|location|address|city)\s*[:–—|\-]\s*|(?:current location|location|address|city|based in)\s+)([^\n|•]+)/i)?.[1];
+  const cityPattern = /\b(?:Pune|Thane|Bengaluru|Bangalore|Mumbai|Navi Mumbai|New Delhi|Delhi|Hyderabad|Chennai|Gurugram|Gurgaon|Noida|Kolkata|Ahmedabad|Nagpur|Nashik|Indore|Jaipur|Chandigarh|Kochi|Surat|Lucknow|San Francisco|New York|London|Singapore|Dubai|Berlin|Toronto|Seattle|Austin|Boston)\b(?:,\s*[\p{L} .-]+){0,2}/iu;
+  const countryNames = new Set(COUNTRIES.map(country => country.name.toLowerCase()));
+  const globalLocation = contact.flatMap(line => line.split(/\s*[|•]\s*/)).find(part => /^[\p{L} .'-]+(?:,\s*[\p{L} .'-]+){1,2}$/u.test(part) && countryNames.has(part.split(",").at(-1)!.trim().toLowerCase()));
+  const location = (explicitLocation || globalLocation || contact.find(s=>cityPattern.test(s))?.match(cityPattern)?.[0] || "").trim().slice(0,160);
   const nameCandidates = contact.slice(0,8).flatMap(s=>s.split(/\s*[|•]\s*/));
   const name = (header.match(/(?:^|\n)\s*(?:full name|name)\s*:\s*([^\n|]+)/i)?.[1] || nameCandidates.find(s=>/^[\p{L}][\p{L}\p{M} .'-]{1,78}$/u.test(s) && s.split(/\s+/).length>=2 && s.split(/\s+/).length<=6 && !roleLike(s) && !degreeLike(s) && !cityPattern.test(s) && !/resume|curriculum|vitae|portfolio|personal details/i.test(s)) || "").trim().slice(0,80);
-  const workHistory = workEntries(sections.experience || []);
-  const educationHistory = educationEntries(sections.education || []);
+  const workHistory = workEntries(sections.experience || [], name);
+  const educationIndexes = new Set<number>();
+  if (!sections.education) lines.forEach((line, index) => {
+    if (degreeLike(line) && line.length <= 160 && !/^[•●▪◦*]|\b(?:required|preferred|seeking)\b/i.test(line) && lines.slice(Math.max(0,index-1),index+3).some(institutionLike)) {
+      for (let i=Math.max(0,index-1);i<Math.min(lines.length,index+3);i++) educationIndexes.add(i);
+    }
+  });
+  const fallbackEducation = [...educationIndexes].sort((a,b)=>a-b).map(index=>lines[index]);
+  const educationHistory = educationEntries(sections.education || fallbackEducation);
   const headline = (contact.find(s=>roleLike(s) && s.length<=160 && !/[@:]|https?:|\d{7}/.test(s) && !rangePattern.test(s)) || workHistory.find(w=>w.current)?.title || workHistory[0]?.title || "").slice(0,160);
   const explicitExperience = text.match(/\b(\d{1,2}(?:\.\d+)?)\s*\+?\s*(?:years?|yrs?)(?:\s+(?:of|overall|total|professional|relevant|work|industry|hands[- ]on))*\s+experience\b/i);
   let experience = explicitExperience ? Math.min(60,Number(explicitExperience[1])) : 0;
@@ -208,7 +244,7 @@ export function parseResumeText(rawText: string, now = new Date()): ParsedResume
     for(const interval of intervals){ const last=merged.at(-1); if(last && interval[0]<=last[1]+1)last[1]=Math.max(last[1],interval[1]);else merged.push([...interval]); }
     experience=Math.min(60,Math.round(merged.reduce((sum,[start,end])=>sum+end-start+1,0)/12*10)/10);
   }
-  const skillItems = (sections.skills || []).flatMap(s=>stripBullet(s).replace(/^[\w &/+-]{2,35}:\s*/,"").split(/[,;|•●▪\n]+/)).map(s=>s.trim()).filter(Boolean);
+  const skillItems = (sections.skills || []).flatMap(s=>stripBullet(s).replace(/^[\w &/+-]{2,35}:\s*/,"").split(/[,;|•●▪\n]+/)).map(s=>s.replace(/^[\w &/+-]{2,35}:\s*/, "").trim()).filter(Boolean);
   const skills = [...new Map(skillItems.map(s=>[s.toLowerCase(),s])).values()].join(", ").slice(0,2500);
   const bio = (sections.summary || []).join(" ").slice(0,4000);
   const certifications = (sections.certifications || []).map(stripBullet).join("\n").slice(0,2500);
@@ -219,6 +255,9 @@ export function parseResumeText(rawText: string, now = new Date()): ParsedResume
   const warnings: string[]=[];
   if (!phone) warnings.push("Phone number wasn't detected. Please add it if you'd like recruiters to call you.");
   if (!workHistory.length) warnings.push("No dated work history was detected. You can add roles below, or leave this empty if you're starting your career.");
+  if (workHistory.some(role => !role.company)) warnings.push("An employer could not be identified for one or more roles. Please review work history before saving.");
+  if (!location) warnings.push("Your current location wasn't detected. Please review it before saving.");
+  if (!educationHistory.length) warnings.push("Education wasn't detected. Please review it before saving.");
   if (!skills) warnings.push("Skills weren't detected. Please review the skills section.");
   return { name,email,phone,location,headline,bio,skills,experience,certifications,targetRole:headline.slice(0,120),noticePeriod,expectedSalary,openToRelocation:relocation ? relocation[1]?.toLowerCase()!=="no" : undefined,resumeUrl:"",linkedinUrl,githubUrl,portfolioUrl,workHistory,educationHistory,warnings };
 }

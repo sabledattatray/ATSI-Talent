@@ -605,3 +605,62 @@ test("PDF failures distinguish server packaging problems from locked or unreadab
  failure=Object.assign(Error("Invalid structure"),{name:"InvalidPDFException"});
  await assert.rejects(()=>extractTextFromBuffer(Buffer.from("%PDF-fixture"),"resume.pdf"),error=>error.status===422&&/fresh PDF/.test(error.message));
 });
+
+
+test("decorative headings and alternate section names map skills, education and repeated page headers correctly",()=>{
+ const e=environment();const {parseResumeText}=e.load("src/lib/resumeParser.ts");
+ const parsed=parseResumeText(`JANE DOE
+MIS & Business Intelligence Manager
+Location - Thane, Maharashtra, India
+Phone: +91 98765 43210
+CORE EXPERTISE | Reporting: Power BI | Database: SQL | Tools: Excel
+PROFESSIONAL BACKGROUND
+JANE DOE
+MIS & Business Intelligence Manager
+January 2020 - September 2023
+- Led reporting projects.
+Deputy Manager | Example Finance Ltd.
+August 2015 - January 2020
+- Built monthly reports.
+2. E D U C A T I O N
+2015 | B.Com | Example University
+2013 | HSC | Example College`,new Date("2026-10-18T00:00:00Z"));
+ assert.equal(parsed.name,"JANE DOE");assert.equal(parsed.location,"Thane, Maharashtra, India");
+ assert.equal(parsed.skills,"Power BI, SQL, Excel");assert.equal(parsed.workHistory.length,2);
+ assert.equal(parsed.workHistory[0].title,"MIS & Business Intelligence Manager");assert.equal(parsed.workHistory[0].company,"");
+ assert.equal(parsed.workHistory[1].company,"Example Finance Ltd.");assert.ok(parsed.warnings.some(w=>/employer/.test(w)));
+ assert.equal(parsed.educationHistory.length,2);assert.equal(parsed.educationHistory[0].degree,"B.Com");assert.equal(parsed.educationHistory[0].institution,"Example University");assert.equal(parsed.educationHistory[0].graduationYear,"2015");
+});
+
+test("global and explicit contact locations work outside the built-in city list without using employment locations",()=>{
+ const e=environment();const {parseResumeText}=e.load("src/lib/resumeParser.ts");
+ for(const location of ["Oslo, Norway","Location:Oslo, Norway","Based in Oslo, Norway"]){
+  const parsed=parseResumeText(`Jane Doe\nSoftware Engineer\n${location}\nSKILL SET: TypeScript, SQL\nACADEMIC CREDENTIALS\nB.Sc | Example University | 2020`);
+  assert.equal(parsed.location,"Oslo, Norway");assert.equal(parsed.skills,"TypeScript, SQL");assert.equal(parsed.educationHistory.length,1);
+ }
+ const footer=parseResumeText("Jane Doe\nSoftware Engineer\nSKILLS: SQL\nEXPERIENCE\nEngineer | Example Ltd | London\n2020 - 2022\nPERSONAL INFORMATION\nCurrent location:Oslo, Norway");assert.equal(footer.location,"Oslo, Norway");
+});
+
+test("PDF field mapping supports alternate skills and academic headings through the upload API",async()=>{
+ const e=environment();await e.call("auth/signup",person);
+ const bytes=pdfFixture(["Jane Doe","Business Intelligence Manager","City: Thane, India","SKILL SET | SQL | Excel | Power BI","EMPLOYMENT DETAILS","Jane Doe","Business Intelligence Manager | Example Finance Ltd.","January 2020 - September 2023","Delivered reporting improvements.","ACADEMIC PROFILE","2015 | B.Com | Example University"]);
+ const form=new FormData();form.append("file",new File([bytes],"alternate-layout.pdf",{type:"application/pdf"}));
+ const response=await e.callFormData("parse-resume",form);const body=await response.json();assert.equal(response.status,200,JSON.stringify(body));
+ assert.equal(body.parsed.skills,"SQL, Excel, Power BI");assert.equal(body.parsed.location,"Thane, India");assert.equal(body.parsed.workHistory[0].company,"Example Finance Ltd.");assert.equal(body.parsed.educationHistory[0].degree,"B.Com");
+});
+
+test("unlabelled academic records can be recovered without counting their study dates as work experience",()=>{
+ const e=environment();const {parseResumeText}=e.load("src/lib/resumeParser.ts");
+ const parsed=parseResumeText(`Jane Doe
+Data Analyst
+SKILLS: SQL
+EXPERIENCE
+Analyst | Example Ltd
+2020 - 2022
+- Built useful reports.
+Study records
+B.Com | Example University
+2012 - 2015`);
+ assert.equal(parsed.workHistory.length,1);assert.equal(parsed.educationHistory.length,1);
+ assert.equal(parsed.educationHistory[0].degree,"B.Com");assert.equal(parsed.educationHistory[0].graduationYear,"2015");
+});

@@ -1554,7 +1554,7 @@ export function CandidatePortal({ initial, defaultTab }: { initial: Dashboard; d
               <input type="checkbox" checked={replaceFromResume} onChange={e => setReplaceFromResume(e.target.checked)} />
               Replace existing details with detected resume details
             </label>
-            <p style={{ fontSize: 13, color: "#475569" }}>By default, we fill empty fields and add new skills, roles and education. Your account email stays unchanged.</p>
+            <p style={{ fontSize: 13, color: "#475569" }}>{replaceFromResume ? "Detected values will replace matching profile details. Fields missing from the resume keep their existing values." : "We fill empty fields and add new skills, roles and education while preserving your existing details."} Your account email stays unchanged.</p>
             {parsedResult.warnings?.map(warning => <p key={warning} style={{ fontSize: 13, color: "#92400e" }}>{warning}</p>)}
             <div className="talent-sync-preview-grid">
               <div className="talent-sync-stat">
@@ -1563,7 +1563,7 @@ export function CandidatePortal({ initial, defaultTab }: { initial: Dashboard; d
               </div>
               <div className="talent-sync-stat">
                 <span>Headline / Title</span>
-                <strong title={parsedResult.headline}>{parsedResult.headline || headline || "(Unchanged)"}</strong>
+                <strong title={parsedResult.headline} style={{ whiteSpace: "normal", overflow: "visible", textOverflow: "clip" }}>{parsedResult.headline || headline || "(Unchanged)"}</strong>
               </div>
               <div className="talent-sync-stat">
                 <span>Phone Number</span>
