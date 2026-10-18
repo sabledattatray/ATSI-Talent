@@ -1,3 +1,4 @@
+import { validTextStyle } from "./text-style";
 import { z } from "zod";
 const text = (max: number) => z.string().trim().max(max);
 const url = text(2000).refine(v => !v || /^https?:\/\/[^\s]+$/i.test(v), "Use a complete HTTP or HTTPS URL.");
@@ -14,7 +15,7 @@ export function validDocument(value: unknown): boolean {
     if (n.attrs !== undefined && (!n.attrs || typeof n.attrs !== "object" || Array.isArray(n.attrs))) return false;
     if (n.type === "heading" && ![1, 2, 3].includes(Number(n.attrs?.level))) return false;
     if (n.type === "image" && (!n.attrs?.src || !mediaUrl.safeParse(n.attrs.src).success)) return false;
-    if (n.marks !== undefined && (!Array.isArray(n.marks) || n.marks.some(m => !m || typeof m !== "object" || !["bold", "italic", "underline", "strike", "code", "link", "highlight"].includes(m.type) || (m.type === "link" && !url.safeParse(m.attrs?.href).success)))) return false;
+    if (n.marks !== undefined && (!Array.isArray(n.marks) || n.marks.some(m => !m || typeof m !== "object" || !["bold", "italic", "underline", "strike", "code", "link", "highlight", "textStyle"].includes(m.type) || (m.type === "link" && !url.safeParse(m.attrs?.href).success) || (m.type === "textStyle" && !validTextStyle(m.attrs))))) return false;
     return n.content === undefined || (Array.isArray(n.content) && n.content.every(child => walk(child, depth + 1)));
   }
   return (value as { type?: string })?.type === "doc" && walk(value, 0);

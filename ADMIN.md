@@ -73,3 +73,7 @@ Candidates register at `/candidate/signup`, sign in at `/candidate/login`, and u
 Public recruiter lookup returns only active entries explicitly added by the owner in Recruitment inbox → Recruiters. Staff accounts are not automatically published. Use exact recruiter ID or work email for lookup.
 
 Enquiry and application receipts are displayed on screen. No automatic email is sent. Reply links open your own email app. Privacy and account-recovery requests require owner review and identity confirmation before action; submitting one does not automatically disclose or remove data.
+
+### Text size and color
+
+Select text in the job or article editor, enter a size from 8 to 96 pixels and press Enter (or leave the field), or choose a text color with the color picker. Reset text removes those two overrides from the selection. Save or publish to persist the formatting; previews and public pages render the same size and color. Existing unformatted content keeps its theme defaults.

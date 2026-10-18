@@ -204,3 +204,27 @@ test("pinned database credentials override the integration as a pair and fail cl
     assert.equal((await broken.request("setup", undefined, "GET")).status, 503);
   }
 });
+
+test("font size and color survive publishing while unsafe styles are rejected", async () => {
+  const e = environment();
+  await e.request("auth/signup", owner);
+  const makeDoc = attrs => ({ type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "A useful role with custom typography for candidates.", marks: [{ type: "bold" }, { type: "textStyle", attrs }] }] }] });
+  const content = makeDoc({ color: "#2456aa", fontSize: "24px" });
+  const record = { ...e.load("src/lib/admin/types.ts").blankRecord("post", "Test Owner"), title: "Formatted recruitment guide", slug: "formatted-recruitment-guide", excerpt: "Typography fixture", status: "published", content };
+  const response = await e.request("content", record);
+  assert.equal(response.status, 200);
+  const saved = (await response.json()).record;
+  const stored = (await e.load("src/lib/admin/db.ts").records("post", true)).find(row => row.id === saved.id);
+  assert.equal(JSON.stringify(stored.content), JSON.stringify(content));
+  const { validDocument } = e.load("src/lib/admin/validation.ts");
+  assert.equal(validDocument(makeDoc({ color: "rgb(36, 86, 170)", fontSize: "96px" })), true);
+  for (const attrs of [{ color: "url(https://example.test)" }, { fontSize: "200px" }, { fontSize: "1px;display:none" }, { color: "rgb(999,0,0)" }, { position: "fixed" }]) {
+    assert.equal(validDocument(makeDoc(attrs)), false);
+  }
+  const compiled = ts.transpileModule(fs.readFileSync("src/components/admin/RichContent.tsx", "utf8"), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX } }).outputText;
+  const mod = { exports: {} };
+  vm.runInThisContext(`(function(require,module,exports){${compiled}\n})`)(id => id === "@/lib/admin/text-style" ? e.load("src/lib/admin/text-style.ts") : nativeRequire(id), mod, mod.exports);
+  const html = nativeRequire("react-dom/server").renderToStaticMarkup(nativeRequire("react").createElement(mod.exports.RichContent, { document: stored.content }));
+  assert.match(html, /color:#2456aa;font-size:24px/);
+  assert.match(html, /<strong>/);
+});
