@@ -85,10 +85,31 @@ export const FIXTURE_JOB_DATA: Record<string, any> = {
  * Ensures default authorized sources exist in database.
  */
 export async function ensureDefaultSources(): Promise<void> {
-  const existing = await db().prepare("SELECT id FROM ji_sources WHERE id=?").get("src-atsai-fixtures") as { id: string } | undefined;
-  if (existing) return;
-
+  const defaultDomains = [
+    "careers.example.com",
+    "*.example.com",
+    "atsai.test",
+    "boards.greenhouse.io",
+    "job-boards.greenhouse.io",
+    "*.greenhouse.io",
+    "jobs.lever.co",
+    "*.lever.co",
+    "jobs.ashbyhq.com",
+    "*.ashbyhq.com",
+    "careers.google.com"
+  ];
   const now = new Date().toISOString();
+  const existing = await db().prepare("SELECT id, domainAllowlist FROM ji_sources WHERE id=?").get("src-atsai-fixtures") as { id: string; domainAllowlist: string } | undefined;
+
+  if (existing) {
+    const currentList: string[] = JSON.parse(existing.domainAllowlist || "[]");
+    const merged = Array.from(new Set([...currentList, ...defaultDomains]));
+    if (merged.length !== currentList.length) {
+      await db().prepare("UPDATE ji_sources SET domainAllowlist=?, updatedAt=? WHERE id=?").run(JSON.stringify(merged), now, "src-atsai-fixtures");
+    }
+    return;
+  }
+
   await db().prepare(
     `INSERT INTO ji_sources (id, name, ownerOrg, homepage, domainAllowlist, sourceType, authBasis, evidenceRef, reviewer, approvedAt, renewalDate, status, autoPublish, rateBudget, createdAt, updatedAt)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
@@ -97,7 +118,7 @@ export async function ensureDefaultSources(): Promise<void> {
     "ATSAI Enterprise Partner Fixtures",
     "Example Cloud Technologies",
     "https://careers.example.com",
-    JSON.stringify(["careers.example.com", "*.example.com", "atsai.test", "boards.greenhouse.io", "job-boards.greenhouse.io", "*.greenhouse.io", "jobs.lever.co", "*.lever.co", "jobs.ashbyhq.com", "careers.google.com"]),
+    JSON.stringify(defaultDomains),
     "api",
     "direct_owner",
     "MOU-2026-PARTNER-VERIFIED",
