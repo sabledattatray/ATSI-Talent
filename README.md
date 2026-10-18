@@ -1,7 +1,10 @@
 <div align="center">
 
 <a href="https://dattasable.com">
-  <img src="public/brand/atsai-logo-light.svg" alt="ATS AI Talent Solutions — recruitment website and admin publishing platform by Datta Sable" width="300" />
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="public/brand/atsai-logo-dark.svg" />
+    <img src="public/brand/atsai-logo-light.svg" alt="ATS AI Talent Solutions — recruitment website and admin publishing platform by Datta Sable" width="300" />
+  </picture>
 </a>
 
 # ATSAI Talent Solutions
