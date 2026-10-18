@@ -1,0 +1,94 @@
+.atsai-header-header { position: sticky; top: 0; z-index: 50; width: 100%; background: #fff; border-bottom: 1px solid #e7ecf2; box-shadow: 0 2px 12px #14233804; }
+.atsai-header-utility { background: #102137; color: #c6d1de; }
+.atsai-header-utilityInner { max-width: 1440px; margin: 0 auto; min-height: 32px; padding: 0 32px; display: flex; align-items: center; justify-content: space-between; gap: 24px; font-size: 11px; letter-spacing: .01em; }
+.atsai-header-utilityMessage, .atsai-header-utilityLinks, .atsai-header-utilityLinks a { display: flex; align-items: center; gap: 8px; white-space: nowrap; }
+.atsai-header-utilityMessage svg { color: #86b5f4; }
+.atsai-header-utilityLinks { gap: 24px; }
+.atsai-header-utilityLinks a { color: #d9e1eb; transition: color .18s; }
+.atsai-header-utilityLinks a:hover { color: #fff; }
+.atsai-header-feeNote { padding-right: 24px; border-right: 1px solid #ffffff24; color: #aebdd0; }
+.atsai-header-main { position: relative; max-width: 1440px; margin: 0 auto; padding: 0 32px; }
+.atsai-header-row { height: 88px; display: grid; grid-template-columns: minmax(184px, 1fr) auto minmax(242px, 1fr); align-items: center; gap: 20px; }
+.atsai-header-brand { display: inline-flex; align-items: center; gap: 12px; justify-self: start; flex-shrink: 0; text-decoration: none; }
+.atsai-header-desktopNav { display: flex; align-items: center; gap: 2px; height: 100%; }
+.atsai-header-navLink { position: relative; display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 44px; padding: 0 12px; border-radius: 7px; border: 0; background: transparent; color: #435168; font-size: 13px; line-height: 1; font-weight: 550; white-space: nowrap; flex-shrink: 0; cursor: pointer; transition: color .18s, background .18s; text-decoration: none; }
+.atsai-header-navLink:hover, .atsai-header-selected { background: #f1f5fb; color: #163e78; }
+.atsai-header-navLink svg { color: #8492a5; transition: transform .18s; }
+.atsai-header-current { color: #1d4ed8; }
+.atsai-header-current::after { content: ""; position: absolute; bottom: 2px; width: 16px; height: 2px; background: #2563eb; border-radius: 2px; }
+.atsai-header-rotated { transform: rotate(180deg); }
+.atsai-header-actions { display: flex; align-items: center; justify-content: flex-end; gap: 14px; white-space: nowrap; }
+.atsai-header-workspace { padding-right: 14px; border-right: 1px solid #e6ebf2; }
+.atsai-header-workspace .atsai-header-navLink { padding: 0 7px; font-size: 12px; }
+.atsai-header-hireButton { min-height: 44px; display: inline-flex; align-items: center; justify-content: center; gap: 17px; padding: 0 19px; background: #173b69; color: #fff; border: 1px solid #173b69; border-radius: 7px; font-size: 12px; font-weight: 650; text-decoration: none; white-space: nowrap; box-shadow: 0 2px 3px #1021370c; transition: background .18s, box-shadow .18s; }
+.atsai-header-hireButton:hover { background: #102c51; box-shadow: 0 4px 10px #173b6924; }
+.atsai-header-mobileToggle { display: none; width: 44px; height: 44px; align-items: center; justify-content: center; background: #f5f7fa; border: 1px solid #e6ebf2; border-radius: 8px; color: #142338; cursor: pointer; }
+.atsai-header-backdrop { position: fixed; inset: 0; z-index: 45; background: #0b172828; backdrop-filter: blur(2px); }
+.atsai-header-megaMenu { position: absolute; top: 100%; left: 32px; right: 32px; background: white; border: 1px solid #e2e8f0; border-top: 2px solid #173b69; border-radius: 0 0 14px 14px; box-shadow: 0 24px 48px -16px #0b172838; max-height: calc(100dvh - var(--atsai-header-bottom, 120px) - 12px); overflow-y: auto; overscroll-behavior: contain; animation: atsai-header-appear .16s ease-out; }
+.atsai-header-megaGrid { display: grid; grid-template-columns: 285px 1fr; }
+.atsai-header-feature { display: flex; flex-direction: column; align-items: flex-start; padding: 30px; background: #102137; color: #c0cede; }
+.atsai-header-eyebrow { color: #93b5e0; font-size: 9px; font-weight: 650; letter-spacing: 1.6px; }
+.atsai-header-featureMark { margin: 29px 0 18px; color: #8cb5ee; }
+.atsai-header-feature h2 { font-size: 25px; line-height: 1.28; font-weight: 600; letter-spacing: -.65px; color: #fff; margin: 0 0 14px; }
+.atsai-header-feature p { font-size: 12px; line-height: 1.8; margin: 0 0 26px; }
+.atsai-header-featureLink { display: inline-flex; align-items: center; justify-content: space-between; gap: 24px; margin-top: auto; padding-top: 17px; border-top: 1px solid #ffffff24; color: #fff; width: 100%; font-size: 12px; font-weight: 550; }
+.atsai-header-menuContent { padding: 28px 30px 0; display: flex; flex-direction: column; }
+.atsai-header-menuHeading { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 0 6px 20px; font-size: 10px; letter-spacing: 1.3px; font-weight: 650; color: #596b83; }
+.atsai-header-menuHint { color: #8793a4; letter-spacing: 0; font-weight: 400; font-size: 11px; }
+.atsai-header-menuLinks { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 12px; padding-bottom: 22px; }
+.atsai-header-menuCard { display: flex; align-items: flex-start; gap: 14px; min-height: 92px; padding: 17px 12px; border-radius: 8px; border: 1px solid transparent; transition: background .18s, border-color .18s; }
+.atsai-header-menuCard:hover { background: #f7f9fc; border-color: #e9eef5; }
+.atsai-header-cardIcon { display: flex; align-items: center; justify-content: center; width: 38px; height: 38px; flex-shrink: 0; color: #315d91; border: 1px solid #e4ebf4; background: #f5f8fc; border-radius: 8px; }
+.atsai-header-menuCard strong { display: block; color: #162d49; font-size: 13px; font-weight: 600; line-height: 1.4; }
+.atsai-header-cardDescription { display: block; margin-top: 6px; color: #6a788b; font-size: 11px; line-height: 1.65; max-width: 240px; }
+.atsai-header-cardArrow { margin: 3px 0 0 auto; flex-shrink: 0; color: #a5b1c1; }
+.atsai-header-menuCard:hover .atsai-header-cardArrow { color: #2563eb; }
+.atsai-header-menuFooter { margin-top: auto; border-top: 1px solid #edf0f5; display: flex; justify-content: space-between; padding: 19px 6px; font-size: 11px; }
+.atsai-header-menuFooter span, .atsai-header-menuFooter a { display: flex; align-items: center; gap: 8px; }
+.atsai-header-menuFooter span { color: #728096; }
+.atsai-header-menuFooter a { font-weight: 600; color: #204b82; }
+.atsai-header-mobilePanel { display: none; }
+@keyframes atsai-header-appear { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
+@media (min-width: 1120px) and (max-width: 1240px) {
+  .atsai-header-main, .atsai-header-utilityInner { padding-left: 24px; padding-right: 24px; }
+  .atsai-header-row { grid-template-columns: minmax(170px, 1fr) auto auto; gap: 12px; }
+  .atsai-header-navLink { padding: 0 9px; font-size: 12px; }
+  .atsai-header-actions { gap: 10px; }
+  .atsai-header-workspace { padding-right: 10px; }
+  .atsai-header-megaMenu { left: 24px; right: 24px; }
+}
+@media (max-width: 1119px) {
+  .atsai-header-desktopNav, .atsai-header-workspace, .atsai-header-megaMenu { display: none; }
+  .atsai-header-row { height: 78px; grid-template-columns: 1fr auto; gap: 16px; }
+  .atsai-header-main { padding: 0 24px; }
+  .atsai-header-mobileToggle { display: inline-flex; }
+  .atsai-header-utilityInner { padding: 0 24px; font-size: 10px; }
+  .atsai-header-feeNote { display: none; }
+  .atsai-header-mobilePanel { display: block; position: absolute; top: 100%; left: 0; right: 0; max-height: calc(100dvh - var(--atsai-header-bottom, 110px)); overflow-y: auto; overscroll-behavior: contain; padding: 16px 24px 24px; background: white; border-top: 1px solid #edf0f5; box-shadow: 0 20px 32px #10213714; animation: atsai-header-appear .16s ease-out; }
+  .atsai-header-mobilePrimary { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding-bottom: 16px; }
+  .atsai-header-mobilePrimary a { display: flex; align-items: center; justify-content: space-between; background: #f3f6fb; border: 1px solid #e8edf4; padding: 16px; border-radius: 8px; font-size: 13px; font-weight: 600; color: #173b69; }
+  .atsai-header-mobileGroup { border-top: 1px solid #edf0f5; }
+  .atsai-header-mobileGroup summary { list-style: none; display: flex; align-items: center; justify-content: space-between; min-height: 52px; color: #233e60; font-size: 13px; font-weight: 600; cursor: pointer; }
+  .atsai-header-mobileGroup summary::-webkit-details-marker { display: none; }
+  .atsai-header-mobileGroup[open] summary > svg { transform: rotate(180deg); }
+  .atsai-header-mobileGroup > div { padding: 0 0 12px 12px; }
+  .atsai-header-mobileGroup a { min-height: 44px; display: flex; align-items: center; gap: 12px; color: #607087; font-size: 12px; }
+  .atsai-header-mobileGroup a:hover { color: #1d4ed8; }
+  .atsai-header-mobileSecondary { border-top: 1px solid #edf0f5; display: grid; grid-template-columns: 1fr 1fr; padding: 9px 0; }
+  .atsai-header-mobileSecondary a { display: flex; align-items: center; gap: 9px; min-height: 44px; font-size: 12px; color: #435a76; }
+  .atsai-header-demoBadge { padding: 2px 6px; border: 1px solid #e2e8f0; border-radius: 4px; font-size: 9px; color: #7b899b; }
+  .atsai-header-mobileBottom { display: flex; align-items: center; justify-content: space-between; gap: 16px; border-top: 1px solid #edf0f5; padding-top: 18px; }
+  .atsai-header-mobileBottom a { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; color: #315d91; font-size: 11px; font-weight: 550; }
+}
+@media (max-width: 599px) {
+  .atsai-header-utility { display: none; }
+  .atsai-header-main { padding: 0 18px; }
+  .atsai-header-row { height: 76px; }
+  .atsai-header-brand.atsai-brand-logo { width: 150px; }
+  .atsai-header-actions { gap: 9px; }
+  .atsai-header-hireButton { gap: 8px; min-height: 40px; padding: 0 12px; font-size: 11px; }
+  .atsai-header-mobileToggle { width: 40px; height: 40px; }
+  .atsai-header-mobilePanel { padding: 14px 18px 20px; max-height: calc(100dvh - var(--atsai-header-bottom, 76px)); }
+}
+@media (max-width: 359px) { .atsai-header-hireButton { display: none; } }
+@media (prefers-reduced-motion: reduce) { .atsai-header-megaMenu, .atsai-header-mobilePanel { animation: none; } }

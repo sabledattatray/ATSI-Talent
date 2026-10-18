@@ -39,3 +39,20 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Private admin SQLite database, sessions and uploaded media
+/data/
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm
+/.next-*/
+
+# Keep the safe setup template, never deployment credentials
+!.env.example
+*.key
+*.p12
+*.pfx
+*.sqlite3
+*.db
+*.db-wal
+*.db-shm
