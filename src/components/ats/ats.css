@@ -357,5 +357,121 @@
 .ats-email-delivery h4{margin:0 0 12px;font-size:14px}.ats-email-delivery p{font-size:12px;line-height:1.7}
 .ats-email-warning{background:#fffbeb;color:#854d0e;padding:12px;border-radius:8px}
 .ats-email-row{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 0;border-top:1px solid #e7edf5;font-size:12px;flex-wrap:wrap}
-.ats-email-row small{display:block;color:#64748b;line-height:1.6;margin-top:4px}
 .ats-stepper-wrap{overflow-x:auto}.ats-stepper-track{min-width:650px}.ats-funnel>div{grid-template-columns:110px 1fr 25px}.ats-stage-interviewed,.ats-stage-selected{background:#e0f2fe;color:#075985}
+
+/* Mobile Stage Progress Indicator */
+.ats-mobile-stage-bar {
+  display: none;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 10px 12px;
+  margin: 14px 0 6px;
+}
+.ats-mobile-stage-info {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+  font-size: 12px;
+}
+.ats-mobile-stage-step {
+  color: #64748b;
+  font-weight: 600;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+.ats-mobile-stage-current {
+  color: #1e3a8a;
+  font-weight: 700;
+  font-size: 13px;
+}
+.ats-mobile-stage-meter {
+  height: 6px;
+  background: #e2e8f0;
+  border-radius: 999px;
+  overflow: hidden;
+  position: relative;
+}
+.ats-mobile-stage-meter-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #3b82f6, #2563eb);
+  border-radius: 999px;
+  transition: width 0.4s ease;
+}
+
+@media(max-width: 640px) {
+  .ats-tracker-container {
+    padding: 14px 12px !important;
+    border-radius: 12px !important;
+    margin-top: 10px !important;
+  }
+  .ats-tracker-header {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 10px !important;
+  }
+  .ats-tracker-status-row {
+    width: 100%;
+    justify-content: flex-start;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .ats-tracker-badge {
+    font-size: 10px !important;
+    padding: 3px 8px !important;
+  }
+  .ats-tracker-live-pill {
+    font-size: 10px !important;
+    padding: 2px 7px !important;
+  }
+  .ats-tracker-synced-time {
+    font-size: 10px !important;
+    color: #94a3b8;
+  }
+  .ats-tracker-actions {
+    width: 100% !important;
+    justify-content: space-between !important;
+    padding-top: 8px !important;
+    border-top: 1px dashed #f1f5f9 !important;
+  }
+  .ats-mobile-stage-bar {
+    display: block !important;
+  }
+  .ats-stepper-wrap {
+    margin: 10px 0 !important;
+    padding: 12px 6px !important;
+    scroll-snap-type: x proximity;
+  }
+  .ats-stepper-track {
+    min-width: 600px !important;
+  }
+  .ats-stepper-item {
+    scroll-snap-align: center;
+  }
+  .ats-stepper-node {
+    width: 26px !important;
+    height: 26px !important;
+    font-size: 11px !important;
+  }
+  .ats-stepper-item:not(:last-child)::after {
+    top: 13px !important;
+  }
+  .ats-stepper-label {
+    font-size: 10px !important;
+    margin-top: 6px !important;
+  }
+  .ats-stepper-hint {
+    font-size: 8.5px !important;
+    max-width: 68px !important;
+  }
+  .ats-tracker-guidance {
+    padding: 10px 12px !important;
+    font-size: 11px !important;
+    margin-top: 8px !important;
+  }
+  .ats-tracker-guidance strong {
+    font-size: 12px !important;
+  }
+}

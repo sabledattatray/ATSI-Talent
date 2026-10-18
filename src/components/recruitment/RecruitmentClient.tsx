@@ -618,22 +618,24 @@ export function CandidatePortal({ initial, defaultTab }: { initial: Dashboard; d
       </div>
 
       {/* Navigation Tabs */}
-      <div className="talent-tabs">
-        <button className={tab === "applications" ? "active" : ""} onClick={() => { setTab("applications"); setMessage(""); setError(""); }}>
-          Applications <span className="talent-tab-badge">{data.applications.length}</span>
-        </button>
-        <button className={tab === "saved" ? "active" : ""} onClick={() => { setTab("saved"); setMessage(""); setError(""); }}>
-          Saved Jobs <span className="talent-tab-badge">{data.savedJobs.length}</span>
-        </button>
-        <button className={tab === "profile" ? "active" : ""} onClick={() => { setTab("profile"); setMessage(""); setError(""); }}>
-          Complete Profile <span className="talent-tab-badge" style={{ background: completeness.score === 100 ? "#059669" : "#2563eb" }}>{completeness.score}%</span>
-        </button>
-        <button className={tab === "preview" ? "active" : ""} onClick={() => { setTab("preview"); setMessage(""); setError(""); }}>
-          <Eye size={14} style={{ display: "inline", verticalAlign: "text-bottom", marginRight: 4 }} /> Preview Profile
-        </button>
-        <button className={tab === "account" ? "active" : ""} onClick={() => { setTab("account"); setMessage(""); setError(""); }}>
-          Account & Privacy
-        </button>
+      <div className="talent-tabs-wrapper">
+        <div className="talent-tabs">
+          <button className={tab === "applications" ? "active" : ""} onClick={() => { setTab("applications"); setMessage(""); setError(""); }}>
+            Applications <span className="talent-tab-badge">{data.applications.length}</span>
+          </button>
+          <button className={tab === "saved" ? "active" : ""} onClick={() => { setTab("saved"); setMessage(""); setError(""); }}>
+            Saved Jobs <span className="talent-tab-badge">{data.savedJobs.length}</span>
+          </button>
+          <button className={tab === "profile" ? "active" : ""} onClick={() => { setTab("profile"); setMessage(""); setError(""); }}>
+            Complete Profile <span className="talent-tab-badge" style={{ background: completeness.score === 100 ? "#059669" : "#2563eb" }}>{completeness.score}%</span>
+          </button>
+          <button className={tab === "preview" ? "active" : ""} onClick={() => { setTab("preview"); setMessage(""); setError(""); }}>
+            <Eye size={14} style={{ display: "inline", verticalAlign: "text-bottom", marginRight: 4 }} /> Preview Profile
+          </button>
+          <button className={tab === "account" ? "active" : ""} onClick={() => { setTab("account"); setMessage(""); setError(""); }}>
+            Account & Privacy
+          </button>
+        </div>
       </div>
 
       <Notice error={error} message={message} />
@@ -644,30 +646,41 @@ export function CandidatePortal({ initial, defaultTab }: { initial: Dashboard; d
           <h2>Your applications</h2>
           {data.applications.length ? (
             data.applications.map(app => (
-              <article className="talent-list-item" key={app.id}>
-                <div>
-                  <Link href={`/jobs/${app.jobId}`}>
-                    <h3>{app.jobTitle}</h3>
-                  </Link>
-                  <p>{app.company} · Applied {date(app.createdAt)}</p>
-                  <small>Reference APP-{app.id.slice(0, 8).toUpperCase()}</small>
-                  <ApplicationTracking id={app.id} />
+              <article className="talent-candidate-app-card" key={app.id}>
+                <div className="talent-candidate-app-head">
+                  <div className="talent-candidate-app-info">
+                    <Link href={`/jobs/${app.jobId}`} className="talent-candidate-app-title-link">
+                      <h3 className="talent-candidate-app-title">{app.jobTitle}</h3>
+                    </Link>
+                    <div className="talent-candidate-app-sub">
+                      <span>{app.company}</span>
+                      <span className="talent-dot-sep">·</span>
+                      <span>Applied {date(app.createdAt)}</span>
+                      <span className="talent-dot-sep">·</span>
+                      <span className="talent-app-ref">APP-{app.id.slice(0, 8).toUpperCase()}</span>
+                    </div>
+                  </div>
+
+                  <div className="talent-candidate-app-badge-actions">
+                    <span className="talent-status">{label(app.status)}</span>
+                    {!["withdrawn", "hired", "rejected"].includes(app.status) && (
+                      <button
+                        className="talent-text-button talent-withdraw-btn"
+                        disabled={busy}
+                        onClick={() => {
+                          if (confirm("Withdraw this application? This will inform the team you no longer wish to proceed.")) {
+                            void run(async () => { await api("withdraw", { id: app.id }); }, "Application withdrawn.");
+                          }
+                        }}
+                      >
+                        Withdraw
+                      </button>
+                    )}
+                  </div>
                 </div>
-                <div>
-                  <span className="talent-status">{label(app.status)}</span>
-                  {!["withdrawn", "hired", "rejected"].includes(app.status) && (
-                    <button
-                      className="talent-text-button"
-                      disabled={busy}
-                      onClick={() => {
-                        if (confirm("Withdraw this application? This will inform the team you no longer wish to proceed.")) {
-                          void run(async () => { await api("withdraw", { id: app.id }); }, "Application withdrawn.");
-                        }
-                      }}
-                    >
-                      Withdraw
-                    </button>
-                  )}
+
+                <div className="talent-candidate-app-tracker">
+                  <ApplicationTracking id={app.id} />
                 </div>
               </article>
             ))

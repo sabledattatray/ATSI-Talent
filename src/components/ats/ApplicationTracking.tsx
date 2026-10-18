@@ -125,6 +125,18 @@ export function ApplicationTracking({ id }: { id: string }) {
   const currentStageIndex = PIPELINE_STAGES.findIndex((s) => s.key === data.status);
   const isTerminal = data.status === "rejected" || data.status === "withdrawn";
 
+  const currentStepRef = useRef<HTMLDivElement | null>(null);
+  const stepperWrapRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (currentStepRef.current && stepperWrapRef.current) {
+      const wrap = stepperWrapRef.current;
+      const item = currentStepRef.current;
+      const scrollLeft = item.offsetLeft - (wrap.clientWidth / 2) + (item.clientWidth / 2);
+      wrap.scrollTo({ left: Math.max(0, scrollLeft), behavior: "smooth" });
+    }
+  }, [data?.status]);
+
   return (
     <div className="ats-tracker-container">
       {/* Top Header */}
@@ -138,7 +150,7 @@ export function ApplicationTracking({ id }: { id: string }) {
             {connected ? "Live updates" : "Auto refresh"}
           </span>
           {lastSynced && (
-            <span style={{ fontSize: "10px", color: "#94a3b8" }}>
+            <span className="ats-tracker-synced-time">
               Synced {lastSynced}
             </span>
           )}
@@ -166,9 +178,25 @@ export function ApplicationTracking({ id }: { id: string }) {
         </div>
       </div>
 
+      {/* Mobile Stage Progress Indicator (Shown prominently on small screens) */}
+      {!isTerminal && (
+        <div className="ats-mobile-stage-bar">
+          <div className="ats-mobile-stage-info">
+            <span className="ats-mobile-stage-step">Stage {currentStageIndex + 1} of {PIPELINE_STAGES.length}</span>
+            <span className="ats-mobile-stage-current">{STAGE_LABELS[data.status]}</span>
+          </div>
+          <div className="ats-mobile-stage-meter">
+            <div 
+              className="ats-mobile-stage-meter-fill" 
+              style={{ width: `${Math.round(((currentStageIndex + 1) / PIPELINE_STAGES.length) * 100)}%` }} 
+            />
+          </div>
+        </div>
+      )}
+
       {/* Visual Stepper Track for Active Stages */}
       {!isTerminal ? (
-        <div className="ats-stepper-wrap">
+        <div className="ats-stepper-wrap" ref={stepperWrapRef}>
           <div className="ats-stepper-track">
             {PIPELINE_STAGES.map((s, idx) => {
               const isCompleted = currentStageIndex > idx && data.events.some(event => event.stage === s.key);
@@ -176,6 +204,7 @@ export function ApplicationTracking({ id }: { id: string }) {
               return (
                 <div
                   key={s.key}
+                  ref={isCurrent ? currentStepRef : undefined}
                   className={`ats-stepper-item ${isCompleted ? "completed" : ""} ${isCurrent ? "current" : ""}`}
                 >
                   <div className="ats-stepper-node">
