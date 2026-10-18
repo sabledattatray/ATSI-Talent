@@ -1,4 +1,4 @@
-# ATSAI Technologies
+# ATSAI Talent Solutions
 
 ## Recruitment Software & HR Technology Solutions
 

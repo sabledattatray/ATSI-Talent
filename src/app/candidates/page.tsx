@@ -24,7 +24,7 @@ export default function CandidatesPage() {
             Connecting Talent. Empowering Careers.
           </h1>
           <p className="text-slate-600 text-sm sm:text-base mt-2 leading-relaxed">
-            ATSAI Technologies connects people with opportunities across healthcare, education, engineering, finance, hospitality, technology and more. We protect your privacy, ensure honest job descriptions, and never charge applicant fees.
+            ATSAI Talent Solutions connects people with opportunities across healthcare, education, engineering, finance, hospitality, technology and more. We protect your privacy, ensure honest job descriptions, and never charge applicant fees.
           </p>
 
           <div className="mt-6 flex flex-wrap gap-4 items-center"><Link href="/candidate/signup" className="talent-button">Create free account</Link><Link href="/candidate/login" className="talent-button talent-secondary">Candidate sign in</Link>

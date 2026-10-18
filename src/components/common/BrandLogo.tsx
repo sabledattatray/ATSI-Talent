@@ -114,7 +114,7 @@ export function BrandLogo({
   className = "",
   href = "/",
   badge,
-  subtitle = "TECHNOLOGIES",
+  subtitle = "TALENT SOLUTIONS",
   shield = false,
 }: BrandLogoProps) {
   const dark = theme === "dark";
@@ -306,9 +306,9 @@ export function BrandLogo({
           x="2"
           y="63"
           fontFamily="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Inter', sans-serif"
-          fontSize="11.5"
+          fontSize={subtitle.length > 13 ? "10.5" : "11.5"}
           fontWeight="650"
-          letterSpacing="4.5"
+          letterSpacing={subtitle.length > 13 ? "2.6" : "4.5"}
           fill={descColor}
         >
           {subtitle}

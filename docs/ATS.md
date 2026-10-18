@@ -1,4 +1,4 @@
-# ATSAI Technologies — Recruitment Software & HR Technology Solutions
+# ATSAI Talent Solutions — Recruitment Software & HR Technology Solutions
 
 This release changes ATSAI from a specialist recruitment site into an industry-neutral job portal with company-managed applicant tracking. It uses the existing Next.js application, Turso/libSQL storage, publishing workspace and candidate accounts. Existing jobs and applications are preserved.
 
@@ -14,7 +14,7 @@ This release changes ATSAI from a specialist recruitment site into an industry-n
 - **Interviews:** future dated appointments, explicit IANA time zones, meeting links or locations, cancellation and candidate-visible updates. Scheduling does not fabricate an email invitation or video meeting room.
 - **Candidate tracking:** status, public history and interviews refresh approximately every 15 seconds while the page is visible. Employers also refresh visible workspaces. This is polling, not a WebSocket service.
 - **Reporting:** actual job/applicant/interview/hire counts, current-stage funnel, search/job filtering and company-only CSV export. Exports neutralize spreadsheet formula prefixes.
-- **Public website:** ATSAI Technologies branding, broader industry discovery, international job directory, software-focused services and employer pages, updated notices, structured job data and metadata. No fabricated global vacancy counts or sample production applicants.
+- **Public website:** ATSAI Talent Solutions branding, broader industry discovery, pan-India job directory, software-focused services and employer pages, updated notices, structured job data and metadata. No fabricated global vacancy counts or sample production applicants.
 
 ## Run locally
 

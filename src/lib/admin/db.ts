@@ -136,7 +136,7 @@ export async function records(kind?: string, published = false): Promise<Content
 }
 export async function settings(): Promise<SiteSettings> {
   const row = await db().prepare("SELECT document FROM settings WHERE id=1").get() as { document: string } | undefined;
-  return row ? JSON.parse(row.document) : { siteName: "ATSAI Technologies", tagline: "Recruitment Software & HR Technology Solutions", contactEmail: "contact@atsai.pro", siteUrl: "https://www.atsai.pro", defaultAuthor: "ATS AI Editorial" };
+  return row ? JSON.parse(row.document) : { siteName: "ATSAI Talent Solutions", tagline: "Recruitment Software & HR Technology Solutions", contactEmail: "contact@atsai.pro", siteUrl: "https://www.atsai.pro", defaultAuthor: "ATS AI Editorial" };
 }
 export async function media(): Promise<MediaRecord[]> {
   return (await db().prepare("SELECT id,name,type,size,createdAt FROM media ORDER BY createdAt DESC").all() as Omit<MediaRecord, "url">[]).map(m => ({ ...m, url: `/api/media/${m.id}` }));

@@ -148,7 +148,7 @@ function JobsDirectoryContent({ initialJobs }: { initialJobs: import("@/lib/type
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
               <span className="text-xs font-bold text-blue-600 uppercase tracking-wider">
-                ATSAI TECHNOLOGIES | RECRUITMENT SOFTWARE &amp; HR TECHNOLOGY SOLUTIONS
+                ATSAI TALENT SOLUTIONS | RECRUITMENT SOFTWARE &amp; HR TECHNOLOGY SOLUTIONS
               </span>
               <h1 className="text-3xl sm:text-4xl font-extrabold text-[#0b1728] mt-1 tracking-tight">
                 Explore Job Openings Across India

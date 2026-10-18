@@ -74,7 +74,7 @@ export const INITIAL_JOBS: JobListing[] = DEMO_MODE ? [
     salaryCurrency: "INR",
     isSalaryDisclosed: true,
     summary:
-      "Apex FinTech Solutions has partnered with ATSAI Technologies to recruit an experienced Power BI & Enterprise Analytics Specialist. The role leads end-to-end dashboard modernization, scalable semantic data models, and executive KPI reporting for tier-1 digital financial services.",
+      "Apex FinTech Solutions has partnered with ATSAI Talent Solutions to recruit an experienced Power BI & Enterprise Analytics Specialist. The role leads end-to-end dashboard modernization, scalable semantic data models, and executive KPI reporting for tier-1 digital financial services.",
     responsibilities: [
       "Architect, develop, and maintain enterprise Power BI data models using advanced DAX calculations, calculation groups, and star-schema principles.",
       "Design and optimize high-throughput SQL queries, stored procedures, and indexing strategies in modern PostgreSQL and Snowflake data warehouses.",
@@ -140,7 +140,7 @@ export const INITIAL_JOBS: JobListing[] = DEMO_MODE ? [
     salaryCurrency: "INR",
     isSalaryDisclosed: true,
     summary:
-      "An established international logistics and freight enterprise has retained ATSAI Technologies to identify a Lead MIS Manager in Pune. This leader supervises operational telemetry, automated reconciliation pipelines, and multi-hub operational scorecards.",
+      "An established international logistics and freight enterprise has retained ATSAI Talent Solutions to identify a Lead MIS Manager in Pune. This leader supervises operational telemetry, automated reconciliation pipelines, and multi-hub operational scorecards.",
     responsibilities: [
       "Direct a team of 6 MIS analysts delivering daily operational KPI scorecards for warehousing and express supply chain networks.",
       "Lead database migration sprints reconciling legacy ERP data into modern Snowflake and PostgreSQL schemas.",
@@ -270,7 +270,7 @@ export const INITIAL_JOBS: JobListing[] = DEMO_MODE ? [
     salaryCurrency: "INR",
     isSalaryDisclosed: true,
     summary:
-      "NeuralPulse AI Systems has partnered with ATSAI Technologies to recruit a Lead AI & Distributed Systems Engineer in Bengaluru. You will architect multi-GPU training pipelines, fine-tune domain-specific LLMs, and scale low-latency production inference engines.",
+      "NeuralPulse AI Systems has partnered with ATSAI Talent Solutions to recruit a Lead AI & Distributed Systems Engineer in Bengaluru. You will architect multi-GPU training pipelines, fine-tune domain-specific LLMs, and scale low-latency production inference engines.",
     responsibilities: [
       "Architect and scale distributed multi-node GPU training and evaluation pipelines for foundation models and domain LLMs.",
       "Implement low-latency model serving engines using vLLM, TensorRT-LLM, and Triton inference servers deployed across Kubernetes clusters.",
@@ -335,7 +335,7 @@ export const INITIAL_JOBS: JobListing[] = DEMO_MODE ? [
     salaryCurrency: "INR",
     isSalaryDisclosed: true,
     summary:
-      "StrataScale Cloud Technologies has partnered with ATSAI Technologies to hire a Principal Cloud DevOps Architect in HITEC City, Hyderabad. Lead enterprise multi-region cloud infrastructure, Kubernetes clusters, and zero-trust GitOps pipelines.",
+      "StrataScale Cloud Technologies has partnered with ATSAI Talent Solutions to hire a Principal Cloud DevOps Architect in HITEC City, Hyderabad. Lead enterprise multi-region cloud infrastructure, Kubernetes clusters, and zero-trust GitOps pipelines.",
     responsibilities: [
       "Architect and automate resilient multi-region cloud infrastructure on AWS and GCP using Terraform and Infrastructure as Code.",
       "Oversee production Kubernetes clusters (EKS/GKE) serving tens of millions of daily API transactions with 99.99% availability.",

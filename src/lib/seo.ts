@@ -40,7 +40,7 @@ export const PRIVATE_SEARCH_PATHS = [
 
 
 
-export const BRAND_NAME = "ATSAI Technologies";
+export const BRAND_NAME = "ATSAI Talent Solutions";
 
 export const SOCIAL_IMAGE = "/brand/atsai-social.png";
 
@@ -50,7 +50,7 @@ export function pageMetadata(path: string, title: string, description: string, i
 
   const cleanTitle = title.replace(/\s*[|–-]\s*(?:ATSAI(?: Talent Solutions| Technologies)?|ATS AI(?: Talent Solutions| Technologies)?)$/i, "").trim();
 
-  const fullTitle = path === "/" ? "ATSAI Technologies | Recruitment Software & HR Technology Solutions" : `${cleanTitle} | ATSAI`;
+  const fullTitle = path === "/" ? "ATSAI Talent Solutions | Recruitment Software & HR Technology Solutions" : `${cleanTitle} | ATSAI`;
 
   return {
 
@@ -70,13 +70,13 @@ export function pageMetadata(path: string, title: string, description: string, i
 
 export const PAGE_SEO: Record<string, { title: string; description: string; keywords: string[] }> = {
 
-  "/": { title: "ATSAI Technologies | Recruitment Software & HR Technology Solutions", description: "Discover jobs across industries and countries. Manage job postings, applicants, interviews and hiring decisions with ATSAI Technologies recruitment software.", keywords: ["ATSAI Technologies", "applicant tracking system", "recruitment software", "HR technology solutions"] },
+  "/": { title: "ATSAI Talent Solutions | Recruitment Software & HR Technology Solutions", description: "Discover jobs across India. Manage job postings, applicants, interviews and hiring decisions with ATSAI Talent Solutions recruitment software.", keywords: ["ATSAI Talent Solutions", "applicant tracking system", "recruitment software", "HR technology solutions", "India jobs"] },
 
-  "/jobs": { title: "Explore Job Openings Across India | ATSAI Technologies", description: "Find verified career openings across technology, AI, analytics, finance, operations, and product in Bengaluru, Pune, Mumbai, Hyderabad, and Delhi NCR.", keywords: ["jobs India", "Bengaluru tech jobs", "Pune IT jobs", "Mumbai finance jobs", "Hyderabad developer jobs", "remote jobs India"] },
+  "/jobs": { title: "Explore Job Openings Across India | ATSAI Talent Solutions", description: "Find verified career openings across technology, AI, analytics, finance, operations, and product in Bengaluru, Pune, Mumbai, Hyderabad, and Delhi NCR.", keywords: ["jobs India", "Bengaluru tech jobs", "Pune IT jobs", "Mumbai finance jobs", "Hyderabad developer jobs", "remote jobs India"] },
 
-  "/about": { title: "About ATSAI Technologies", description: "ATSAI Technologies builds recruitment software and HR technology solutions connecting candidates and hiring teams across industries and countries.", keywords: ["ATSAI Talent Solutions", "recruitment consultancy Pune Mumbai"] },
+  "/about": { title: "About ATSAI Talent Solutions", description: "ATSAI Talent Solutions builds recruitment software and HR technology solutions connecting candidates and hiring teams across India.", keywords: ["ATSAI Talent Solutions", "recruitment consultancy Pune Mumbai", "HR technology India"] },
 
-  "/services": { title: "Recruitment Software & HR Technology Solutions", description: "Explore ATSAI Technologies applicant tracking, job publishing, interview scheduling, team collaboration and candidate profile tools for international hiring.", keywords: ["recruitment services India", "talent acquisition", "staffing services"] },
+  "/services": { title: "Recruitment Software & HR Technology Solutions | ATSAI Talent Solutions", description: "Explore ATSAI Talent Solutions applicant tracking, job publishing, interview scheduling, team collaboration and candidate profile tools.", keywords: ["recruitment services India", "talent acquisition", "staffing services", "HR tech"] },
 
   "/services/permanent-recruitment": { title: "Global Enterprise & Contingent Recruitment | ATSAI", description: "Scale permanent hiring across software engineering, AI, product, operations, and finance. ATSAI connects companies with calibrated global talent.", keywords: ["global recruitment", "enterprise staffing", "permanent talent acquisition", "worldwide hiring"] },
 
@@ -92,7 +92,7 @@ export const PAGE_SEO: Record<string, { title: string; description: string; keyw
 
   "/candidates/how-it-works": { title: "How to Find & Apply for Jobs on ATSAI", description: "Learn how to create a candidate profile, save openings and apply on ATSAI or through an employer’s careers site. Track your ATSAI applications online.", keywords: ["how to apply for jobs", "ATSAI candidate account"] },
 
-  "/employers": { title: "Applicant Tracking Software for Hiring Teams", description: "Create your company workspace. Publish jobs, track applications, schedule interviews and collaborate with recruiters using ATSAI Technologies.", keywords: ["applicant tracking software", "company hiring workspace", "recruitment management"] },
+  "/employers": { title: "Applicant Tracking Software for Hiring Teams | ATSAI Talent Solutions", description: "Create your company workspace. Publish jobs, track applications, schedule interviews and collaborate with recruiters using ATSAI Talent Solutions.", keywords: ["applicant tracking software", "company hiring workspace", "recruitment management"] },
 
   "/blog": { title: "Career Advice, Recruitment & Hiring Insights", description: "Read ATSAI articles on careers, job applications, analytics skills and hiring. Explore practical guidance for job seekers and employers.", keywords: ["career advice", "recruitment insights", "hiring advice"] },
 
