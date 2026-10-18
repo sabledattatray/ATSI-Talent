@@ -616,3 +616,52 @@ export async function getOverview(): Promise<JobIntelligenceOverview> {
     }))
   };
 }
+
+/**
+ * Purges all dummy/test jobs and resets Job Intelligence import items and test records,
+ * leaving a pristine database ready for genuine job imports.
+ * Blog articles (kind = 'post'), users, and media are strictly preserved.
+ */
+export async function purgeDummyJobs(actor: string): Promise<{ deletedJobsCount: number; deletedItemsCount: number }> {
+  // 1. Gather all job IDs from content
+  const jobRows = await db().prepare("SELECT id FROM content WHERE kind = 'job'").all() as { id: string }[];
+  const jobIds = jobRows.map(r => r.id);
+
+  // 2. Clear out dependent candidate applications, interviews, events, notifications, saved jobs, ats_jobs
+  if (jobIds.length > 0) {
+    for (const jid of jobIds) {
+      const apps = await db().prepare("SELECT id FROM candidate_applications WHERE jobId = ?").all(jid) as { id: string }[];
+      for (const app of apps) {
+        await db().prepare("DELETE FROM ats_notifications WHERE applicationId = ?").run(app.id);
+        await db().prepare("DELETE FROM ats_interviews WHERE applicationId = ?").run(app.id);
+        await db().prepare("DELETE FROM ats_events WHERE applicationId = ?").run(app.id);
+      }
+      await db().prepare("DELETE FROM candidate_applications WHERE jobId = ?").run(jid);
+      await db().prepare("DELETE FROM candidate_saved_jobs WHERE jobId = ?").run(jid);
+      await db().prepare("DELETE FROM ats_jobs WHERE jobId = ?").run(jid);
+    }
+  }
+
+  // 3. Clear Job Intelligence items, duplicates, evidence, batches
+  const itemsCountRow = await db().prepare("SELECT COUNT(*) as count FROM ji_import_items").get() as { count: number };
+  const deletedItemsCount = Number(itemsCountRow?.count || 0);
+
+  await db().prepare("DELETE FROM ji_job_evidence").run();
+  await db().prepare("DELETE FROM ji_duplicates").run();
+  await db().prepare("DELETE FROM ji_import_items").run();
+  await db().prepare("DELETE FROM ji_import_batches").run();
+
+  // 4. Delete all jobs from content
+  await db().prepare("DELETE FROM content WHERE kind = 'job'").run();
+  const deletedJobsCount = jobIds.length;
+
+  // 5. Log audit event
+  await logAuditEvent(actor, "Purged dummy and test jobs", "system", {
+    deletedJobsCount,
+    deletedItemsCount,
+    timestamp: new Date().toISOString()
+  });
+
+  return { deletedJobsCount, deletedItemsCount };
+}
+

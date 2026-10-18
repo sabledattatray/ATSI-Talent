@@ -12,7 +12,8 @@
     "check:repository": "node scripts/check-repository.mjs",
     "check:seo": "node scripts/check-seo.mjs",
     "check:ats": "node scripts/check-ats.mjs",
-    "check:pdf-runtime": "node scripts/check-pdf-runtime.mjs"
+    "check:pdf-runtime": "node scripts/check-pdf-runtime.mjs",
+    "purge:jobs": "node scripts/purge-dummy-jobs.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.9.1",

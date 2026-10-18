@@ -12,7 +12,8 @@ import {
   getItemEvidence,
   approveAndPublishItem,
   rejectItem,
-  mergeDuplicate
+  mergeDuplicate,
+  purgeDummyJobs
 } from "@/lib/job-intelligence/service";
 
 type Context = { params: Promise<{ action: string[] }> };
@@ -122,6 +123,14 @@ export async function POST(request: Request, context: Context) {
     if (action[0] === "duplicates" && action[1] && action[2] === "merge") {
       await mergeDuplicate(action[1], user.name);
       return response({ ok: true });
+    }
+
+    if (action[0] === "purge-dummy-jobs") {
+      if (user.role !== "owner") {
+        return response({ error: "Only the platform owner can purge dummy jobs." }, 403);
+      }
+      const result = await purgeDummyJobs(user.name);
+      return response({ ok: true, ...result });
     }
 
     return response({ error: "Unknown endpoint." }, 404);

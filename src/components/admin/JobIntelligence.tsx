@@ -15,7 +15,8 @@ import {
   Building2,
   MapPin,
   BriefcaseBusiness,
-  Coins
+  Coins,
+  Trash2
 } from "lucide-react";
 import type {
   JobSource,
@@ -161,6 +162,30 @@ export function JobIntelligence({ userRole }: { userRole: string }) {
     }
   }
 
+  async function handlePurgeDummyJobs() {
+    if (!window.confirm("Are you sure you want to delete all dummy and test jobs? This will permanently clean out synthetic vacancies, test applications, and review queue items so you can start fresh with real jobs. (All blog articles, users, and media remain safe.)")) {
+      return;
+    }
+    setLoading(true);
+    setError("");
+    setMessage("");
+    try {
+      const res = await fetch("/api/admin/job-intelligence/purge-dummy-jobs", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({})
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to purge dummy jobs.");
+      setMessage(`Successfully purged ${data.deletedJobsCount} dummy jobs and ${data.deletedItemsCount} test items. Database is pristine!`);
+      await loadData();
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
   return (
     <div className="cms-job-intelligence" style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
       {/* Sub-Navigation Tabs */}
@@ -233,6 +258,44 @@ export function JobIntelligence({ userRole }: { userRole: string }) {
               </div>
             </div>
           </section>
+
+          {/* Database Maintenance & Purge */}
+          {userRole === "owner" && (
+            <section className="cms-panel" style={{ background: "#fff", padding: "24px", borderRadius: "12px", border: "1px solid #e2e8f0" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "16px" }}>
+                <div>
+                  <h3 style={{ fontSize: "16px", fontWeight: 700, color: "#0f172a", marginBottom: "4px" }}>Database Clean Slate</h3>
+                  <p style={{ fontSize: "13px", color: "#64748b" }}>
+                    Permanently delete all dummy and test jobs, clear demo applications and reset the review queue. All 5 blog articles and users will remain safe.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={handlePurgeDummyJobs}
+                  disabled={loading}
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "8px",
+                    padding: "10px 18px",
+                    borderRadius: "8px",
+                    background: "#fef2f2",
+                    border: "1px solid #fecaca",
+                    color: "#dc2626",
+                    fontWeight: 600,
+                    fontSize: "13px",
+                    cursor: loading ? "not-allowed" : "pointer",
+                    transition: "all 0.15s ease"
+                  }}
+                  onMouseOver={(e) => (e.currentTarget.style.background = "#fee2e2")}
+                  onMouseOut={(e) => (e.currentTarget.style.background = "#fef2f2")}
+                >
+                  <Trash2 size={16} />
+                  <span>Purge All Dummy & Test Jobs</span>
+                </button>
+              </div>
+            </section>
+          )}
         </div>
       )}
 
