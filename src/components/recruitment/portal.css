@@ -102,3 +102,8 @@
   .talent-photo-uploader{flex-direction:column;align-items:flex-start;gap:14px}
 }
 
+
+/* Dashboard actions on dark banners must not inherit the white-card secondary text. */
+.talent-button.talent-button-on-dark{color:#fff!important;background:rgba(255,255,255,.1);border-color:rgba(255,255,255,.4)}
+.talent-button.talent-button-on-dark:hover{color:#fff!important;background:rgba(255,255,255,.18);border-color:rgba(255,255,255,.65)}
+.talent-button.talent-button-on-dark:focus-visible{outline:3px solid #93c5fd;outline-offset:3px}

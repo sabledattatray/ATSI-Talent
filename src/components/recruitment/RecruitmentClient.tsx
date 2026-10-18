@@ -551,14 +551,14 @@ export function CandidatePortal({ initial, defaultTab }: { initial: Dashboard; d
             </button>
             <button
               type="button"
-              className="talent-button talent-secondary"
+              className="talent-button talent-button-on-dark"
               onClick={() => {
                 setTab("profile");
                 setMessage("");
                 setError("");
                 setTimeout(() => fileInputRef.current?.click(), 100);
               }}
-              style={{ whiteSpace: "nowrap", borderColor: "rgba(255,255,255,0.25)", color: "#fff", background: "rgba(255,255,255,0.1)" }}
+              style={{ whiteSpace: "nowrap" }}
             >
               <FileUp size={16} /> Auto-Fill with Resume ⚡
             </button>
