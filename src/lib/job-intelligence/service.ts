@@ -345,21 +345,7 @@ export async function createImportBatch(
 
     // Idempotency: Check if item already exists for this source and URL
     const existingItem = await db().prepare("SELECT id, stage, jobId FROM ji_import_items WHERE idempotencyKey=?").get(idempotencyKey) as any;
-    if (existingItem) {
-      if (existingItem.jobId || existingItem.stage === "published") {
-        const dupId = randomUUID();
-        await db().prepare(
-          `INSERT INTO ji_duplicates (id, candidateItemId, existingJobId, similarityScore, matchReason, decision, decidedBy, createdAt, updatedAt)
-           VALUES (?, ?, ?, 1.0, 'idempotent_reimport', 'merged', 'system', ?, ?)`
-        ).run(dupId, existingItem.id, existingItem.jobId || existingItem.id, itemNow, itemNow);
-      }
-      const newStage = existingItem.stage === "published" ? "published" : "duplicate";
-      await db().prepare(
-        `UPDATE ji_import_items SET batchId=?, stage=?, updatedAt=? WHERE id=?`
-      ).run(batchId, newStage, itemNow, existingItem.id);
-      successCount++;
-      continue;
-    }
+    const targetItemId = existingItem?.id || itemId;
 
     try {
       // 1. SSRF & URL validation
@@ -384,60 +370,119 @@ export async function createImportBatch(
       const verification = verifyJobFacts(facts, source);
 
       let stage: ImportItem["stage"] = "draft_ready";
-      if (duplicate.isDuplicate) {
+      if (duplicate.isDuplicate && !existingItem) {
         stage = "duplicate";
+      } else if (existingItem?.stage === "published") {
+        stage = "published";
       } else if (!verification.completeness.isComplete) {
         stage = "review_required";
       }
 
-      // Insert item
-      await db().prepare(
-        `INSERT INTO ji_import_items (id, batchId, sourceId, sourceUrl, stage, externalJobId, extractedData, verificationScore, verificationDetails, error, retryCount, idempotencyKey, createdAt, updatedAt)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, 0, ?, ?, ?)`
-      ).run(
-        itemId,
-        batchId,
-        sourceId,
-        rawUrl.trim(),
-        stage,
-        facts.externalJobId || null,
-        JSON.stringify(facts),
-        verification.score,
-        JSON.stringify(verification),
-        idempotencyKey,
-        itemNow,
-        itemNow
-      );
+      if (existingItem) {
+        // Re-importing / refreshing an existing item
+        await db().prepare(
+          `UPDATE ji_import_items SET batchId=?, stage=?, externalJobId=?, extractedData=?, verificationScore=?, verificationDetails=?, error=NULL, updatedAt=? WHERE id=?`
+        ).run(
+          batchId,
+          stage,
+          facts.externalJobId || null,
+          JSON.stringify(facts),
+          verification.score,
+          JSON.stringify(verification),
+          itemNow,
+          targetItemId
+        );
+        await db().prepare(`DELETE FROM ji_job_evidence WHERE itemId=?`).run(targetItemId);
+
+        // If the item had already been published to content, update the published listing with refreshed facts
+        if (existingItem.jobId) {
+          const summary = generateFactualJobContent(facts);
+          const existingContentRow = await db().prepare("SELECT document FROM content WHERE id=?").get(existingItem.jobId) as { document: string } | undefined;
+          if (existingContentRow) {
+            const currentRecord = JSON.parse(existingContentRow.document) as ContentRecord;
+            const updatedRecord: ContentRecord = {
+              ...currentRecord,
+              title: facts.title,
+              excerpt: summary.excerpt,
+              content: summary.content,
+              skills: facts.skills?.join(", ") || currentRecord.skills,
+              experienceMin: facts.experienceMin || currentRecord.experienceMin,
+              experienceMax: facts.experienceMax !== undefined ? facts.experienceMax : currentRecord.experienceMax,
+              salaryMin: facts.salaryMin || currentRecord.salaryMin,
+              salaryMax: facts.salaryMax || currentRecord.salaryMax,
+              salaryCurrency: facts.salaryCurrency || currentRecord.salaryCurrency,
+              salaryPeriod: facts.salaryPeriod || currentRecord.salaryPeriod,
+              lastVerifiedAt: itemNow,
+              updatedAt: itemNow
+            };
+            await db().prepare("UPDATE content SET document=?, updatedAt=? WHERE id=?").run(
+              JSON.stringify(updatedRecord),
+              itemNow,
+              existingItem.jobId
+            );
+          }
+        }
+      } else {
+        // Insert new item
+        await db().prepare(
+          `INSERT INTO ji_import_items (id, batchId, sourceId, sourceUrl, stage, externalJobId, extractedData, verificationScore, verificationDetails, error, retryCount, idempotencyKey, createdAt, updatedAt)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, 0, ?, ?, ?)`
+        ).run(
+          targetItemId,
+          batchId,
+          sourceId,
+          rawUrl.trim(),
+          stage,
+          facts.externalJobId || null,
+          JSON.stringify(facts),
+          verification.score,
+          JSON.stringify(verification),
+          idempotencyKey,
+          itemNow,
+          itemNow
+        );
+      }
 
       // Record evidence
       for (const ev of evidence) {
         await db().prepare(
           `INSERT INTO ji_job_evidence (id, itemId, field, extractedValue, sourceSnippet, extractionMethod, confidence, createdAt)
            VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
-        ).run(randomUUID(), itemId, ev.field, ev.extractedValue, ev.sourceSnippet, ev.extractionMethod, ev.confidence, itemNow);
+        ).run(randomUUID(), targetItemId, ev.field, ev.extractedValue, ev.sourceSnippet, ev.extractionMethod, ev.confidence, itemNow);
       }
 
-      // If duplicate, record in ji_duplicates
-      if (duplicate.isDuplicate && duplicate.existingJob) {
+      // If duplicate or re-importing already published item, record in ji_duplicates
+      if (existingItem?.stage === "published" || existingItem?.jobId) {
+        await db().prepare(
+          `INSERT INTO ji_duplicates (id, candidateItemId, existingJobId, similarityScore, matchReason, decision, decidedBy, createdAt, updatedAt)
+           VALUES (?, ?, ?, 1.0, 'idempotent_reimport', 'merged', 'system', ?, ?)`
+        ).run(randomUUID(), targetItemId, existingItem.jobId || targetItemId, itemNow, itemNow);
+      } else if (duplicate.isDuplicate && duplicate.existingJob && !existingItem) {
         await db().prepare(
           `INSERT INTO ji_duplicates (id, candidateItemId, existingJobId, similarityScore, matchReason, decision, decidedBy, createdAt, updatedAt)
            VALUES (?, ?, ?, ?, ?, 'pending', NULL, ?, ?)`
-        ).run(randomUUID(), itemId, duplicate.existingJob.id, duplicate.similarityScore, duplicate.matchType || "canonical_url", itemNow, itemNow);
+        ).run(randomUUID(), targetItemId, duplicate.existingJob.id, duplicate.similarityScore, duplicate.matchType || "canonical_url", itemNow, itemNow);
       }
 
       // Check auto-publish privilege
       if (source.autoPublish && stage === "draft_ready" && verification.isPublishable && verification.publicationRights === "Authorized") {
-        await approveAndPublishItem(itemId, "system_autopublish");
+        await approveAndPublishItem(targetItemId, "system_autopublish");
       }
 
       successCount++;
     } catch (err) {
       failedCount++;
       const errMsg = (err as Error)?.message || "Import failed";
-      await db().prepare(
-        `INSERT INTO ji_import_items (id, batchId, sourceId, sourceUrl, stage, externalJobId, extractedData, verificationScore, verificationDetails, error, retryCount, idempotencyKey, createdAt, updatedAt)
-         VALUES (?, ?, ?, ?, 'failed', NULL, NULL, 0, NULL, ?, 0, ?, ?, ?)`
-      ).run(itemId, batchId, sourceId, rawUrl.trim(), errMsg, idempotencyKey, itemNow, itemNow);
+      if (existingItem) {
+        await db().prepare(
+          `UPDATE ji_import_items SET batchId=?, stage='failed', error=?, updatedAt=? WHERE id=?`
+        ).run(batchId, errMsg, itemNow, targetItemId);
+      } else {
+        await db().prepare(
+          `INSERT INTO ji_import_items (id, batchId, sourceId, sourceUrl, stage, externalJobId, extractedData, verificationScore, verificationDetails, error, retryCount, idempotencyKey, createdAt, updatedAt)
+           VALUES (?, ?, ?, ?, 'failed', NULL, NULL, 0, NULL, ?, 0, ?, ?, ?)`
+        ).run(targetItemId, batchId, sourceId, rawUrl.trim(), errMsg, idempotencyKey, itemNow, itemNow);
+      }
     }
   }
 
@@ -485,7 +530,7 @@ export async function getImportBatch(batchId: string): Promise<ImportBatch | nul
 export async function getReviewQueue(stageFilter?: string): Promise<ImportItem[]> {
   const sql = stageFilter
     ? "SELECT * FROM ji_import_items WHERE stage=? ORDER BY createdAt DESC LIMIT 100"
-    : "SELECT * FROM ji_import_items WHERE stage IN ('draft_ready', 'verifying', 'duplicate') ORDER BY createdAt DESC LIMIT 100";
+    : "SELECT * FROM ji_import_items WHERE stage IN ('draft_ready', 'review_required', 'verifying', 'duplicate', 'failed') ORDER BY createdAt DESC LIMIT 100";
   const rows = (stageFilter ? await db().prepare(sql).all(stageFilter) : await db().prepare(sql).all()) as any[];
 
   return rows.map(r => ({
@@ -659,7 +704,7 @@ export async function getOverview(): Promise<JobIntelligenceOverview> {
   await ensureDefaultSources();
 
   const totalImportedRow = await db().prepare("SELECT COUNT(*) as count FROM ji_import_items").get() as any;
-  const reviewQueueRow = await db().prepare("SELECT COUNT(*) as count FROM ji_import_items WHERE stage IN ('draft_ready', 'verifying', 'duplicate')").get() as any;
+  const reviewQueueRow = await db().prepare("SELECT COUNT(*) as count FROM ji_import_items WHERE stage IN ('draft_ready', 'review_required', 'verifying', 'duplicate', 'failed')").get() as any;
   const publishedRow = await db().prepare("SELECT COUNT(*) as count FROM ji_import_items WHERE stage='published'").get() as any;
   const duplicatesRow = await db().prepare("SELECT COUNT(*) as count FROM ji_duplicates WHERE decision='merged'").get() as any;
   const sourcesRow = await db().prepare("SELECT COUNT(*) as count FROM ji_sources WHERE status='active'").get() as any;

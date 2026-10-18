@@ -206,11 +206,18 @@ export function JobIntelligence({ userRole }: { userRole: string }) {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Import failed.");
-      setMessage(`Successfully processed ${data.totalItems} vacancy URLs.`);
+      if (data.failedItems > 0 && data.items) {
+        const firstError = data.items.find((i: any) => i.error)?.error || "Some items failed validation.";
+        setError(`Import notice: ${data.failedItems} item(s) failed: ${firstError}`);
+      } else {
+        setMessage(`Successfully processed ${data.totalItems} vacancy URLs. Placed in Review Queue.`);
+      }
       setSingleUrl("");
       setBulkUrls("");
       setPreviewData(null);
       setActiveTab("queue");
+      const qRes = await fetch("/api/admin/job-intelligence/review-queue");
+      if (qRes.ok) setQueue(await qRes.json());
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -736,17 +743,23 @@ export function JobIntelligence({ userRole }: { userRole: string }) {
                   const facts = item.extractedData;
                   const v = item.verificationDetails as any;
                   const compScore = v?.completeness?.score ?? item.verificationScore ?? 0;
-                  const authStatus = v?.authenticityStatus || "Unverified";
-                  const rights = v?.publicationRights || (item.stage === "draft_ready" ? "Authorized" : "Review");
+                  const authStatus = v?.authenticityStatus || (item.stage === "failed" ? "Failed" : "Unverified");
+                  const rights = item.stage === "failed" ? "Failed" : v?.publicationRights || (item.stage === "draft_ready" ? "Authorized" : item.stage === "duplicate" ? "Duplicate" : "Review");
 
                   return (
                     <tr key={item.id} style={{ borderBottom: "1px solid #f1f5f9" }}>
                       <td style={{ padding: "12px 10px" }}>
                         <strong>{facts?.title || item.sourceUrl}</strong>
-                        <div style={{ color: "#64748b", fontSize: "12px" }}>{facts?.company || "Unknown Company"} · {facts?.location || "—"}</div>
+                        {item.error ? (
+                          <div style={{ color: "#dc2626", fontSize: "12px", marginTop: "2px" }}>
+                            ⚠️ {item.error}
+                          </div>
+                        ) : (
+                          <div style={{ color: "#64748b", fontSize: "12px" }}>{facts?.company || "Unknown Company"} · {facts?.location || "—"}</div>
+                        )}
                       </td>
                       <td style={{ padding: "12px 10px" }}>
-                        <span style={{ fontSize: "11px", fontWeight: 600, padding: "2px 8px", borderRadius: "4px", background: authStatus === "Verified" ? "#dcfce7" : "#fef3c7", color: authStatus === "Verified" ? "#15803d" : "#b45309" }}>
+                        <span style={{ fontSize: "11px", fontWeight: 600, padding: "2px 8px", borderRadius: "4px", background: authStatus === "Verified" ? "#dcfce7" : authStatus === "Failed" ? "#fee2e2" : "#fef3c7", color: authStatus === "Verified" ? "#15803d" : authStatus === "Failed" ? "#b91c1c" : "#b45309" }}>
                           {authStatus}
                         </span>
                       </td>
@@ -759,33 +772,37 @@ export function JobIntelligence({ userRole }: { userRole: string }) {
                         </div>
                       </td>
                       <td style={{ padding: "12px 10px" }}>
-                        <span style={{ fontSize: "11px", fontWeight: 600, padding: "2px 8px", borderRadius: "4px", background: rights === "Authorized" ? "#dcfce7" : rights === "Blocked" ? "#fee2e2" : "#e0e7ff", color: rights === "Authorized" ? "#15803d" : rights === "Blocked" ? "#b91c1c" : "#4338ca" }}>
+                        <span style={{ fontSize: "11px", fontWeight: 600, padding: "2px 8px", borderRadius: "4px", background: rights === "Authorized" ? "#dcfce7" : rights === "Blocked" || rights === "Failed" ? "#fee2e2" : "#e0e7ff", color: rights === "Authorized" ? "#15803d" : rights === "Blocked" || rights === "Failed" ? "#b91c1c" : "#4338ca" }}>
                           {rights}
                         </span>
                       </td>
                       <td style={{ padding: "12px 10px" }}>
                         <div style={{ display: "flex", gap: "6px" }}>
-                          <button
-                            className="cms-btn cms-secondary"
-                            style={{ padding: "6px 10px", fontSize: "12px" }}
-                            onClick={() => setSelectedItem(item)}
-                          >
-                            Inspect
-                          </button>
-                          <button
-                            className="cms-btn cms-primary"
-                            style={{ padding: "6px 10px", fontSize: "12px" }}
-                            onClick={() => handleApprove(item.id)}
-                            disabled={rights === "Blocked"}
-                          >
-                            Approve
-                          </button>
+                          {facts && (
+                            <button
+                              className="cms-btn cms-secondary"
+                              style={{ padding: "6px 10px", fontSize: "12px" }}
+                              onClick={() => setSelectedItem(item)}
+                            >
+                              Inspect
+                            </button>
+                          )}
+                          {item.stage !== "failed" && (
+                            <button
+                              className="cms-btn cms-primary"
+                              style={{ padding: "6px 10px", fontSize: "12px" }}
+                              onClick={() => handleApprove(item.id)}
+                              disabled={rights === "Blocked"}
+                            >
+                              Approve
+                            </button>
+                          )}
                           <button
                             className="cms-btn cms-secondary"
                             style={{ padding: "6px 10px", fontSize: "12px" }}
                             onClick={() => handleReject(item.id)}
                           >
-                            Reject
+                            {item.stage === "failed" ? "Dismiss" : "Reject"}
                           </button>
                         </div>
                       </td>
