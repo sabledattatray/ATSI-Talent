@@ -7,7 +7,7 @@ export function GET() {
     environment: DEMO_MODE ? "development-demo" : "preview",
     services: {
       authentication: "admin-sessions-configured",
-      database: "admin-publishing-sqlite",
+      database: process.env.TURSO_DATABASE_URL ? "admin-publishing-turso" : "admin-publishing-sqlite",
       recruitmentSubmissions: "not-configured",
       email: "not-configured",
       resumeStorageAndScanning: "not-configured",

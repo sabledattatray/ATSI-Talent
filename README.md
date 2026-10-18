@@ -37,7 +37,7 @@ A considered digital experience for connecting talent, sharing expertise, and ma
 
 ## A recruitment platform with a publishing core
 
-**ATSAI Talent Solutions** is a Next.js recruitment website and job board with an authenticated admin panel, a rich-text blog CMS, and persistent SQLite storage. Created by **[Datta Sable](https://dattasable.com)**, the project brings public career discovery and team content publishing into one cohesive experience.
+**ATSAI Talent Solutions** is a Next.js recruitment website and job board with an authenticated admin panel, a rich-text blog CMS, and persistent Turso/SQLite storage. Created by **[Datta Sable](https://dattasable.com)**, the project brings public career discovery and team content publishing into one cohesive experience.
 
 The interface pairs a deep navy foundation with blue and teal accents, clear typography, structured job listings, and a focused editorial workspace. Its recruitment content spans data analytics, business intelligence, MIS, BFSI, and technology careers.
 
@@ -80,7 +80,7 @@ Click any screenshot to view the **HD PNG** (up to 1920 × 1080). All captures c
 | **Search metadata** | Editable SEO titles and descriptions, readable slugs, cover images, and public detail pages for published content. |
 | **Media library** | PNG, JPEG, and WebP uploads with file-signature validation, reusable image links, and referenced-image deletion protection. |
 | **Team workspace** | First-owner setup, invitation-only editor accounts, owner/editor permissions, activity history, and publishing defaults. |
-| **Persistent storage** | SQLite-backed users, content, sessions, settings, media, and online database backups. |
+| **Persistent storage** | Turso-backed users, content, sessions, settings, and media on Vercel; local SQLite and backups for local hosting. |
 
 Published jobs appear at `/jobs` and `/jobs/<slug>`. Published articles appear at `/blog`, `/blog/<slug>`, and `/resources`. Drafts remain private; archiving removes public visibility while keeping the record.
 
@@ -92,7 +92,7 @@ Published jobs appear at `/jobs` and `/jobs/<slug>`. Published articles appear a
 | Interface | Tailwind CSS 4, custom CSS, Lucide icons |
 | Rich-text editing | Tiptap 3 |
 | Forms and validation | React Hook Form, Zod |
-| Server and persistence | Node.js 24+, built-in SQLite driver, SQLite WAL mode |
+| Server and persistence | Node.js 24+, Turso via libSQL, local SQLite fallback |
 | Authentication | Scrypt password hashing, hashed server-session tokens, HttpOnly cookies |
 | Verification | ESLint, TypeScript, Node.js test runner, GitHub Actions |
 
@@ -124,7 +124,9 @@ Copy `.env.example` to `.env.local` if you need custom settings:
 
 | Variable | Purpose |
 | :--- | :--- |
-| `ATSAI_DATABASE_PATH` | Private SQLite location; defaults to `data/atsai.sqlite`. |
+| `TURSO_DATABASE_URL` | Hosted database URL supplied by the Vercel Turso integration. |
+| `TURSO_AUTH_TOKEN` | Server-only database token supplied by the integration. |
+| `ATSAI_DATABASE_PATH` | Local-only SQLite location; defaults to `data/atsai.sqlite`. |
 | `ATSAI_ADMIN_ORIGIN` | Exact HTTPS origin for production admin requests. |
 | `ATSAI_ADMIN_SETUP_TOKEN` | Random secret of at least 32 characters for the first production owner signup. |
 
@@ -164,14 +166,16 @@ The [release review](RELEASE_AUDIT.md) records the verification baseline and the
 
 ## Deployment and current scope
 
-Run production on a **single Node.js server with private persistent disk**, behind HTTPS. The current SQLite architecture requires durable local storage. Configure the exact admin origin and first-owner setup secret before use.
+Deploy to **Vercel with the connected Turso integration**. The app uses `TURSO_DATABASE_URL` and `TURSO_AUTH_TOKEN` for durable cloud storage, creates missing tables automatically, and never falls back to local files on Vercel. Configure `ATSAI_ADMIN_ORIGIN=https://www.atsai.pro` and a random `ATSAI_ADMIN_SETUP_TOKEN` of at least 32 characters before first-owner signup. See [Turso deployment](docs/TURSO_DEPLOYMENT.md).
+
+For self-hosting without Turso, use a single Node.js server with private persistent disk. Build and start locally with:
 
 ```bash
 npm run build
 npm start -- --hostname 127.0.0.1 --port 3001
 ```
 
-Create an online database backup with:
+For local SQLite only, create an online database backup with:
 
 ```bash
 node scripts/backup-admin.mjs
@@ -179,12 +183,13 @@ node scripts/backup-admin.mjs
 
 Development builds include sample recruitment records and tab-local demo workspaces. Production builds exclude those samples and restrict demo recruitment routes. Real candidate submissions, resume uploads, employer intake, recruiter verification, SMTP delivery, email password recovery, MFA, and external identity providers are not configured. Production public pages allow search indexing; admin, API, draft-policy, and preview routes remain excluded. The sitemap at `https://www.atsai.pro/sitemap.xml` lists public pages independently of the publishing database. Individual job and article URLs are not yet added to the sitemap.
 
-Private databases, uploaded media stored in SQLite, account records, backups, environment secrets, dependencies, and build outputs are excluded from the source repository. Deployment to another host requires a separate secure data migration.
+Private local databases, account records, backups, environment secrets, dependencies, and build outputs are excluded from Git. Turso stores cloud accounts, content, sessions, and uploaded media outside the deployment filesystem. Existing local records are not automatically copied to Turso; migrate them separately if needed. Use Turso backup/export facilities for cloud data.
 
 ## Documentation
 
 | Guide | What it covers |
 | :--- | :--- |
+| [Turso deployment](docs/TURSO_DEPLOYMENT.md) | Vercel integration, environment variables, schema setup, and first-owner signup. |
 | [Admin workspace](ADMIN.md) | Accounts, publishing, media, team access, hosting, and backups. |
 | [Release review](RELEASE_AUDIT.md) | GitHub publishing checks, verification, and remaining limitations. |
 | [Historical audit](AUDIT.md) | Earlier findings and the development-preview baseline. |

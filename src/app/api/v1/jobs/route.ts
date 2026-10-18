@@ -16,7 +16,7 @@ export async function GET(request: Request) {
   if (!result.success) return NextResponse.json({ error: "Invalid search filters", code: "VALIDATION_ERROR" }, { status: 400 });
   const f = result.data;
   const now = Date.now();
-  const jobs = [...publicJobs(), ...INITIAL_JOBS].filter(job => isJobOpen(job, now)
+  const jobs = [...(await publicJobs()), ...INITIAL_JOBS].filter(job => isJobOpen(job, now)
     && (!f.q || matchesKeyword(job, f.q))
     && (!f.location || `${job.location.city} ${job.location.state} ${job.location.country}`.toLowerCase().includes(f.location.toLowerCase()))
     && (!f.workMode || f.workMode === "All" || job.workMode === f.workMode)

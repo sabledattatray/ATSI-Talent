@@ -8,7 +8,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  const job = [...publicJobs(), ...INITIAL_JOBS].find(
+  const job = [...(await publicJobs()), ...INITIAL_JOBS].find(
     (j) => j.id === id || j.slug === id || j.referenceId.toLowerCase() === id.toLowerCase()
   );
 

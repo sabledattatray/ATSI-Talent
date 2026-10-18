@@ -1,6 +1,7 @@
 import { DatabaseSync, backup } from "node:sqlite";
 import { existsSync, mkdirSync } from "node:fs";
 import path from "node:path";
+if (process.env.TURSO_DATABASE_URL) throw new Error("This script backs up local SQLite only. Use Turso backup/export tools for the cloud database.");
 const source = path.resolve(process.env.ATSAI_DATABASE_PATH || "data/atsai.sqlite");
 if (!existsSync(source)) throw new Error("No admin database exists yet. Create your owner account first.");
 const destination = path.resolve(process.argv[2] || path.join("data", "backups", `atsai-${new Date().toISOString().replace(/[:.]/g, "-")}.sqlite`));

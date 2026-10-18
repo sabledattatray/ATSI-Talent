@@ -16,7 +16,7 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { slug } = await params;
   await connection();
-  const managed = records("job", true).find(j => j.slug === slug || j.id === slug);
+  const managed = (await records("job", true)).find(j => j.slug === slug || j.id === slug);
   const job = managed ? toJobListing(managed) : INITIAL_JOBS.find((j) => j.slug === slug || j.id === slug);
 
   if (!job) {
@@ -29,7 +29,7 @@ export async function generateMetadata({
   const employerDisplay = job.isEmployerConfidential ? "Confidential Employer" : job.employerName;
   const title = managed?.seoTitle || `${job.title} | ${employerDisplay} - ATSAI`;
   const description = managed?.seoDescription || job.summary.slice(0, 160);
-  const publicOrigin = managed ? settings().siteUrl : "https://atsai.pro";
+  const publicOrigin = managed ? (await settings()).siteUrl : "https://atsai.pro";
 
   return {
     title,
@@ -72,7 +72,7 @@ async function JobDetailContent({
 }) {
   const { slug } = await params;
   await connection();
-  const managed = records("job", true).find(j => j.slug === slug || j.id === slug);
+  const managed = (await records("job", true)).find(j => j.slug === slug || j.id === slug);
   const job = managed ? toJobListing(managed) : INITIAL_JOBS.find((j) => j.slug === slug || j.id === slug);
 
   if (!job) notFound();
