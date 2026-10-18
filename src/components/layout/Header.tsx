@@ -146,7 +146,7 @@ export function Header() {
           </nav>
 
           <div className={"atsai-header-actions"}>
-            <div className={"atsai-header-workspace"}>{DEMO_MODE ? trigger("workspace", "Workspace") : <Link href="/login" className={"atsai-header-navLink"}>Sign in</Link>}</div>
+            <div className={"atsai-header-workspace"}>{DEMO_MODE ? trigger("workspace", "Workspace") : <Link href="/admin/login" className={"atsai-header-navLink"}>Sign in</Link>}</div>
             <Link href="/employers/request-talent" className={"atsai-header-hireButton"}>Hire talent<ArrowUpRight size={16} aria-hidden="true" /></Link>
             <button ref={mobileTrigger} className={"atsai-header-mobileToggle"} type="button" aria-label={mobileOpen ? "Close navigation" : "Open navigation"}
               aria-expanded={mobileOpen} aria-controls="header-mobile-panel" onClick={() => { setPanel(null); setMobileOpen(!mobileOpen); }}>
@@ -163,7 +163,7 @@ export function Header() {
               <span className={"atsai-header-featureMark"}>{panel === "workspace" ? <Layers3 size={28} /> : <Sparkles size={28} />}</span>
               <h2>{panel === "services" ? <>Great teams.<br />Built around you.</> : panel === "company" ? <>Better connections.<br />Brighter futures.</> : <>Your next step.<br />One workspace.</>}</h2>
               <p>{panel === "services" ? "Specialist recruitment for the people and skills your business needs next." : panel === "company" ? "Get to know the people-first thinking behind our recruitment approach." : "Preview the experience for each role. These workspaces use sample data in development."}</p>
-              <Link href={panel === "services" ? "/services" : panel === "company" ? "/about" : "/login"} className={"atsai-header-featureLink"}>
+              <Link href={panel === "services" ? "/services" : panel === "company" ? "/about" : "/admin/login"} className={"atsai-header-featureLink"}>
                 {panel === "services" ? "Explore all services" : panel === "company" ? "Discover ATSAI" : "View demo access"}<ArrowRight size={16} aria-hidden="true" />
               </Link>
             </div>
@@ -191,7 +191,7 @@ export function Header() {
         <details className={"atsai-header-mobileGroup"}><summary>Company<ChevronDown size={16} /></summary><div>{company.map(item => <Link key={item.href} href={item.href}>{item.title}</Link>)}</div></details>
         <div className={"atsai-header-mobileSecondary"}><Link href="/resources"><FileText size={17} />Resources</Link><Link href="/contact"><LifeBuoy size={17} />Contact our team</Link></div>
         {DEMO_MODE && <details className={"atsai-header-mobileGroup"}><summary>Demo workspaces<ChevronDown size={16} /></summary><div>{workspaces.map(item => <Link key={item.href} href={item.href}>{item.title}<span className={"atsai-header-demoBadge"}>Demo</span></Link>)}</div></details>}
-        <div className={"atsai-header-mobileBottom"}><Link href="/login">{DEMO_MODE ? "Workspace access" : "Sign in"}<ArrowRight size={16} /></Link><Link href="/verify-recruiter">Verify a recruiter<ShieldCheck size={16} /></Link></div>
+        <div className={"atsai-header-mobileBottom"}><Link href="/admin/login">{DEMO_MODE ? "Workspace access" : "Sign in"}<ArrowRight size={16} /></Link><Link href="/verify-recruiter">Verify a recruiter<ShieldCheck size={16} /></Link></div>
       </nav>}
     </header>
   </>;
