@@ -53,13 +53,19 @@ export async function extractTextFromBuffer(buffer: Buffer, filenameOrMime = "")
       const { PDFParse } = await import("pdf-parse");
       const parser = new PDFParse({ data: new Uint8Array(buffer), isEvalSupported: false });
       try {
-        const info = await parser.getInfo();
-        if (info.total > 30) fail("Please upload a resume with 30 pages or fewer.");
-        text = (await parser.getText({ pageJoiner: "\n", cellSeparator: " | " })).text;
-        const details = await parser.getInfo({ parsePageInfo: true });
-        const links = details.pages.flatMap(page => page.links.map(link => link.url)).filter(url => /^https?:\/\//i.test(url));
-        text += "\n" + [...new Set(links)].filter(url => !text.includes(url)).join("\n");
-      } finally { await parser.destroy(); }
+        // Read text independently of optional metadata/annotations. Damaged
+        // hyperlinks must not discard an otherwise readable candidate resume.
+        const result = await parser.getText({ first: 31, parseHyperlinks: false, pageJoiner: "\n", cellSeparator: " | " });
+        if (result.total > 30) fail("Please upload a resume with 30 pages or fewer.");
+        text = result.text;
+        try {
+          const details = await parser.getInfo({ parsePageInfo: true });
+          const links = (details.pages || []).flatMap(page => (page.links || []).map(link => link.url)).filter(url => /^https?:\/\//i.test(url));
+          text += "\n" + [...new Set(links)].filter(url => !text.includes(url)).join("\n");
+        } catch {
+          // Text fields are still usable when a PDF has malformed annotations.
+        }
+      } finally { await parser.destroy().catch(() => {}); }
       if (text.replace(/[^\p{L}\p{N}]/gu, "").length < 30) fail("This PDF has no readable text. Upload a text-based PDF or Word file, or paste your resume text. Scanned images need OCR first.");
     } else if (/\.docx$|officedocument.wordprocessingml/.test(format) || (buffer.length >= 2 && buffer.readUInt16LE(0) === 0x4b50)) {
       const urls = await wordLinks(buffer);
@@ -78,7 +84,13 @@ export async function extractTextFromBuffer(buffer: Buffer, filenameOrMime = "")
     }
   } catch (error) {
     if (error && typeof error === "object" && "status" in error) throw error;
-    fail("We couldn't read this file. It may be damaged or password-protected. Try saving it as a new PDF or Word file, or paste your resume text.");
+    const reason = error && typeof error === "object" ? error as { name?: string; message?: string } : {};
+    if (reason.name === "PasswordException") fail("This PDF requires a password. Export an unlocked copy and upload it again, or paste your resume text.");
+    if (/DOMMatrix|ImageData|Path2D|fake worker|Cannot find (?:module|package)|canvas|workerSrc/i.test(reason.message || "")) {
+      console.error("Resume reader runtime dependency unavailable.");
+      fail("The resume reader is temporarily unavailable. Please try again shortly, or paste your resume text.", 503);
+    }
+    fail("We couldn't read this file. Try exporting a fresh PDF or Word copy, or paste your resume text.");
   }
   text = clean(text);
   if (text.length > 150_000) fail("This file contains too much text. Please upload a shorter resume.");

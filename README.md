@@ -32,6 +32,7 @@ Use Node.js 24+. Install with `npm ci`, configure your database and trusted orig
 npm test
 npm run lint
 npm run build
+npm run check:pdf-runtime
 npm run check:repository
 ```
 

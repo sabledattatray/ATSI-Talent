@@ -1,3 +1,4 @@
+import { pdfFixture } from "../tests/fixtures/pdf.mjs";
 // Writes fictional records only to a local server backed by a separate test database.
 import assert from "node:assert/strict";
 const base=new URL(process.argv[2]||"http://127.0.0.1:3005");
@@ -15,7 +16,7 @@ for(const path of ["/","/jobs","/employers","/employer/login","/employer/signup"
 const publicJobs=await result(await employer("/api/v1/jobs"));assert.ok(publicJobs.data.some(j=>j.id===job.id&&j.salaryCurrency==="GBP"&&j.location.country==="GB"));
 const person={name:"QA Candidate",email:`qa-candidate-${seed}@example.test`,password:"Local-candidate-fixture-password-2026",consent:true};
 await result(await candidate("/api/recruitment/auth/signup",person),201);
-const resume=new FormData();resume.append("file",new File(["QA Candidate\nRegistered Nurse\nPhone: +44 7700 900123\nLocation: London, United Kingdom\nSKILLS: Nursing, Patient care\nSUMMARY\nA nursing professional committed to safe patient care."],"qa-resume.txt",{type:"text/plain"}));
+const resume=new FormData();resume.append("file",new File([pdfFixture(["QA Candidate","Registered Nurse","Phone: +44 7700 900123","Location: London, United Kingdom","SKILLS: Nursing, Patient care","SUMMARY","A nursing professional committed to safe patient care."])],"qa-resume.pdf",{type:"application/pdf"}));
 const {parsed}=await result(await candidate("/api/recruitment/parse-resume",resume));assert.ok(parsed.resumeUrl.startsWith("/api/ats/resume/"));
 await result(await candidate("/api/recruitment/profile",{...parsed,name:person.name}));
 await result(await candidate("/api/recruitment/apply",{jobId:job.id,consent:true,coverLetter:"Fictional local test application."}),201);

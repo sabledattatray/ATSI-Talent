@@ -1,3 +1,4 @@
+import { pdfFixture } from "./fixtures/pdf.mjs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -14,7 +15,7 @@ function environment(mode="development", Clock=Date, mail={}) {
     const full=path.resolve(file);if(cache.has(full))return cache.get(full).exports;
     const loaded={exports:{}};cache.set(full,loaded);
     const source=ts.transpileModule(fs.readFileSync(full,"utf8"),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022,esModuleInterop:true}}).outputText;
-    const require=id=>id==="server-only"?{}:id==="next/headers"?{cookies:async()=>cookies}:id.startsWith("@/")?load(`src/${id.slice(2)}.ts`):id.startsWith(".")?load(path.resolve(path.dirname(full),`${id}.ts`)):nativeRequire(id);
+    const require=id=>id==="server-only"?{}:id==="next/headers"?{cookies:async()=>cookies}:id.startsWith("@/")?load(`src/${id.slice(2)}.ts`):id.startsWith(".")?load(path.resolve(path.dirname(full),`${id}.ts`)):mail.modules?.[id]||nativeRequire(id);
     vm.runInContext(`(function(require,module,exports){${source}\n})`,context,{filename:full})(require,loaded,loaded.exports);return loaded.exports;
   }
   async function call(route,body,method=body===undefined?"GET":"POST",origin="https://atsai.test") {
@@ -291,16 +292,6 @@ B.Tech | Example University | 2019`);
   assert.equal(mergeResumeProfile(merged,parsed).educationHistory.length,1);
   assert.equal(mergeResumeProfile(current,parsed,true).phone,parsed.phone);
 });
-
-function pdfFixture(lines) {
-  // A valid PDF with hex text and a compressed stream: unsupported by the old reader.
-  const content=Buffer.from("BT /F1 12 Tf 50 780 Td 16 TL\n"+lines.map(s=>`<${Buffer.from(s,"latin1").toString("hex")}> Tj T*`).join("\n")+"\nET");
-  const zip=nativeRequire("node:zlib").deflateSync(content);
-  const objects=["<< /Type /Catalog /Pages 2 0 R >>","<< /Type /Pages /Kids [3 0 R] /Count 1 >>","<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 842] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>","<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",Buffer.concat([Buffer.from(`<< /Length ${zip.length} /Filter /FlateDecode >>\nstream\n`),zip,Buffer.from("\nendstream")])];
-  const chunks=[Buffer.from("%PDF-1.4\n")],offsets=[0];let size=chunks[0].length;
-  for(let i=0;i<objects.length;i++){offsets.push(size);const chunk=Buffer.concat([Buffer.from(`${i+1} 0 obj\n`),Buffer.isBuffer(objects[i])?objects[i]:Buffer.from(objects[i]),Buffer.from("\nendobj\n")]);chunks.push(chunk);size+=chunk.length;}
-  chunks.push(Buffer.from(`xref\n0 ${objects.length+1}\n0000000000 65535 f \n`+offsets.slice(1).map(o=>`${String(o).padStart(10,"0")} 00000 n \n`).join("")+`trailer\n<< /Size 6 /Root 1 0 R >>\nstartxref\n${size}\n%%EOF`));return Buffer.concat(chunks);
-}
 
 function docxFixture(lines) {
   const xml=lines.map(s=>`<w:p><w:r><w:t>${s.replace(/&/g,"&amp;").replace(/</g,"&lt;")}</w:t></w:r></w:p>`).join("");
@@ -589,4 +580,28 @@ test("authenticated live streams report revisions after staff decisions and clos
  const changed=decoder.decode((await reader.read()).value);assert.match(changed,/event: updates/);assert.notEqual(changed,initial);
  await e.call("auth/logout",{});assert.equal((await reader.read()).done,true);await reader.cancel();
  const employer=await open(new Request("https://atsai.test/api/ats/updates"),"employer");const employerReader=employer.body.getReader();await employerReader.read();await employerReader.cancel();
+});
+
+
+test("readable PDF text survives broken metadata and cleanup while the page limit is enforced",async()=>{
+ let destroyed=0;let total=1;
+ class PDFParse {
+   async getText(options){assert.equal(options.first,31);assert.equal(options.parseHyperlinks,false);return {total,text:"Jane Doe\nRegistered Nurse\nLocation: London, United Kingdom\nSKILLS: Nursing, Patient care"};}
+   async getInfo(){throw Error("Broken annotation dictionary");}
+   async destroy(){destroyed++;throw Error("Worker cleanup failed");}
+ }
+ const e=environment("development",Date,{modules:{"pdf-parse":{PDFParse}}});const {extractTextFromBuffer}=e.load("src/lib/resumeParser.ts");
+ assert.match(await extractTextFromBuffer(Buffer.from("%PDF-fixture"),"resume.pdf"),/Jane Doe/);assert.equal(destroyed,1);
+ total=31;await assert.rejects(()=>extractTextFromBuffer(Buffer.from("%PDF-fixture"),"resume.pdf"),/30 pages or fewer/);assert.equal(destroyed,2);
+});
+
+test("PDF failures distinguish server packaging problems from locked or unreadable files",async()=>{
+ let failure=Object.assign(Error("DOMMatrix is not defined"),{name:"ReferenceError"});
+ class PDFParse {async getText(){throw failure;}async destroy(){}}
+ const e=environment("development",Date,{modules:{"pdf-parse":{PDFParse}}});const {extractTextFromBuffer}=e.load("src/lib/resumeParser.ts");
+ await assert.rejects(()=>extractTextFromBuffer(Buffer.from("%PDF-fixture"),"resume.pdf"),error=>error.status===503&&/temporarily unavailable/.test(error.message));
+ failure=Object.assign(Error("Password required"),{name:"PasswordException"});
+ await assert.rejects(()=>extractTextFromBuffer(Buffer.from("%PDF-fixture"),"resume.pdf"),error=>error.status===422&&/unlocked copy/.test(error.message));
+ failure=Object.assign(Error("Invalid structure"),{name:"InvalidPDFException"});
+ await assert.rejects(()=>extractTextFromBuffer(Buffer.from("%PDF-fixture"),"resume.pdf"),error=>error.status===422&&/fresh PDF/.test(error.message));
 });
