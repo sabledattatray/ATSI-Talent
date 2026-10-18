@@ -37,7 +37,10 @@ import {
   Loader2,
   Check,
   X,
-  Camera
+  Camera,
+  ChevronDown,
+  ChevronUp,
+  Search
 } from "lucide-react";
 import type { Candidate, CandidateProfile, Application, Inquiry, Recruiter, WorkExperience, Education } from "@/lib/recruitment";
 import type { ParsedResume } from "@/lib/resumeParser";
@@ -1804,43 +1807,258 @@ export function RecruiterLookup() {
   return <section className="talent-card"><form className="talent-form" onSubmit={async event => { event.preventDefault(); setBusy(true); setError(""); setResult(null); try { setResult(await api(`verify?q=${encodeURIComponent(query.trim())}`)); } catch (error) { setError((error as Error).message); } finally { setBusy(false); } }}><label>Recruiter ID or exact work email<input required value={query} onChange={event => setQuery(event.target.value)} maxLength={254} /></label><button className="talent-button" disabled={busy}>{busy ? "Checking…" : "Check recruiter"}<ShieldCheck size={17} /></button></form><Notice error={error} />{result && <div className={result.verified ? "talent-success-panel" : "talent-empty"}><h2>{result.verified ? "Listed in the ATSAI directory" : "No active directory match"}</h2>{result.recruiter ? <><strong>{result.recruiter.name}</strong><p>{result.recruiter.title} · {result.recruiter.email}</p><small>ID: {result.recruiter.id}</small><p>A directory match does not prove who sent you a message. Confirm through the listed work email.</p></> : <p>Check the email or recruiter ID and try again. If you are uncertain, <Link href="/contact">contact the team</Link> before sharing information. A missing entry alone does not establish fraud.</p>}</div>}</section>;
 }
 
+const STAGE_THEMES: Record<string, { bg: string; text: string; border: string }> = {
+  submitted: { bg: "#eff6ff", text: "#1d4ed8", border: "#bfdbfe" },
+  review: { bg: "#fefce8", text: "#a16207", border: "#fde047" },
+  shortlisted: { bg: "#f5f3ff", text: "#6d28d9", border: "#ddd6fe" },
+  interview: { bg: "#eef2ff", text: "#4338ca", border: "#c7d2fe" },
+  interviewed: { bg: "#f8fafc", text: "#334155", border: "#cbd5e1" },
+  selected: { bg: "#ecfdf5", text: "#047857", border: "#a7f3d0" },
+  offer: { bg: "#fefce8", text: "#a16207", border: "#fde047" },
+  hired: { bg: "#ecfdf5", text: "#065f46", border: "#6ee7b7" },
+  rejected: { bg: "#f8fafc", text: "#64748b", border: "#e2e8f0" },
+  withdrawn: { bg: "#fef2f2", text: "#b91c1c", border: "#fecaca" },
+};
+
 type Inbox = { inquiries: Inquiry[]; applications: (Application & { name: string; email: string })[]; candidates: (Omit<Candidate, "profile"> & { profile: string })[]; recruiters: Recruiter[] };
 export function RecruitmentInbox() {
-  const [data, setData] = useState<Inbox | null>(null); const [tab, setTab] = useState("applications"); const [error, setError] = useState(""); const [busy, setBusy] = useState(false);
-  useEffect(() => { let active = true; api("admin").then(result => { if (active) setData(result); }).catch(error => { if (active) setError(error.message); }); return () => { active = false; }; }, []);
-  async function update(path: string, body: unknown) { setBusy(true); setError(""); try { await api(`admin/${path}`, body); setData(await api("admin")); } catch (error) { setError((error as Error).message); } finally { setBusy(false); } }
-  function status(id: string, kind: "inquiry" | "application", value: string) { return <select aria-label={`Status for ${id}`} disabled={busy || value === "withdrawn"} value={value} onChange={event => void update("status", { id, kind, status: event.target.value })}>{(kind === "inquiry" ? ["new", "in-progress", "resolved"] : ["submitted", "review", "shortlisted", "interview", "offer", "hired", "rejected", ...(value === "withdrawn" ? ["withdrawn"] : [])]).map(state => <option key={state} value={state}>{label(state)}</option>)}</select>; }
+  const [data, setData] = useState<Inbox | null>(null);
+  const [tab, setTab] = useState("applications");
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [search, setSearch] = useState("");
+  const [stageFilter, setStageFilter] = useState("all");
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [expandedInquiryId, setExpandedInquiryId] = useState<string | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    api("admin")
+      .then(result => {
+        if (active) {
+          setData(result);
+          if (result.applications?.length && !expandedId) {
+            setExpandedId(result.applications[0].id);
+          }
+        }
+      })
+      .catch(error => {
+        if (active) setError(error.message);
+      });
+    return () => { active = false; };
+  }, []);
+
+  async function update(path: string, body: unknown) {
+    setBusy(true);
+    setError("");
+    try {
+      await api(`admin/${path}`, body);
+      setData(await api("admin"));
+    } catch (error) {
+      setError((error as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function status(id: string, kind: "inquiry" | "application", value: string) {
+    return (
+      <select
+        aria-label={`Status for ${id}`}
+        disabled={busy || value === "withdrawn"}
+        value={value}
+        onChange={event => void update("status", { id, kind, status: event.target.value })}
+      >
+        {(kind === "inquiry"
+          ? ["new", "in-progress", "resolved"]
+          : ["submitted", "review", "shortlisted", "interview", "offer", "hired", "rejected", ...(value === "withdrawn" ? ["withdrawn"] : [])]
+        ).map(state => (
+          <option key={state} value={state}>{label(state)}</option>
+        ))}
+      </select>
+    );
+  }
+
+  const filteredApplications = useMemo(() => {
+    if (!data?.applications) return [];
+    return data.applications.filter(item => {
+      const matchesStage = stageFilter === "all" || item.status === stageFilter;
+      const q = search.trim().toLowerCase();
+      if (!q) return matchesStage;
+      const matchesSearch =
+        item.name.toLowerCase().includes(q) ||
+        item.email.toLowerCase().includes(q) ||
+        item.jobTitle.toLowerCase().includes(q) ||
+        `app-${item.id.slice(0, 8)}`.toLowerCase().includes(q);
+      return matchesStage && matchesSearch;
+    });
+  }, [data?.applications, search, stageFilter]);
+
+  const stageCounts = useMemo(() => {
+    if (!data?.applications) return {};
+    const counts: Record<string, number> = {};
+    for (const a of data.applications) {
+      counts[a.status] = (counts[a.status] || 0) + 1;
+    }
+    return counts;
+  }, [data?.applications]);
+
+  const activeStages = useMemo(() => {
+    return Object.keys(stageCounts);
+  }, [stageCounts]);
+
   return (
     <section className="talent-card">
-      <p>Manage candidate stages in Applications below. Company owners and recruiters can also update their applicants in the employer Hiring pipeline. Each public update appears in the candidate timeline and is queued for email.</p>
-      <div className="talent-tabs">{["applications", "inquiries", "candidates", "recruiters"].map(key => <button key={key} className={tab === key ? "active" : ""} onClick={() => setTab(key)}>{label(key)} {data ? `(${data[key as keyof Inbox].length})` : ""}</button>)}</div>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 16, flexWrap: "wrap", marginBottom: 12 }}>
+        <div>
+          <h2 style={{ margin: "0 0 6px", fontSize: 24, fontWeight: 700, color: "#0f172a" }}>Recruitment Inbox</h2>
+          <p style={{ margin: 0, fontSize: 14, color: "#64748b" }}>
+            Review candidate applications, manage hiring decisions, and track status notifications in real time.
+          </p>
+        </div>
+      </div>
+
+      <div className="talent-tabs">
+        {["applications", "inquiries", "candidates", "recruiters"].map(key => (
+          <button
+            key={key}
+            className={tab === key ? "active" : ""}
+            onClick={() => { setTab(key); setSearch(""); setStageFilter("all"); }}
+          >
+            {label(key)} {data ? `(${data[key as keyof Inbox].length})` : ""}
+          </button>
+        ))}
+      </div>
+
       <Notice error={error} />
       {!data && !error && <p>Loading recruitment inbox…</p>}
+
       {data && (
         <>
           {tab === "inquiries" && (
             <>
-              {!data.inquiries.length && <p>No requests yet.</p>}
-              {data.inquiries.map(item => (
-                <article key={item.id} className="talent-inbox-item">
-                  <header>
-                    <div>
-                      <span className="talent-eyebrow">{item.kind} · ATS-{item.id.slice(0, 8).toUpperCase()}</span>
-                      <h3>{item.subject}</h3>
-                      <p>{item.name} · <a href={`mailto:${item.email}`}>{item.email}</a>{item.phone ? ` · ${item.phone}` : ""}</p>
-                      <small>{item.company} · {date(item.createdAt)}</small>
+              {!data.inquiries.length && <p>No inquiries yet.</p>}
+              {data.inquiries.map(item => {
+                const isOpen = expandedInquiryId === item.id;
+                return (
+                  <article key={item.id} className="talent-app-card" style={{ marginBottom: 10 }}>
+                    <div 
+                      className="talent-app-card-head"
+                      onClick={() => setExpandedInquiryId(isOpen ? null : item.id)}
+                    >
+                      <div className="talent-app-summary">
+                        <div className="talent-app-avatar" style={{ background: "#475569" }}>
+                          {(item.name || "I").slice(0, 2).toUpperCase()}
+                        </div>
+                        <div className="talent-app-meta">
+                          <div className="talent-app-title-row">
+                            <span className="talent-app-name">{item.subject}</span>
+                            <span className="talent-app-ref">{item.kind} · ATS-{item.id.slice(0, 8).toUpperCase()}</span>
+                          </div>
+                          <div className="talent-app-subinfo">
+                            <span>{item.name}</span>
+                            <span>·</span>
+                            <a href={`mailto:${item.email}`} onClick={e => e.stopPropagation()}>{item.email}</a>
+                            {item.phone && <span>· {item.phone}</span>}
+                            <span>· {date(item.createdAt)}</span>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="talent-app-actions" onClick={e => e.stopPropagation()}>
+                        {status(item.id, "inquiry", item.status)}
+                        <button
+                          type="button"
+                          className="talent-app-toggle-btn"
+                          onClick={() => setExpandedInquiryId(isOpen ? null : item.id)}
+                        >
+                          {isOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                        </button>
+                      </div>
                     </div>
-                    {status(item.id, "inquiry", item.status)}
-                  </header>
-                  <p className="talent-preserve">{item.message}</p>
-                </article>
-              ))}
+                    {isOpen && (
+                      <div className="talent-app-card-body" style={{ background: "#f8fafc", borderTop: "1px solid #e2e8f0" }}>
+                        <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", color: "#64748b", marginBottom: 6 }}>Inquiry Message</div>
+                        <p className="talent-preserve" style={{ margin: 0, fontSize: 13, lineHeight: 1.7, color: "#1e293b" }}>{item.message}</p>
+                      </div>
+                    )}
+                  </article>
+                );
+              })}
             </>
           )}
+
           {tab === "applications" && (
             <>
-              {!data.applications.length && <p>No applications yet.</p>}
-              {data.applications.map(item => {
+              {/* Smart Toolbar */}
+              <div className="talent-inbox-toolbar">
+                <div className="talent-inbox-search">
+                  <Search size={15} color="#94a3b8" />
+                  <input
+                    type="search"
+                    aria-label="Search applications"
+                    placeholder="Search candidate name, role, email, or reference…"
+                    value={search}
+                    onChange={e => setSearch(e.target.value)}
+                  />
+                  {search && (
+                    <button
+                      type="button"
+                      onClick={() => setSearch("")}
+                      style={{ border: "none", background: "none", cursor: "pointer", padding: 0 }}
+                    >
+                      <X size={14} color="#94a3b8" />
+                    </button>
+                  )}
+                </div>
+
+                <div className="talent-inbox-filters">
+                  <button
+                    type="button"
+                    className={`talent-filter-chip ${stageFilter === "all" ? "active" : ""}`}
+                    onClick={() => setStageFilter("all")}
+                  >
+                    All <span className="count">{data.applications.length}</span>
+                  </button>
+                  {activeStages.map(s => (
+                    <button
+                      key={s}
+                      type="button"
+                      className={`talent-filter-chip ${stageFilter === s ? "active" : ""}`}
+                      onClick={() => setStageFilter(stageFilter === s ? "all" : s)}
+                    >
+                      {STAGE_LABELS[s as Stage] || s} <span className="count">{stageCounts[s]}</span>
+                    </button>
+                  ))}
+                </div>
+
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <button
+                    type="button"
+                    className="talent-app-toggle-btn"
+                    onClick={() => setExpandedId(expandedId ? null : (filteredApplications[0]?.id || null))}
+                  >
+                    {expandedId ? "Collapse open" : "Expand top"}
+                  </button>
+                </div>
+              </div>
+
+              {!filteredApplications.length && (
+                <div className="talent-empty" style={{ padding: "32px 20px" }}>
+                  <p>No applications match your filter.</p>
+                  {(search || stageFilter !== "all") && (
+                    <button
+                      type="button"
+                      className="talent-button talent-secondary"
+                      style={{ minHeight: 36, padding: "8px 14px", fontSize: 12, marginTop: 8 }}
+                      onClick={() => { setSearch(""); setStageFilter("all"); }}
+                    >
+                      Clear filters
+                    </button>
+                  )}
+                </div>
+              )}
+
+              {filteredApplications.map(item => {
                 let document: { profile: CandidateProfile; coverLetter: string };
                 try {
                   document = JSON.parse(item.document);
@@ -1848,43 +2066,113 @@ export function RecruitmentInbox() {
                   document = { profile: { phone: "", location: "", skills: "", experience: 0, resumeUrl: "" }, coverLetter: "" };
                 }
                 const p = document.profile;
+                const isExpanded = expandedId === item.id;
+                const theme = STAGE_THEMES[item.status] || { bg: "#eff6ff", text: "#1d4ed8", border: "#bfdbfe" };
+                const initials = (item.name || "C").split(" ").map(w => w[0]).filter(Boolean).slice(0, 2).join("").toUpperCase();
+
                 return (
-                  <article key={item.id} className="talent-inbox-item">
-                    <header>
-                      <div>
-                        <span className="talent-eyebrow">APP-{item.id.slice(0, 8).toUpperCase()}</span>
-                        <h3>{item.name} · {item.jobTitle}</h3>
-                        {p.headline && <p style={{ fontWeight: 600, color: "#2563eb", margin: "2px 0 4px" }}>{p.headline}</p>}
-                        <p><a href={`mailto:${item.email}`}>{item.email}</a> · {date(item.createdAt)}</p>
+                  <article key={item.id} className={`talent-app-card ${isExpanded ? "expanded" : ""}`}>
+                    <div 
+                      className="talent-app-card-head"
+                      onClick={() => setExpandedId(isExpanded ? null : item.id)}
+                    >
+                      <div className="talent-app-summary">
+                        <div className="talent-app-avatar" style={{ background: isExpanded ? "linear-gradient(135deg, #1d4ed8, #2563eb)" : undefined }}>
+                          {initials}
+                        </div>
+                        <div className="talent-app-meta">
+                          <div className="talent-app-title-row">
+                            <span className="talent-app-name">{item.name}</span>
+                            <span style={{ color: "#94a3b8" }}>·</span>
+                            <span className="talent-app-role">{item.jobTitle}</span>
+                            <span className="talent-app-ref">APP-{item.id.slice(0, 8).toUpperCase()}</span>
+                          </div>
+                          <div className="talent-app-subinfo">
+                            <a href={`mailto:${item.email}`} onClick={e => e.stopPropagation()}>{item.email}</a>
+                            <span>·</span>
+                            <span>{p.location ? `${p.location} · ` : ""}{p.experience ?? 0} yrs exp</span>
+                            {p.noticePeriod && (
+                              <>
+                                <span>·</span>
+                                <span>Notice: <strong>{p.noticePeriod}</strong></span>
+                              </>
+                            )}
+                            {p.resumeUrl && (
+                              <>
+                                <span>·</span>
+                                <a href={p.resumeUrl} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()}>Resume ↗</a>
+                              </>
+                            )}
+                            {p.portfolioUrl && (
+                              <>
+                                <span>·</span>
+                                <a href={p.portfolioUrl} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()}>Portfolio ↗</a>
+                              </>
+                            )}
+                          </div>
+                        </div>
                       </div>
-                      <span className="ats-badge">{STAGE_LABELS[item.status as Stage] || item.status}</span>
-                    </header>
-                    <p style={{ margin: "6px 0" }}>
-                      {p.location ? `${p.location} · ` : ""}{p.experience ?? 0} years experience · {p.skills}
-                    </p>
-                    <div style={{ display: "flex", flexWrap: "wrap", gap: 12, margin: "6px 0 10px", fontSize: "13px" }}>
-                      {p.noticePeriod && <span style={{ color: "#475569" }}>🕒 Notice: <strong>{p.noticePeriod}</strong></span>}
-                      {p.expectedSalary && <span style={{ color: "#475569" }}>💰 Expected: <strong>{p.expectedSalary}</strong></span>}
-                      {p.resumeUrl && <a href={p.resumeUrl} target="_blank" rel="noreferrer" style={{ fontWeight: 600 }}>Resume ↗</a>}
-                      {p.linkedinUrl && <a href={p.linkedinUrl} target="_blank" rel="noreferrer">LinkedIn ↗</a>}
-                      {p.githubUrl && <a href={p.githubUrl} target="_blank" rel="noreferrer">GitHub ↗</a>}
-                      {p.portfolioUrl && <a href={p.portfolioUrl} target="_blank" rel="noreferrer">Portfolio ↗</a>}
+
+                      <div className="talent-app-actions">
+                        <span 
+                          className="talent-app-stage-pill"
+                          style={{ background: theme.bg, color: theme.text, border: `1px solid ${theme.border}` }}
+                        >
+                          {STAGE_LABELS[item.status as Stage] || item.status}
+                        </span>
+                        <button 
+                          type="button" 
+                          className="talent-app-toggle-btn"
+                          onClick={e => {
+                            e.stopPropagation();
+                            setExpandedId(isExpanded ? null : item.id);
+                          }}
+                        >
+                          <span>{isExpanded ? "Collapse" : "Manage"}</span>
+                          {isExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                        </button>
+                      </div>
                     </div>
-                    {p.workHistory && p.workHistory.length > 0 && (
-                      <div style={{ background: "#f8fafc", padding: "10px 14px", borderRadius: "8px", margin: "8px 0", fontSize: "13px" }}>
-                        <strong>Recent experience:</strong> {p.workHistory[0].title} at {p.workHistory[0].company} ({p.workHistory[0].startDate} - {p.workHistory[0].current ? "Present" : p.workHistory[0].endDate || "Present"})
+
+                    {isExpanded && (
+                      <div className="talent-app-card-body">
+                        {p.headline && (
+                          <div style={{ marginBottom: 10 }}>
+                            <span style={{ fontSize: 13, fontWeight: 700, color: "#2563eb" }}>{p.headline}</span>
+                          </div>
+                        )}
+                        {p.skills && (
+                          <div style={{ marginBottom: 10, fontSize: 13, color: "#475569" }}>
+                            <strong style={{ color: "#1e293b" }}>Skills:</strong> {p.skills}
+                          </div>
+                        )}
+                        {p.workHistory && p.workHistory.length > 0 && (
+                          <div style={{ background: "#f8fafc", border: "1px solid #e2e8f0", padding: "10px 14px", borderRadius: "10px", margin: "10px 0 14px", fontSize: "13px" }}>
+                            <strong style={{ color: "#0f172a" }}>Recent experience:</strong> {p.workHistory[0].title} at {p.workHistory[0].company} ({p.workHistory[0].startDate} - {p.workHistory[0].current ? "Present" : p.workHistory[0].endDate || "Present"})
+                          </div>
+                        )}
+                        {document.coverLetter && (
+                          <div style={{ background: "#fafafa", borderLeft: "3px solid #cbd5e1", padding: "10px 14px", margin: "10px 0 14px", fontSize: "13px", color: "#334155" }}>
+                            <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", color: "#64748b", marginBottom: 4 }}>Candidate Note / Cover Letter</div>
+                            <p className="talent-preserve" style={{ margin: 0 }}>{document.coverLetter}</p>
+                          </div>
+                        )}
+
+                        {/* Status Update Form & Collapsible Email Logs */}
+                        <div style={{ background: "#ffffff", border: "1px solid #e2e8f0", borderRadius: 12, padding: "16px 18px", marginTop: 12 }}>
+                          <ApplicationStatusEditor application={item} scope="admin" onUpdated={async () => setData(await api("admin"))} />
+                          <EmailDelivery key={item.updatedAt} applicationId={item.id} scope="admin" />
+                        </div>
                       </div>
                     )}
-                    {document.coverLetter && <p className="talent-preserve">{document.coverLetter}</p>}
-                    <ApplicationStatusEditor application={item} scope="admin" onUpdated={async () => setData(await api("admin"))}/>
-                    <EmailDelivery key={item.updatedAt} applicationId={item.id} scope="admin"/>
                   </article>
                 );
               })}
             </>
           )}
+
           {tab === "candidates" && (
-            <>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: 14 }}>
               {!data.candidates.length && <p>No registered candidates yet.</p>}
               {data.candidates.map(item => {
                 let profile: CandidateProfile;
@@ -1893,17 +2181,38 @@ export function RecruitmentInbox() {
                 } catch {
                   profile = { phone: "", location: "", skills: "", experience: 0, resumeUrl: "" };
                 }
+                const initials = (item.name || "C").split(" ").map(w => w[0]).filter(Boolean).slice(0, 2).join("").toUpperCase();
                 return (
-                  <article className="talent-inbox-item" key={item.id}>
-                    <h3>{item.name}</h3>
-                    {profile.headline && <p style={{ fontWeight: 600, color: "#2563eb", margin: "2px 0 4px" }}>{profile.headline}</p>}
-                    <p><a href={`mailto:${item.email}`}>{item.email}</a> · Joined {date(item.createdAt)}</p>
-                    <p>{profile.location ? `${profile.location} · ` : ""}{profile.experience ?? 0} years experience · {profile.skills}</p>
-                    {profile.resumeUrl && <a href={profile.resumeUrl} target="_blank" rel="noreferrer" style={{ fontSize: "13px", fontWeight: 600 }}>View resume / portfolio ↗</a>}
+                  <article className="talent-app-card" key={item.id} style={{ margin: 0, padding: 18 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 10 }}>
+                      <div className="talent-app-avatar" style={{ width: 38, height: 38, fontSize: 13 }}>
+                        {initials}
+                      </div>
+                      <div style={{ minWidth: 0, flex: 1 }}>
+                        <h4 style={{ margin: 0, fontSize: 14, fontWeight: 700, color: "#0f172a" }}>{item.name}</h4>
+                        <a href={`mailto:${item.email}`} style={{ fontSize: 12, color: "#64748b" }}>{item.email}</a>
+                      </div>
+                    </div>
+                    {profile.headline && <p style={{ fontWeight: 600, color: "#2563eb", margin: "0 0 6px", fontSize: 12 }}>{profile.headline}</p>}
+                    <p style={{ fontSize: 12, color: "#475569", margin: "4px 0" }}>
+                      {profile.location ? `${profile.location} · ` : ""}{profile.experience ?? 0} yrs experience
+                    </p>
+                    {profile.skills && (
+                      <p style={{ fontSize: 11, color: "#64748b", margin: "6px 0", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        {profile.skills}
+                      </p>
+                    )}
+                    {profile.resumeUrl && (
+                      <div style={{ marginTop: 8 }}>
+                        <a href={profile.resumeUrl} target="_blank" rel="noreferrer" style={{ fontSize: 12, fontWeight: 600, color: "#2563eb" }}>
+                          View resume / portfolio ↗
+                        </a>
+                      </div>
+                    )}
                   </article>
                 );
               })}
-            </>
+            </div>
           )}
           {tab === "recruiters" && (
             <>
