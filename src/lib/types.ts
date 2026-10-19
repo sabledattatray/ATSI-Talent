@@ -47,6 +47,7 @@ export interface JobListing {
   status: JobStatus;
   publishedAt: string;
   expiresAt: string;
+  isExpired?: boolean;
   recruiterContactChannel: string;
   applicationsCount: number;
 }

@@ -13,6 +13,7 @@ export type ContentRecord = {
   googleJobs?: boolean; jobOriginalDate?: string; jobCity?: string; jobRegion?: string; jobCountry?: string;
   employerPublishedAt?: string; importedAt?: string; lastVerifiedAt?: string;
   isIndependentCurated?: boolean; legalDisclaimer?: string; requisitionId?: string;
+  isExpired?: boolean;
   createdAt: string; updatedAt: string; publishedAt: string | null; version: number;
 };
 export type MediaRecord = { id: string; name: string; type: string; size: number; createdAt: string; url: string };
@@ -21,5 +22,6 @@ export type SiteSettings = { siteName: string; tagline: string; contactEmail: st
 export type WorkspaceData = { user: AdminUser; records: ContentRecord[]; media: MediaRecord[]; users: AdminUser[]; activity: AuditRecord[]; settings: SiteSettings };
 export function slugify(value: string) { return value.toLowerCase().normalize("NFKD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 120); }
 export function blankRecord(kind: "job" | "post", author: string): ContentRecord {
-  return { id: "", kind, title: "", slug: "", status: "draft", excerpt: "", category: kind === "job" ? "Technology" : "Career insights", cover: "", content: { type: "doc", content: [{ type: "paragraph" }] }, seoTitle: "", seoDescription: "", author, featured: false, company: "", location: "", workMode: "Hybrid", employmentType: "Full-time", experienceMin: 0, experienceMax: 5, salaryMin: 0, salaryMax: 0, skills: "", expiresAt: "", applicationUrl: "", createdAt: "", updatedAt: "", publishedAt: null, version: 0 };
+  const today = new Date().toISOString().slice(0, 10);
+  return { id: "", kind, title: "", slug: "", status: "draft", excerpt: "", category: kind === "job" ? "Technology" : "Career insights", cover: "", content: { type: "doc", content: [{ type: "paragraph" }] }, seoTitle: "", seoDescription: "", author, featured: false, company: "", location: "", workMode: "Hybrid", employmentType: "Full-time", experienceMin: 0, experienceMax: 5, salaryMin: 0, salaryMax: 0, skills: "", expiresAt: "", jobOriginalDate: kind === "job" ? today : "", employerPublishedAt: kind === "job" ? `${today}T00:00:00Z` : "", isExpired: false, applicationUrl: "", createdAt: "", updatedAt: "", publishedAt: null, version: 0 };
 }

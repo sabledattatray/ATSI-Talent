@@ -182,7 +182,13 @@ export async function users(): Promise<AdminUser[]> {
 }
 export async function records(kind?: string, published = false): Promise<ContentRecord[]> {
   const rows = await db().prepare("SELECT document FROM content WHERE (? IS NULL OR kind=?) AND (?=0 OR status='published') ORDER BY updatedAt DESC").all(kind || null, kind || null, published ? 1 : 0) as { document: string }[];
-  return rows.map(row => JSON.parse(row.document) as ContentRecord).filter(r => !published || (!!r.publishedAt && Date.parse(r.publishedAt) <= Date.now() && (r.kind !== "job" || !r.expiresAt || Date.parse(r.expiresAt) > Date.now())));
+  return rows.map(row => {
+    const r = JSON.parse(row.document) as ContentRecord;
+    if (r.kind === "job") {
+      r.isExpired = Boolean(r.expiresAt && Date.parse(r.expiresAt) <= Date.now());
+    }
+    return r;
+  }).filter(r => !published || (!!r.publishedAt && Date.parse(r.publishedAt) <= Date.now() && (r.kind !== "job" || !r.expiresAt || Date.parse(r.expiresAt) > Date.now())));
 }
 export async function settings(): Promise<SiteSettings> {
   const row = await db().prepare("SELECT document FROM settings WHERE id=1").get() as { document: string } | undefined;

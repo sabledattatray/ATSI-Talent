@@ -13,6 +13,7 @@ export async function ManagedJob({ job: j }: { job: ContentRecord }) {
   const isIndependent = Boolean(j.isIndependentCurated ?? (!j.employerVerified || (j.author && j.author.includes("Job Intelligence"))));
   const hasExperience = (j.experienceMax > 0) || (j.experienceMin > 0);
   const rawPostingDate = j.employerPublishedAt || j.jobOriginalDate;
+  const isExpired = Boolean(j.isExpired || (j.expiresAt && Date.parse(j.expiresAt) <= Date.now()));
 
   return (
     <div className="cms-public cms-managed-job">
@@ -71,9 +72,16 @@ export async function ManagedJob({ job: j }: { job: ContentRecord }) {
           )}
 
           <header>
-            <span className="cms-public-eyebrow">
-              {j.category} / {j.employmentType}
-            </span>
+            <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap", marginBottom: "8px" }}>
+              <span className="cms-public-eyebrow">
+                {j.category} / {j.employmentType}
+              </span>
+              {isExpired && (
+                <span className="cms-badge cms-badge-expired">
+                  <i />Expired / Applications Closed
+                </span>
+              )}
+            </div>
             <h1>{j.title}</h1>
             <div className="cms-job-meta">
               <span>
@@ -173,30 +181,44 @@ export async function ManagedJob({ job: j }: { job: ContentRecord }) {
             {j.expiresAt && (
               <>
                 <dt>Application deadline</dt>
-                <dd>
+                <dd style={{ color: isExpired ? "#dc2626" : undefined, fontWeight: isExpired ? 600 : undefined }}>
                   {new Date(j.expiresAt).toLocaleDateString("en-IN", {
                     year: "numeric",
                     month: "short",
                     day: "numeric"
                   })}
+                  {isExpired && " (Expired)"}
                 </dd>
               </>
             )}
           </dl>
-          <a
-            className="cms-btn cms-primary cms-full"
-            href={j.applicationUrl || `/candidate/apply/${j.slug}`}
-            target={j.applicationUrl ? "_blank" : undefined}
-            rel="noopener noreferrer"
-          >
-            {j.applicationUrl ? "Apply on official employer site" : "Apply for this role"}
-            <ArrowUpRight size={16} />
-          </a>
+          {isExpired ? (
+            <button
+              type="button"
+              disabled
+              className="cms-btn cms-secondary cms-full"
+              style={{ opacity: 0.75, cursor: "not-allowed", borderColor: "#fecaca", background: "#fef2f2", color: "#dc2626", fontWeight: 600 }}
+            >
+              Applications Closed (Expired)
+            </button>
+          ) : (
+            <a
+              className="cms-btn cms-primary cms-full"
+              href={j.applicationUrl || `/candidate/apply/${j.slug}`}
+              target={j.applicationUrl ? "_blank" : undefined}
+              rel="noopener noreferrer"
+            >
+              {j.applicationUrl ? "Apply on official employer site" : "Apply for this role"}
+              <ArrowUpRight size={16} />
+            </a>
+          )}
           <JobActions id={j.id} />
           <small>
-            {j.applicationUrl
-              ? "Opens the employer's official career destination."
-              : "Use your free candidate account to apply and track your progress."}
+            {isExpired
+              ? "This job posting has reached its application deadline and is no longer accepting new submissions."
+              : j.applicationUrl
+                ? "Opens the employer's official career destination."
+                : "Use your free candidate account to apply and track your progress."}
           </small>
           <div className="cms-job-fee-note">ATS AI does not charge candidates recruitment fees.</div>
         </aside>

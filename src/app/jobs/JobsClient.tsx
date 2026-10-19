@@ -441,6 +441,7 @@ function JobsDirectoryContent({ initialJobs }: { initialJobs: import("@/lib/type
               <div className="space-y-4">
                 {filteredJobs.map((job) => {
                   const isSaved = savedJobIds.includes(job.id);
+                  const isExpired = Boolean(job.isExpired || (job.expiresAt && Date.parse(job.expiresAt) <= now) || job.status === "Expired");
                   return (
                     <article
                       key={job.id}
@@ -453,10 +454,16 @@ function JobsDirectoryContent({ initialJobs }: { initialJobs: import("@/lib/type
                             <span className="font-mono text-[11px] font-semibold bg-slate-100 text-slate-700 px-2 py-0.5 rounded border border-slate-200">
                               {job.referenceId}
                             </span>
-                            <span className="inline-flex items-center gap-1 text-emerald-700 font-medium text-[11px]">
-                              <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-                              Published by ATSAI
-                            </span>
+                            {isExpired ? (
+                              <span className="inline-flex items-center gap-1 text-red-700 bg-red-50 border border-red-200 font-semibold text-[11px] px-2 py-0.5 rounded">
+                                Expired
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 text-emerald-700 font-medium text-[11px]">
+                                <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+                                Published by ATSAI
+                              </span>
+                            )}
                           </div>
 
                           <div className="flex items-center gap-3">

@@ -618,6 +618,7 @@ export async function approveAndPublishItem(itemId: string, actor: string): Prom
     isIndependentCurated: facts.isIndependentCurated,
     legalDisclaimer: facts.legalDisclaimer,
     requisitionId: facts.externalJobId || "",
+    isExpired: Boolean(facts.validThrough && Date.parse(facts.validThrough) <= Date.now()),
     createdAt: now,
     updatedAt: now,
     publishedAt: now,
