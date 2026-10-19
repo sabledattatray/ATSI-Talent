@@ -440,3 +440,31 @@ test("5. Admin Duplicate Resolution Workflow", async () => {
   const pendingAfter = await canonical.getPendingDuplicateAudits();
   assert.equal(pendingAfter.length, 0);
 });
+
+test("public canonical partners exclude drafts, archives, expired and future postings", async () => {
+  const { load } = createTestContext();
+  const { db } = load("src/lib/admin/db.ts");
+  const canonical = load("src/lib/canonical-jobs.ts");
+  const now = new Date().toISOString();
+  await db().prepare("INSERT INTO ats_organizations VALUES (?,?,?,?,?)").run("visibility-org", "Visibility Employer", "IN", "https://example.com", now);
+  let canonicalId;
+  for (const [id, status, extra] of [
+    ["visible", "published", {}],
+    ["draft", "draft", {}],
+    ["archived", "archived", {}],
+    ["expired", "published", { expiresAt: "2000-01-01T00:00:00Z" }],
+    ["future", "published", { publishedAt: "2999-01-01T00:00:00Z" }],
+    ["flagged", "published", { isExpired: true }],
+  ]) {
+    const record = { id, kind: "job", slug: id, title: "Analyst", company: "Visibility Employer", location: "Mumbai", requisitionId: "VIS-1", status, createdAt: now, updatedAt: now, version: 1, ...extra };
+    await db().prepare("INSERT INTO content VALUES (?,?,?,?,?,?,?,?)").run(id, "job", id, status, JSON.stringify(record), now, now, 1);
+    const result = await canonical.syncContentToCanonical(record, "visibility-org", "authorized_agency");
+    canonicalId = result.canonicalJob.id;
+  }
+  const summary = await canonical.getCanonicalJobSummary(canonicalId);
+  assert.equal(summary.allPostingsCount, 1);
+  assert.equal(summary.primaryPosting.contentId, "visible");
+  assert.equal(summary.authorizedPostings.length, 0);
+  await db().prepare("UPDATE content SET status='archived' WHERE id='visible'").run();
+  assert.equal(await canonical.getCanonicalJobSummary(canonicalId), null);
+});

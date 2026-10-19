@@ -1,3 +1,4 @@
+import { PageSkeleton } from "@/components/common/PageSkeleton";
 import { Suspense } from "react";
 import { connection } from "next/server";
 import { redirect } from "next/navigation";
@@ -14,7 +15,7 @@ async function Dashboard({ searchParams }: PageProps) {
 }
 export default function Page(props: PageProps) {
   return (
-    <Suspense fallback={<div className="talent-container">Opening your workspace…</div>}>
+    <Suspense fallback={<PageSkeleton title="Your candidate workspace" />}>
       <Dashboard {...props} />
     </Suspense>
   );

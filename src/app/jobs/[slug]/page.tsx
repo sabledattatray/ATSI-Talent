@@ -1,3 +1,4 @@
+import { PageSkeleton } from "@/components/common/PageSkeleton";
 import { pageMetadata } from "@/lib/seo";
 import { connection } from "next/server";
 import { records } from "@/lib/admin/db";
@@ -36,10 +37,7 @@ export default function JobDetailPage({
   return (
     <Suspense
       fallback={
-        <div className="max-w-7xl mx-auto px-4 py-20 text-center">
-          <div className="inline-block w-8 h-8 border-3 border-blue-600 border-t-transparent rounded-full animate-spin mb-4" />
-          <p className="text-sm font-medium text-slate-600">Loading verified requisition details...</p>
-        </div>
+        <PageSkeleton title="Career opportunity" />
       }
     >
       <JobDetailContent params={params} />

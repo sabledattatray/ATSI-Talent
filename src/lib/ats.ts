@@ -82,7 +82,7 @@ export async function atsRequest(request:Request,route:string):Promise<Response>
     }
     if(request.method!=="POST")return json({error:"Method not allowed."},405);
     assertOrigin(request);
-    const body=await readBody(request);
+    const body=route==="media"?null:await readBody(request);
     if(route==="auth/signup"||route==="auth/login"||route==="auth/accept"){
       const input=credentials.parse(body);const fingerprint=tokenHash(request.headers.get("x-forwarded-for")?.split(",")[0]?.trim()||"local");await limit(`employer-auth-ip:${fingerprint}`,30);await limit(`employer-auth-email:${tokenHash(input.email)}`,12);
       if(route==="auth/login"){

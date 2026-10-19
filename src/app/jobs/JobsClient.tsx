@@ -1,4 +1,5 @@
 "use client";
+import { PageSkeleton } from "@/components/common/PageSkeleton";
 import { compensation, compareCompensation } from "@/lib/ats-types";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Modal } from "@/components/common/Modal";
@@ -650,7 +651,7 @@ function JobsDirectoryContent({ initialJobs }: { initialJobs: import("@/lib/type
 
 export default function JobsClient({ initialJobs }: { initialJobs: import("@/lib/types").JobListing[] }) {
   return (
-    <Suspense fallback={<div className="p-12 text-center text-sm text-slate-500">Loading jobs directory...</div>}>
+    <Suspense fallback={<PageSkeleton title="Explore Job Openings Across India" />}>
       <JobsDirectoryContent initialJobs={initialJobs} />
     </Suspense>
   );

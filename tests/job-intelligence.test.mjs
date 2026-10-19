@@ -768,3 +768,14 @@ test("contentSchema and validation normalize workMode and employmentType automat
 
 
 
+
+test("SSRF guard rejects bracketed, expanded and mapped private IPv6", () => {
+  const { load } = createTestContext();
+  const { validateSafeUrl, isPrivateOrRestrictedIP } = load("src/lib/job-intelligence/ssrf.ts");
+  for (const ip of ["::1", "::", "0:0:0:0:0:0:0:1", "fc01::1", "fd12::1", "fe90::1", "ff02::1", "::ffff:127.0.0.1", "::ffff:10.0.0.1", "::ffff:169.254.169.254"]) {
+    assert.throws(() => validateSafeUrl(`http://[${ip}]/jobs`), /private\/restricted/i, ip);
+    assert.equal(isPrivateOrRestrictedIP(ip), true, ip);
+  }
+  assert.equal(validateSafeUrl("https://[2606:4700:4700::1111]/jobs").protocol, "https:");
+  assert.equal(isPrivateOrRestrictedIP("::ffff:8.8.8.8"), false);
+});

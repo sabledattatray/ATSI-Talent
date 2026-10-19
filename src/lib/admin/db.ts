@@ -91,8 +91,7 @@ async function seedDefaultArticles(connection: Client): Promise<void> {
   }
   try {
     const { SEED_ARTICLES } = await import("@/lib/data/seedArticles");
-    for (const article of SEED_ARTICLES) {
-      await connection.execute({
+    await connection.batch(SEED_ARTICLES.map(article => ({
         sql: `INSERT INTO content (id, kind, slug, status, document, createdAt, updatedAt, version)
               VALUES (?, 'post', ?, 'published', ?, ?, ?, 1)
               ON CONFLICT(kind, slug) DO NOTHING`,
@@ -103,8 +102,7 @@ async function seedDefaultArticles(connection: Client): Promise<void> {
           article.createdAt,
           article.updatedAt
         ]
-      });
-    }
+    })), "write");
   } catch (err) {
     console.warn("Seed articles notice:", (err as Error)?.message || err);
   }

@@ -754,3 +754,21 @@ test("admin can edit and delete applications, inquiries, candidates, and recruit
  const afterCandDel = await (await e.call("admin")).json();
  assert.equal(afterCandDel.candidates.some(c => c.id === candId), false);
 });
+
+test("employer multipart image uploads require authentication and preserve file bytes", async () => {
+  const e = environment();
+  async function upload(origin = "https://atsai.test") {
+    const form = new FormData();
+    form.set("file", new File([Buffer.from([137,80,78,71,13,10,26,10,0])], "logo.png", { type: "image/png" }));
+    return e.load("src/lib/ats.ts").atsRequest(new Request("https://atsai.test/api/ats/media", { method: "POST", headers: { origin }, body: form }), "media");
+  }
+  assert.equal((await upload()).status, 401);
+  assert.equal((await e.callATS("auth/signup", { name: "Employer Fixture", email: "upload@example.test", password: "Employer-test-password-2026", company: "Upload Company", country: "IN", consent: true })).status, 201);
+  assert.equal((await upload("https://attacker.test")).status, 403);
+  const response = await upload();
+  assert.equal(response.status, 201);
+  const { media } = await response.json();
+  assert.equal(media.type, "image/png");
+  const row = await e.load("src/lib/admin/db.ts").db().prepare("SELECT bytes FROM media WHERE id=?").get(media.id);
+  assert.deepEqual(Buffer.from(row.bytes), Buffer.from([137,80,78,71,13,10,26,10,0]));
+});

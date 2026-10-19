@@ -253,3 +253,29 @@ test("sitemap updates after publishing and excludes drafts, expired and archived
   assert.ok(!(await sitemap()).some(entry => entry.url.endsWith("/sitemap-analyst")));
   assert.equal((await e.request("content", { ...job, googleJobs: true, jobOriginalDate: "2026-02-31", jobCountry: "IN", jobCity: "Pune" })).status, 400);
 });
+
+
+test("cold database startup batches article seeding in one round trip", async () => {
+  let seedBatches = 0, seedExecutions = 0;
+  const e = environment("production", { ATSAI_DATABASE_PATH: "seed-fixture", TURSO_DATABASE_URL: "libsql://fixture.turso.io", TURSO_AUTH_TOKEN: "fixture" }, () => {
+    const connection = nativeRequire("@libsql/client").createClient({ url: ":memory:" });
+    return new Proxy(connection, { get(target, key) {
+      if (key === "batch") return async (statements, mode) => {
+        if (statements.some(statement => typeof statement === "object" && statement.sql.includes("INSERT INTO content"))) seedBatches++;
+        return target.batch(statements, mode);
+      };
+      if (key === "execute") return async statement => {
+        if (typeof statement === "object" && statement.sql.includes("INSERT INTO content")) seedExecutions++;
+        return target.execute(statement);
+      };
+      const value = Reflect.get(target, key);
+      return typeof value === "function" ? value.bind(target) : value;
+    } });
+  });
+  const records = await e.load("src/lib/admin/db.ts").records("post", true);
+  assert.ok(records.length > 0);
+  assert.equal(seedBatches, 1);
+  assert.equal(seedExecutions, 0);
+  await e.load("src/lib/admin/db.ts").records("post", true);
+  assert.equal(seedBatches, 1, "warm requests must not initialize again");
+});

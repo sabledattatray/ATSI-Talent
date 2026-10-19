@@ -52,9 +52,10 @@ export function validateSafeUrl(rawUrl: string, allowedDomains?: string[]): URL 
   }
 
   // 3. IP-based checks
-  const ipVersion = isIP(hostname);
+  const ipAddress = hostname.replace(/^\[|\]$/g, "");
+  const ipVersion = isIP(ipAddress);
   if (ipVersion !== 0) {
-    if (isPrivateOrRestrictedIP(hostname)) {
+    if (isPrivateOrRestrictedIP(ipAddress)) {
       throw new SecurityValidationError(`Access to private/restricted IP '${hostname}' is strictly blocked.`, "SSRF_PRIVATE_IP_BLOCKED");
     }
   }
@@ -86,7 +87,7 @@ export function validateSafeUrl(rawUrl: string, allowedDomains?: string[]): URL 
  */
 export function isPrivateOrRestrictedIP(ip: string): boolean {
   // IPv4 checks
-  if (ip.includes(".")) {
+  if (ip.includes(".") && !ip.includes(":")) {
     const parts = ip.split(".").map(p => Number.parseInt(p, 10));
     if (parts.length !== 4 || parts.some(p => Number.isNaN(p) || p < 0 || p > 255)) {
       return true; // invalid IP format treated as unsafe
@@ -119,10 +120,21 @@ export function isPrivateOrRestrictedIP(ip: string): boolean {
   }
 
   // IPv6 checks
-  const cleanIPv6 = ip.toLowerCase();
-  if (cleanIPv6 === "::1" || cleanIPv6 === "::" || cleanIPv6.startsWith("fe80:") || cleanIPv6.startsWith("fc00:") || cleanIPv6.startsWith("fd00:")) {
+  const cleanIPv6 = ip.toLowerCase().replace(/^\[|\]$/g, "");
+  // URL parsing canonicalizes expanded forms and IPv4-mapped addresses.
+  let normalized: string;
+  try {
+    normalized = new URL(`http://[${cleanIPv6}]/`).hostname.slice(1, -1);
+  } catch {
     return true;
   }
-
-  return false;
+  if (normalized.startsWith("::ffff:")) {
+    const words = normalized.slice(7).split(":");
+    if (words.length !== 2) return true;
+    const high = Number.parseInt(words[0], 16), low = Number.parseInt(words[1], 16);
+    return isPrivateOrRestrictedIP(`${high >> 8}.${high & 255}.${low >> 8}.${low & 255}`);
+  }
+  // Only global unicast IPv6 (2000::/3) is eligible for public fetches.
+  const first = Number.parseInt(normalized.split(":")[0], 16);
+  return !(first >= 0x2000 && first <= 0x3fff);
 }

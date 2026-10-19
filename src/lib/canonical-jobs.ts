@@ -358,11 +358,20 @@ export async function getCanonicalJobSummary(canonicalIdOrSlug: string): Promise
      FROM employer_job_postings p
      JOIN ats_organizations o ON o.id = p.organizationId
      JOIN content c ON c.id = p.contentId
-     WHERE p.canonicalJobId = ? AND p.authorizationStatus = 'verified'
+     WHERE p.canonicalJobId = ? AND p.authorizationStatus = 'verified' AND c.status = 'published'
      ORDER BY p.isPrimary DESC, p.createdAt ASC`
   ).all(canonicalJob.id)) as (EmployerJobPosting & { jobDoc?: string; isPrimary: number | boolean; displayAgencyBrand: number | boolean })[];
 
-  const normalizedPostings: EmployerJobPosting[] = postings.map(p => {
+  const normalizedPostings: EmployerJobPosting[] = postings.filter(p => {
+    try {
+      const doc = JSON.parse(p.jobDoc || "{}");
+      const now = Date.now();
+      return !doc.isExpired && (!doc.expiresAt || Date.parse(doc.expiresAt) > now)
+        && (!doc.publishedAt || Date.parse(doc.publishedAt) <= now);
+    } catch {
+      return false;
+    }
+  }).map(p => {
     let docTitle = "";
     let docCompany = "";
     try {
@@ -378,6 +387,8 @@ export async function getCanonicalJobSummary(canonicalIdOrSlug: string): Promise
       displayAgencyBrand: Boolean(p.displayAgencyBrand)
     };
   });
+
+  if (!normalizedPostings.length) return null;
 
   const primaryPosting = normalizedPostings.find(p => p.isPrimary) || normalizedPostings[0];
   const authorizedPostings = normalizedPostings.filter(p => p.id !== primaryPosting?.id);
