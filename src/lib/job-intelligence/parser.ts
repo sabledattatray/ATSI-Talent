@@ -1,5 +1,6 @@
 import { normalizeJobTitle, normalizeEmploymentType, normalizeWorkMode, normalizeSalary } from "./normalizer";
-import { extractHtmlSections, extractExperienceFromText, extractEducationFromText, decodeHtmlEntities } from "./html-parser";
+import { extractHtmlSections, extractExperienceFromText, extractEducationFromText, decodeHtmlEntities, cleanHtmlToText } from "./html-parser";
+import { toCountryCode } from "@/lib/countries";
 import type { ExtractedJobFacts, FieldEvidenceItem, AuthBasis } from "./types";
 
 export interface ParseResult {
@@ -275,7 +276,7 @@ function parseLeverApiPayload(
       experienceStated: exp.stated,
       education,
       skills: sections.skills,
-      descriptionSummary: sections.summary || rawBody.slice(0, 500) || title,
+      descriptionSummary: cleanHtmlToText(sections.summary || rawBody.slice(0, 500) || title),
       fullDescriptionHtml: data.descriptionBody || data.description,
       responsibilities: responsibilities.length > 0 ? responsibilities : sections.responsibilities,
       qualifications: qualifications.length > 0 ? qualifications : sections.qualifications,
@@ -337,7 +338,8 @@ function parseSchemaJobPosting(
     if (typeof addr === "object") {
       city = addr.addressLocality;
       state = addr.addressRegion;
-      country = addr.addressCountry;
+      const rawCountry = typeof addr.addressCountry === "object" ? (addr.addressCountry as { name?: string })?.name : addr.addressCountry;
+      country = rawCountry ? toCountryCode(rawCountry, "IN") : undefined;
       const parts = [city, state, country].filter(Boolean);
       location = parts.join(", ") || "Multiple Locations";
     } else if (typeof addr === "string") {
@@ -514,7 +516,7 @@ function parseDirectJobObject(
       experienceMax: typeof data.experienceMax === "number" ? data.experienceMax : undefined,
       education: data.education,
       skills: Array.isArray(data.skills) ? data.skills : typeof data.skills === "string" ? data.skills.split(",").map(s => s.trim()).filter(Boolean) : [],
-      descriptionSummary: data.summary || data.description || "",
+      descriptionSummary: cleanHtmlToText(data.summary || data.description || ""),
       responsibilities: Array.isArray(data.responsibilities) ? data.responsibilities : [],
       qualifications: Array.isArray(data.qualifications) ? data.qualifications : [],
       preferredQualifications: Array.isArray(data.preferredQualifications) ? data.preferredQualifications : [],
@@ -608,7 +610,7 @@ function parseHtmlFallback(
       experienceStated: exp.stated,
       education,
       skills: sections.skills,
-      descriptionSummary: sections.summary || (descMatch ? descMatch[1].trim() : title),
+      descriptionSummary: cleanHtmlToText(sections.summary || (descMatch ? descMatch[1].trim() : title)),
       fullDescriptionHtml: html,
       responsibilities: sections.responsibilities,
       qualifications: sections.qualifications,

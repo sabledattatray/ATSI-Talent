@@ -1,5 +1,6 @@
 import { validTextStyle } from "./text-style";
 import { z } from "zod";
+import { toCountryCode } from "@/lib/countries";
 const text = (max: number) => z.string().trim().max(max);
 const url = text(2000).refine(v => !v || /^https?:\/\/[^\s]+$/i.test(v), "Use a complete HTTP or HTTPS URL.");
 const mediaUrl = text(2000).refine(v => !v || /^\/api\/media\/[a-f0-9-]+$/.test(v), "Select an uploaded image from the media library.");
@@ -27,7 +28,8 @@ function documentText(value: unknown): string {
 export const contentSchema = z.object({
   id: text(80), kind: z.enum(["job", "post"]), title: text(180).min(3, "Add a title of at least 3 characters."), slug: z.string().min(3).max(120).regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, "Use lowercase words separated by hyphens."), status: z.enum(["draft", "published", "archived"]),
   salaryCurrency: text(3).regex(/^[A-Z]{3}$/).optional().default("INR"), salaryPeriod: z.enum(["YEAR","MONTH","WEEK","DAY","HOUR"]).optional().default("YEAR"), employerVerified: z.boolean().optional().default(false),
-  googleJobs: z.boolean().optional().default(false), jobOriginalDate: text(10).optional().default(""), jobCity: text(120).optional().default(""), jobRegion: text(120).optional().default(""), jobCountry: text(2).optional().default(""),
+  googleJobs: z.boolean().optional().default(false), jobOriginalDate: text(10).optional().default(""), jobCity: text(120).optional().default(""), jobRegion: text(120).optional().default(""), jobCountry: z.string().trim().max(120).optional().default("").transform(v => v ? toCountryCode(v, v.length === 2 ? v.toUpperCase() : "IN") : ""),
+
   excerpt: text(600), category: text(80).min(1), cover: mediaUrl, content: z.unknown().refine(validDocument, "Invalid editor document."), seoTitle: text(70), seoDescription: text(170), author: text(80).min(1), featured: z.boolean(), company: text(120), location: text(160), workMode: z.enum(["Remote", "Hybrid", "On-site"]), employmentType: z.enum(["Full-time", "Contract", "Part-time", "Executive", "Temporary", "Internship", "Volunteer"]), experienceMin: z.number().min(0).max(60), experienceMax: z.number().min(0).max(60), salaryMin: z.number().min(0).max(1e9), salaryMax: z.number().min(0).max(1e9), skills: text(1200), expiresAt: z.string().refine(v => !v || Number.isFinite(Date.parse(v)), "Enter a valid expiry date."), applicationUrl: url, version: z.number().int().min(0), employerPublishedAt: z.string().optional().default(""), isExpired: z.boolean().optional().default(false), lastVerifiedAt: z.string().optional().default(""), requisitionId: text(100).optional().default(""), legalDisclaimer: text(1000).optional().default(""), isIndependentCurated: z.boolean().optional(),
 }).superRefine((v, ctx) => {
   const issue = (path: string, message: string) => ctx.addIssue({ code: "custom", path: [path], message });

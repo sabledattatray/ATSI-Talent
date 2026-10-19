@@ -1,7 +1,7 @@
 import "server-only";
 import { changeApplicationStage, recordApplicationEvent } from "@/lib/application-workflow";
 import { applicationMailStatus, emailConfiguration, retryApplicationEmail } from "@/lib/notifications";
-import { isCountryCode } from "@/lib/countries";
+import { isCountryCode, toCountryCode } from "@/lib/countries";
 import { candidateUser } from "@/lib/recruitment";
 import { randomBytes, randomUUID } from "node:crypto";
 import { cookies } from "next/headers";
@@ -87,7 +87,7 @@ export async function atsRequest(request:Request,route:string):Promise<Response>
         const row=await db().prepare("SELECT id,password FROM ats_employers WHERE email=?").get(input.email) as {id:string;password:string}|undefined;
         if(!row||!await verifyPassword(input.password,row.password))fail("Email or password is incorrect.",401);await session(row.id);return json({ok:true});
       }
-      const value=z.object({name:text(80).min(2),company:text(120).min(2).optional(),country:text(2).refine(isCountryCode,"Choose a valid country.").optional(),website:text(1000).refine(s=>!s||/^https:\/\/[^\s]+$/.test(s),"Use an HTTPS website URL.").default(""),invite:text(128).optional(),consent:z.literal(true)}).parse(body);
+      const value=z.object({name:text(80).min(2),company:text(120).min(2).optional(),country:z.string().trim().max(120).transform(v=>toCountryCode(v,"IN")).refine(isCountryCode,"Choose a valid country.").optional(),website:text(1000).refine(s=>!s||/^https:\/\/[^\s]+$/.test(s),"Use an HTTPS website URL.").default(""),invite:text(128).optional(),consent:z.literal(true)}).parse(body);
       const password=await hashPassword(input.password);const id=randomUUID();const now=new Date().toISOString();
       await transaction(async()=>{
         let org:string,role:"owner"|"recruiter"="owner";
@@ -157,7 +157,7 @@ export async function atsRequest(request:Request,route:string):Promise<Response>
           isExpired: isExp,
         };
       } else {
-        const input=z.object({id:text(80).default(""),version:z.number().int().min(0).default(0),title:text(180).min(3),description:text(30000).min(20),excerpt:text(600).min(20),category:text(80).min(2),location:text(160).min(2),jobCountry:text(2).refine(isCountryCode,"Choose a valid country."),jobCity:text(120).default(""),jobRegion:text(120).default(""),workMode:z.enum(["Remote","Hybrid","On-site"]),employmentType:z.enum(["Full-time","Part-time","Contract","Executive","Temporary","Internship","Volunteer"]),salaryCurrency:text(3).regex(/^[A-Z]{3}$/),salaryPeriod:z.enum(["YEAR","MONTH","WEEK","DAY","HOUR"]),salaryMin:z.number().min(0).max(1e9),salaryMax:z.number().min(0).max(1e9),experienceMin:z.number().min(0).max(60),experienceMax:z.number().min(0).max(60),skills:text(1200).default(""),expiresAt:text(40).default(""),status:z.enum(["draft","published","archived"])}).parse(body);
+        const input=z.object({id:text(80).default(""),version:z.number().int().min(0).default(0),title:text(180).min(3),description:text(30000).min(20),excerpt:text(600).min(20),category:text(80).min(2),location:text(160).min(2),jobCountry:z.string().trim().max(120).transform(v=>toCountryCode(v,"IN")).refine(isCountryCode,"Choose a valid country."),jobCity:text(120).default(""),jobRegion:text(120).default(""),workMode:z.enum(["Remote","Hybrid","On-site"]),employmentType:z.enum(["Full-time","Part-time","Contract","Executive","Temporary","Internship","Volunteer"]),salaryCurrency:text(3).regex(/^[A-Z]{3}$/),salaryPeriod:z.enum(["YEAR","MONTH","WEEK","DAY","HOUR"]),salaryMin:z.number().min(0).max(1e9),salaryMax:z.number().min(0).max(1e9),experienceMin:z.number().min(0).max(60),experienceMax:z.number().min(0).max(60),skills:text(1200).default(""),expiresAt:text(40).default(""),status:z.enum(["draft","published","archived"])}).parse(body);
         try{new Intl.NumberFormat("en",{style:"currency",currency:input.salaryCurrency});}catch{fail("Choose a valid three-letter currency code.");}
         if(!Intl.supportedValuesOf("currency").includes(input.salaryCurrency))fail("Choose a supported ISO currency.");
         const previous=input.id?await ownedJob(input.id,user.organizationId):null;

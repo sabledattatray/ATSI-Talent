@@ -7,6 +7,7 @@ import { verifyJobFacts } from "./verification";
 import { findDuplicateJob } from "./deduplication";
 import { generateFactualJobContent } from "./summary";
 import { resolveAtsPayload } from "./ats-resolver";
+import { toCountryCode } from "@/lib/countries";
 import type {
   JobSource,
   ImportBatch,
@@ -611,7 +612,7 @@ export async function approveAndPublishItem(itemId: string, actor: string, orgId
     googleJobs: true,
     jobOriginalDate: facts.datePosted || "",
     jobCity: facts.city || (facts.location ? facts.location.split(",")[0]?.trim() : "") || facts.location,
-    jobCountry: facts.country || "India",
+    jobCountry: toCountryCode(facts.country, "IN"),
     employerPublishedAt: facts.datePosted || "",
     importedAt: now,
     lastVerifiedAt: now,

@@ -1,5 +1,6 @@
 import type { RichNode } from "@/lib/admin/types";
 import type { ExtractedJobFacts } from "./types";
+import { cleanHtmlToText } from "./html-parser";
 
 export interface GeneratedJobContent {
   excerpt: string;
@@ -20,7 +21,7 @@ export function generateFactualJobContent(facts: ExtractedJobFacts): GeneratedJo
   const compText = facts.salaryDisclosed && facts.salaryMin && facts.salaryMax
     ? `Offering ${facts.salaryCurrency || "INR"} ${facts.salaryMin.toLocaleString("en-IN")}–${facts.salaryMax.toLocaleString("en-IN")}. `
     : "";
-  const excerpt = `${facts.company} is seeking a ${facts.title} in ${facts.location} (${facts.workMode}). ${compText}Apply on the official employer website.`.slice(0, 180);
+  const excerpt = cleanHtmlToText(`${facts.company} is seeking a ${facts.title} in ${facts.location} (${facts.workMode}). ${compText}Apply on the official employer website.`).slice(0, 180);
   const seoDescription = excerpt;
 
   const docNodes: RichNode[] = [];
@@ -63,84 +64,116 @@ export function generateFactualJobContent(facts: ExtractedJobFacts): GeneratedJo
     content: [{ type: "text", text: "Role Overview & Summary" }]
   });
 
-  const summaryText = facts.descriptionSummary ||
+  const rawSummaryText = facts.descriptionSummary ||
     `${facts.company} has announced an open position for a ${facts.title} based in ${facts.location}. This requisition operates under an ${facts.workMode.toLowerCase()} model on a ${facts.employmentType.toLowerCase()} basis.`;
 
-  // Split multiple paragraphs if available
-  const summaryParagraphs = summaryText.split(/\n\s*\n/).filter(p => p.trim().length > 0);
+  const cleanSummary = cleanHtmlToText(rawSummaryText);
+  let summaryParagraphs = cleanSummary
+    .split(/\n\s*\n/)
+    .map(p => cleanHtmlToText(p))
+    .filter(p => p.length > 10 && !/^(?:class=|data-qa=|data-[\w-]+=|id=|<div|<span|<p)/i.test(p));
+
+  if (summaryParagraphs.length === 0) {
+    summaryParagraphs = [`${facts.company} has announced an open vacancy for a ${facts.title} based in ${facts.location}. Review the stated responsibilities, requirements, and official application details below.`];
+  }
+
   for (const p of summaryParagraphs) {
     docNodes.push({
       type: "paragraph",
-      content: [{ type: "text", text: p.trim() }]
+      content: [{ type: "text", text: p }]
     });
   }
 
   // 3. Stated Responsibilities
   if (facts.responsibilities && facts.responsibilities.length > 0) {
-    docNodes.push({
-      type: "heading",
-      attrs: { level: 3 },
-      content: [{ type: "text", text: "Key Responsibilities" }]
-    });
+    const cleanResponsibilities = facts.responsibilities
+      .map(r => cleanHtmlToText(r))
+      .filter(r => r.length > 5 && !/^(?:class=|data-qa=|<div|<span|<p)/i.test(r));
 
-    docNodes.push({
-      type: "bulletList",
-      content: facts.responsibilities.map(r => ({
-        type: "listItem",
-        content: [{ type: "paragraph", content: [{ type: "text", text: r }] }]
-      }))
-    });
+    if (cleanResponsibilities.length > 0) {
+      docNodes.push({
+        type: "heading",
+        attrs: { level: 3 },
+        content: [{ type: "text", text: "Key Responsibilities" }]
+      });
+
+      docNodes.push({
+        type: "bulletList",
+        content: cleanResponsibilities.map(r => ({
+          type: "listItem",
+          content: [{ type: "paragraph", content: [{ type: "text", text: r }] }]
+        }))
+      });
+    }
   }
 
   // 4. Stated Qualifications & Requirements
   if (facts.qualifications && facts.qualifications.length > 0) {
-    docNodes.push({
-      type: "heading",
-      attrs: { level: 3 },
-      content: [{ type: "text", text: "Required Qualifications & Experience" }]
-    });
+    const cleanQualifications = facts.qualifications
+      .map(q => cleanHtmlToText(q))
+      .filter(q => q.length > 5 && !/^(?:class=|data-qa=|<div|<span|<p)/i.test(q));
 
-    docNodes.push({
-      type: "bulletList",
-      content: facts.qualifications.map(q => ({
-        type: "listItem",
-        content: [{ type: "paragraph", content: [{ type: "text", text: q }] }]
-      }))
-    });
+    if (cleanQualifications.length > 0) {
+      docNodes.push({
+        type: "heading",
+        attrs: { level: 3 },
+        content: [{ type: "text", text: "Required Qualifications & Experience" }]
+      });
+
+      docNodes.push({
+        type: "bulletList",
+        content: cleanQualifications.map(q => ({
+          type: "listItem",
+          content: [{ type: "paragraph", content: [{ type: "text", text: q }] }]
+        }))
+      });
+    }
   }
 
   // 5. Preferred Qualifications (if any)
   if (facts.preferredQualifications && facts.preferredQualifications.length > 0) {
-    docNodes.push({
-      type: "heading",
-      attrs: { level: 3 },
-      content: [{ type: "text", text: "Preferred Qualifications & Desired Skills" }]
-    });
+    const cleanPreferred = facts.preferredQualifications
+      .map(pq => cleanHtmlToText(pq))
+      .filter(pq => pq.length > 5 && !/^(?:class=|data-qa=|<div|<span|<p)/i.test(pq));
 
-    docNodes.push({
-      type: "bulletList",
-      content: facts.preferredQualifications.map(pq => ({
-        type: "listItem",
-        content: [{ type: "paragraph", content: [{ type: "text", text: pq }] }]
-      }))
-    });
+    if (cleanPreferred.length > 0) {
+      docNodes.push({
+        type: "heading",
+        attrs: { level: 3 },
+        content: [{ type: "text", text: "Preferred Qualifications & Desired Skills" }]
+      });
+
+      docNodes.push({
+        type: "bulletList",
+        content: cleanPreferred.map(pq => ({
+          type: "listItem",
+          content: [{ type: "paragraph", content: [{ type: "text", text: pq }] }]
+        }))
+      });
+    }
   }
 
   // 6. Core Skills & Technologies
   if (facts.skills && facts.skills.length > 0) {
-    docNodes.push({
-      type: "heading",
-      attrs: { level: 3 },
-      content: [{ type: "text", text: "Identified Skills & Technologies" }]
-    });
+    const cleanSkills = facts.skills
+      .map(s => cleanHtmlToText(s))
+      .filter(s => s.length > 1 && !/^(?:class=|data-qa=|<div|<span|<p)/i.test(s));
 
-    docNodes.push({
-      type: "bulletList",
-      content: facts.skills.map(s => ({
-        type: "listItem",
-        content: [{ type: "paragraph", content: [{ type: "text", text: s }] }]
-      }))
-    });
+    if (cleanSkills.length > 0) {
+      docNodes.push({
+        type: "heading",
+        attrs: { level: 3 },
+        content: [{ type: "text", text: "Identified Skills & Technologies" }]
+      });
+
+      docNodes.push({
+        type: "bulletList",
+        content: cleanSkills.map(s => ({
+          type: "listItem",
+          content: [{ type: "paragraph", content: [{ type: "text", text: s }] }]
+        }))
+      });
+    }
   }
 
   // 7. Benefits & Compensation (if disclosed)
@@ -162,13 +195,19 @@ export function generateFactualJobContent(facts: ExtractedJobFacts): GeneratedJo
     }
 
     if (facts.benefits && facts.benefits.length > 0) {
-      docNodes.push({
-        type: "bulletList",
-        content: facts.benefits.map(b => ({
-          type: "listItem",
-          content: [{ type: "paragraph", content: [{ type: "text", text: b }] }]
-        }))
-      });
+      const cleanBenefits = facts.benefits
+        .map(b => cleanHtmlToText(b))
+        .filter(b => b.length > 3 && !/^(?:class=|data-qa=|<div|<span|<p)/i.test(b));
+
+      if (cleanBenefits.length > 0) {
+        docNodes.push({
+          type: "bulletList",
+          content: cleanBenefits.map(b => ({
+            type: "listItem",
+            content: [{ type: "paragraph", content: [{ type: "text", text: b }] }]
+          }))
+        });
+      }
     }
   }
 

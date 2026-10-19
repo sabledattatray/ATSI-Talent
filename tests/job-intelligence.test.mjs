@@ -545,3 +545,113 @@ test("Job Intelligence Audit & Repair: Audits existing jobs and normalizes prove
   assert.ok(typeof repairResult.unsupportedClaimsRemoved === "number");
 });
 
+test("Job Intelligence HTML Sanitizer: Strips raw/encoded HTML block kit and div tags cleanly", () => {
+  const { load } = createTestContext();
+  const htmlParser = load("src/lib/job-intelligence/html-parser.ts");
+  const summaryModule = load("src/lib/job-intelligence/summary.ts");
+
+  const rawBlockSnippet = `Role Overview & Summary\n\n<div class="content-intro"><div class="c-message_kit__blocks c-message_kit__blocks--rich_text"> <div class="c-message__message_blocks c-message__message_blocks--rich_text" data-qa="message-text"> <div class="p-block_kit_renderer" data-qa="block-kit-renderer"> <div class="p-block_kit_renderer__block_wrapper p-block_kit_renderer__block_wrapper--first"> <div class="p-rich_text_block">We are looking for an exceptional Staff AI Engineer to build scalable machine learning systems.`;
+  const cleaned = htmlParser.cleanHtmlToText(rawBlockSnippet);
+
+  assert.ok(!cleaned.includes("<div"), "Cleaned text must not contain raw <div tags");
+  assert.ok(!cleaned.includes("content-intro"), "Cleaned text must not contain raw HTML class names");
+  assert.ok(!cleaned.includes("c-message_kit__blocks"), "Cleaned text must not contain block kit classes");
+  assert.ok(cleaned.includes("Staff AI Engineer"), "Cleaned text must retain actual content");
+
+  // Encoded HTML snippet test
+  const encodedSnippet = `&lt;div class=&quot;content-intro&quot;&gt;&lt;p&gt;Lead multi-agent reasoning models.&lt;/p&gt;&lt;/div&gt;`;
+  const cleanedEncoded = htmlParser.cleanHtmlToText(encodedSnippet);
+  assert.ok(!cleanedEncoded.includes("&lt;"), "Must decode entities");
+  assert.ok(!cleanedEncoded.includes("<div"), "Must not leave <div after decoding");
+  assert.ok(cleanedEncoded.includes("Lead multi-agent reasoning models."));
+
+  // Full summary generation test
+  const generated = summaryModule.generateFactualJobContent({
+    externalJobId: "12345",
+    title: "Staff AI Researcher",
+    company: "Anthropic Partner",
+    location: "Bengaluru, India",
+    workMode: "Hybrid",
+    employmentType: "Full-time",
+    salaryDisclosed: false,
+    descriptionSummary: rawBlockSnippet,
+    responsibilities: [
+      `<div class="p-rich_text_block">Design and evaluate reasoning benchmarks</div>`,
+      "Train multi-modal foundation models"
+    ],
+    officialApplyUrl: "https://careers.example.com/apply/staff-ai-researcher",
+    sourceUrl: "https://careers.example.com/apply/staff-ai-researcher",
+    sourceAttribution: "Independent vacancy notice",
+    isIndependentCurated: true,
+    atsProvider: "greenhouse"
+  });
+
+  const docText = JSON.stringify(generated.content);
+  assert.ok(!docText.includes("<div"), "Generated document AST must not contain <div tags in text nodes");
+  assert.ok(!docText.includes("c-message_kit"), "Generated document AST must not contain c-message_kit");
+  assert.ok(docText.includes("Staff AI Engineer"));
+  assert.ok(docText.includes("Design and evaluate reasoning benchmarks"));
+});
+
+test("Country Normalization & Validation: Accepts country names and codes without 'Too big: expected string to have <=2 characters' error", () => {
+  const { load } = createTestContext();
+  const countries = load("src/lib/countries.ts");
+  const validation = load("src/lib/admin/validation.ts");
+
+  // Country code normalizer checks
+  assert.equal(countries.toCountryCode("India"), "IN");
+  assert.equal(countries.toCountryCode("United States"), "US");
+  assert.equal(countries.toCountryCode("USA"), "US");
+  assert.equal(countries.toCountryCode("United Kingdom"), "GB");
+  assert.equal(countries.toCountryCode("UK"), "GB");
+  assert.equal(countries.toCountryCode("Canada"), "CA");
+  assert.equal(countries.toCountryCode("Germany"), "DE");
+  assert.equal(countries.toCountryCode("IN"), "IN");
+  assert.equal(countries.toCountryCode("in"), "IN");
+
+  // Content schema validation checks
+  const baseJob = {
+    id: "job-test-country-1",
+    kind: "job",
+    title: "Senior Full Stack Engineer",
+    slug: "senior-full-stack-engineer",
+    status: "draft",
+    excerpt: "Join our engineering team to build scalable recruiting platforms.",
+    category: "Engineering",
+    cover: "",
+    content: {
+      type: "doc",
+      content: [{ type: "paragraph", content: [{ type: "text", text: "This is a full description of the role for validation." }] }]
+    },
+    seoTitle: "Senior Full Stack Engineer",
+    seoDescription: "Join our engineering team to build scalable recruiting platforms.",
+    author: "ATSAI Team",
+    featured: false,
+    company: "Example Tech",
+    location: "Bengaluru, India",
+    workMode: "Hybrid",
+    employmentType: "Full-time",
+    experienceMin: 3,
+    experienceMax: 8,
+    salaryMin: 2000000,
+    salaryMax: 4000000,
+    skills: "React, Node.js, TypeScript",
+    expiresAt: "",
+    applicationUrl: "",
+    version: 1,
+    googleJobs: true,
+    jobOriginalDate: "2026-10-18",
+    jobCity: "Bengaluru",
+    jobRegion: "Karnataka",
+    jobCountry: "India" // Full country name - previously failed with "Too big: expected string to have <=2 characters"
+  };
+
+  const parsed = validation.contentSchema.parse(baseJob);
+  assert.equal(parsed.jobCountry, "IN", "Full country name 'India' must be normalized to 'IN'");
+
+  // Also test with "United States"
+  const parsedUS = validation.contentSchema.parse({ ...baseJob, jobCountry: "United States" });
+  assert.equal(parsedUS.jobCountry, "US", "Full country name 'United States' must be normalized to 'US'");
+});
+
+

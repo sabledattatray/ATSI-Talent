@@ -26,21 +26,61 @@ export function decodeHtmlEntities(raw: string): string {
 }
 
 /**
+ * Thoroughly decodes HTML entities, removes script/style tags, converts structural block
+ * elements into proper paragraph breaks, and strips all HTML tags and remnants.
+ */
+export function cleanHtmlToText(raw: string): string {
+  if (!raw) return "";
+  let text = String(raw);
+
+  // If input contains entity-encoded HTML tags like &lt;div or &amp;lt;, decode them first
+  for (let i = 0; i < 2; i++) {
+    if (/&(?:amp;)?(?:lt|gt|quot|#39|#x27);/i.test(text)) {
+      text = decodeHtmlEntities(text);
+    }
+  }
+
+  // Remove script and style tags completely along with their inner contents
+  text = text
+    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, "")
+    .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, "");
+
+  // Convert HTML breaks and block container closes to double newlines
+  text = text
+    .replace(/<br\s*[\/]?>/gi, "\n")
+    .replace(/<\/(p|div|h[1-6]|li|tr|blockquote|section|article)>/gi, "\n\n")
+    .replace(/<(p|div|h[1-6]|li|tr|blockquote|section|article)[^>]*>/gi, "\n");
+
+  // Strip all standard HTML tags
+  text = text.replace(/<[^>]+>/g, " ");
+
+  // Decode standard text entities (like &nbsp;, &amp;, &mdash;, &rsquo;)
+  text = decodeHtmlEntities(text);
+
+  // Strip any newly unescaped HTML tags (e.g., if &lt;div&gt; was decoded to <div>)
+  text = text.replace(/<[^>]+>/g, " ");
+
+  // Strip stray HTML-like attribute artifacts like class="c-message..." or data-qa="..."
+  text = text
+    .replace(/\b(?:class|id|data-qa|data-[\w-]+)\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, " ")
+    .replace(/<[^>]*$/gm, " ");
+
+  // Normalize whitespace and clean up empty paragraph breaks
+  return text
+    .replace(/[ \t]+/g, " ")
+    .replace(/\n\s*\n\s*\n+/g, "\n\n")
+    .split("\n")
+    .map(line => line.trim())
+    .filter(line => line.length > 0 && !/^<[^>]+>$/.test(line) && !/^(?:class=|data-qa=|<div|<span)/i.test(line))
+    .join("\n")
+    .trim();
+}
+
+/**
  * Strips HTML tags and returns clean plaintext with normalized spaces.
  */
 export function htmlToCleanText(html: string): string {
-  if (!html) return "";
-  return decodeHtmlEntities(
-    html
-      .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, "")
-      .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, "")
-      .replace(/<br\s*[\/]?>/gi, "\n")
-      .replace(/<\/(p|div|h[1-6]|li|tr|blockquote)>/gi, "\n")
-      .replace(/<[^>]+>/g, " ")
-  )
-    .replace(/[ \t]+/g, " ")
-    .replace(/\n\s*\n/g, "\n\n")
-    .trim();
+  return cleanHtmlToText(html);
 }
 
 export interface ExtractedSections {
@@ -70,7 +110,7 @@ const COMMON_SKILLS = [
  * from HTML content by detecting headings, paragraphs, and list items.
  */
 export function extractHtmlSections(html: string): ExtractedSections {
-  const cleanRaw = htmlToCleanText(html);
+  const cleanRaw = cleanHtmlToText(html);
   if (!html || !html.trim()) {
     return {
       summary: "",
@@ -83,17 +123,23 @@ export function extractHtmlSections(html: string): ExtractedSections {
     };
   }
 
+  // Pre-process: if input is entity-encoded HTML, decode once so headings/lists are recognizable
+  let workingHtml = html;
+  if (/&(?:amp;)?(?:lt|gt);/i.test(workingHtml)) {
+    workingHtml = decodeHtmlEntities(workingHtml);
+  }
+
   // Pre-process: break into blocks based on headings or tags
   // Replace HTML tag markers with tokenized delimiters for splitting
-  const tokenized = html
+  const tokenized = workingHtml
     .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, "")
     .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, "")
     .replace(/<(h[1-6]|strong|b)[^>]*>([\s\S]*?)<\/\1>/gi, "\n\n###SECTION_HEADING:$2###\n\n")
     .replace(/<li[^>]*>([\s\S]*?)<\/li>/gi, "\n* $1\n")
     .replace(/<br\s*[\/]?>/gi, "\n")
-    .replace(/<\/(p|div)>/gi, "\n\n");
+    .replace(/<\/(p|div|section|article)>/gi, "\n\n");
 
-  const plainWithTokens = decodeHtmlEntities(tokenized.replace(/<[^>]+>/g, " "));
+  const plainWithTokens = cleanHtmlToText(tokenized.replace(/<[^>]+>/g, " "));
   const lines = plainWithTokens.split("\n").map(l => l.trim()).filter(Boolean);
 
   let currentSection: "summary" | "responsibilities" | "qualifications" | "preferred" | "benefits" = "summary";
@@ -122,10 +168,13 @@ export function extractHtmlSections(html: string): ExtractedSections {
       continue;
     }
 
-    // Clean line from bullet prefix if present
+    // Clean line from bullet prefix if present and strip any HTML
     const isBullet = /^[\*•\-–—\d+\.]\s+/.test(line);
-    const cleanLine = line.replace(/^[\*•\-–—\d+\.]\s+/, "").trim();
+    const cleanLine = cleanHtmlToText(line.replace(/^[\*•\-–—\d+\.]\s+/, ""));
     if (!cleanLine || cleanLine.length < 3) continue;
+
+    // Filter out residual HTML fragments, e.g. class= or data-qa= or unparsed tags
+    if (/^(?:class=|data-qa=|data-[\w-]+=|id=|<div|<span|<p)/i.test(cleanLine)) continue;
 
     if (currentSection === "responsibilities") {
       if (isBullet || cleanLine.length > 20) responsibilities.push(cleanLine);
@@ -143,9 +192,9 @@ export function extractHtmlSections(html: string): ExtractedSections {
   }
 
   // If summary was empty or too brief, pull from initial text
-  let finalSummary = summaryParts.join(" ").trim();
+  let finalSummary = cleanHtmlToText(summaryParts.join(" "));
   if (finalSummary.length < 50) {
-    const paragraphs = cleanRaw.split(/\n\s*\n/).filter(p => p.length > 40 && !p.startsWith("*"));
+    const paragraphs = cleanRaw.split(/\n\s*\n/).map(p => cleanHtmlToText(p)).filter(p => p.length > 40 && !p.startsWith("*"));
     if (paragraphs.length > 0) {
       finalSummary = paragraphs.slice(0, 2).join(" ").slice(0, 600);
     }
@@ -156,10 +205,10 @@ export function extractHtmlSections(html: string): ExtractedSections {
 
   return {
     summary: finalSummary,
-    responsibilities: Array.from(new Set(responsibilities)).slice(0, 20),
-    qualifications: Array.from(new Set(qualifications)).slice(0, 20),
-    preferredQualifications: Array.from(new Set(preferredQualifications)).slice(0, 15),
-    benefits: Array.from(new Set(benefits)).slice(0, 15),
+    responsibilities: Array.from(new Set(responsibilities.map(r => cleanHtmlToText(r)).filter(r => r.length > 5))).slice(0, 20),
+    qualifications: Array.from(new Set(qualifications.map(q => cleanHtmlToText(q)).filter(q => q.length > 5))).slice(0, 20),
+    preferredQualifications: Array.from(new Set(preferredQualifications.map(pq => cleanHtmlToText(pq)).filter(pq => pq.length > 5))).slice(0, 15),
+    benefits: Array.from(new Set(benefits.map(b => cleanHtmlToText(b)).filter(b => b.length > 5))).slice(0, 15),
     skills: extractedSkills,
     rawText: cleanRaw
   };

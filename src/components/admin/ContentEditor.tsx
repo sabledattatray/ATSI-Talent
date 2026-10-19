@@ -3,9 +3,70 @@
 import { CURRENCIES, INDUSTRIES } from "@/lib/ats-types";
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { ArrowLeft, ArrowUpRight, ChevronDown, ExternalLink, Globe2, ImagePlus, Search, ShieldCheck, Sparkles, X } from "lucide-react";
-import { slugify, type ContentRecord, type MediaRecord } from "@/lib/admin/types";
+import { slugify, type ContentRecord, type MediaRecord, type RichNode } from "@/lib/admin/types";
+import { toCountryCode } from "@/lib/countries";
 import { RichEditor } from "./RichEditor";
 import { RichContent } from "./RichContent";
+
+function sanitizeDocumentText(text: string): string {
+  if (!text) return "";
+  if (!/<[a-z/]|class=|data-qa=/i.test(text)) return text;
+  return text
+    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, "")
+    .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, "")
+    .replace(/<br\s*[\/]?>/gi, " ")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&(?:nbsp|amp|quot|lt|gt|#39|#x27);/gi, m => {
+      const map: Record<string, string> = { "&nbsp;": " ", "&amp;": "&", "&quot;": '"', "&lt;": "<", "&gt;": ">", "&#39;": "'", "&#x27;": "'" };
+      return map[m.toLowerCase()] || " ";
+    })
+    .replace(/<[^>]+>/g, " ")
+    .replace(/\b(?:class|data-qa|data-[\w-]+)\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, " ")
+    .replace(/[ \t]+/g, " ")
+    .trim();
+}
+
+function sanitizeRichNodes(node: RichNode): RichNode | null {
+  if (!node) return node;
+  if (node.type === "text") {
+    const raw = typeof node.text === "string" ? node.text : "";
+    if (/<[a-z/]|class=|data-qa=/i.test(raw)) {
+      const cleaned = sanitizeDocumentText(raw);
+      if (!cleaned || /^(?:class=|data-qa=|<div|<span)/i.test(cleaned)) {
+        return null;
+      }
+      return { ...node, text: cleaned };
+    }
+    return node;
+  }
+
+  if (Array.isArray(node.content)) {
+    const newContent: RichNode[] = [];
+    for (const child of node.content) {
+      const sanitized = sanitizeRichNodes(child);
+      if (sanitized) {
+        if ((sanitized.type === "paragraph" || sanitized.type === "heading") && Array.isArray(sanitized.content) && sanitized.content.length === 0) {
+          continue;
+        }
+        newContent.push(sanitized);
+      }
+    }
+    return { ...node, content: newContent };
+  }
+
+  return node;
+}
+
+export function sanitizeRecordForEditor(r: ContentRecord): ContentRecord {
+  const isJob = r.kind === "job";
+  const jobCountry = isJob && r.jobCountry ? toCountryCode(r.jobCountry, "IN") : (r.jobCountry || "");
+  const content = r.content ? ((sanitizeRichNodes(r.content) as RichNode) || r.content) : r.content;
+  return {
+    ...r,
+    jobCountry,
+    content
+  };
+}
 
 export function isRecordExpired(r: { kind?: string; expiresAt?: string; isExpired?: boolean }): boolean {
   if (r.kind && r.kind !== "job") return false;
@@ -47,8 +108,8 @@ export interface ContentEditorProps {
 }
 
 export function ContentEditor({ record, media, onUpload, onClose, onPreview, onSaved, onSave, saveEndpoint }: ContentEditorProps) {
-  const [value, setValue] = useState(record);
-  const [saved, setSaved] = useState(JSON.stringify(record));
+  const [value, setValue] = useState(() => sanitizeRecordForEditor(record));
+  const [saved, setSaved] = useState(() => JSON.stringify(sanitizeRecordForEditor(record)));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [coverPicker, setCoverPicker] = useState(false);
@@ -81,9 +142,10 @@ export function ContentEditor({ record, media, onUpload, onClose, onPreview, onS
     setSaving(true);
     setError("");
     try {
+      const cleanRecord = sanitizeRecordForEditor(value);
       const payload: ContentRecord = {
-        ...value,
-        slug: value.slug || slugify(value.title),
+        ...cleanRecord,
+        slug: cleanRecord.slug || slugify(cleanRecord.title),
         status
       };
       let savedRecord: ContentRecord;
@@ -93,9 +155,10 @@ export function ContentEditor({ record, media, onUpload, onClose, onPreview, onS
         const r = await defaultSaveApi(saveEndpoint || "content", payload);
         savedRecord = r.record;
       }
-      setValue(savedRecord);
-      setSaved(JSON.stringify(savedRecord));
-      await onSaved(savedRecord);
+      const sanitizedSaved = sanitizeRecordForEditor(savedRecord);
+      setValue(sanitizedSaved);
+      setSaved(JSON.stringify(sanitizedSaved));
+      await onSaved(sanitizedSaved);
     } catch (e) {
       setError((e as Error).message);
     } finally {
