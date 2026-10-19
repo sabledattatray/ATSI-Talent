@@ -3,6 +3,7 @@ import { randomBytes, randomInt, randomUUID, timingSafeEqual } from "node:crypto
 import { cookies } from "next/headers";
 import { db, limit, transaction } from "@/lib/admin/db";
 import { tokenHash } from "@/lib/admin/auth";
+import { verificationEmail } from "@/lib/auth/verification-email";
 export type AccountScope = "candidate" | "employer";
 export type LoginMethod = "email" | "google_one_tap" | "google_button";
 export const authError = (message: string, status = 400) => Object.assign(new Error(message), { status });
@@ -49,7 +50,7 @@ export async function beginEmailVerification(scope: AccountScope,userId: string,
     await db().prepare("INSERT INTO auth_challenges VALUES (?,?,?,?,?,?,0,?)").run(id,scope,userId,email,tokenHash(token+":"+code),Date.now()+600_000,Date.now());
   });
   try {
-    const response=await fetch("https://api.resend.com/emails",{method:"POST",headers:{Authorization:"Bearer "+otpDelivery().key,"Content-Type":"application/json","Idempotency-Key":"atsai-verify-"+id},body:JSON.stringify({from:otpDelivery().from,to:[email],subject:"Your ATSAI email verification code",text:"Your ATSAI verification code is "+code+". It expires in 10 minutes. Do not share this code. If you did not request it, ignore this email."}),signal:AbortSignal.timeout(12_000)});
+    const response=await fetch("https://api.resend.com/emails",{method:"POST",headers:{Authorization:"Bearer "+otpDelivery().key,"Content-Type":"application/json","Idempotency-Key":"atsai-verify-"+id},body:JSON.stringify({from:otpDelivery().from,to:[email],...verificationEmail(code,scope)}),signal:AbortSignal.timeout(12_000)});
     if(!response.ok) throw authError("We could not send your verification email. Please try signing in again shortly.",503);
     const delivery=await response.json() as {id?:unknown};
     if(typeof delivery.id!=="string"||!delivery.id)throw authError("Email delivery was not confirmed. Please try again shortly.",503);
