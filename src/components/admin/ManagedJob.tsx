@@ -6,6 +6,7 @@ import { ArrowLeft, ArrowUpRight, BriefcaseBusiness, Building2, MapPin, ShieldAl
 import type { ContentRecord } from "@/lib/admin/types";
 import { RichContent } from "./RichContent";
 import { JobActions } from "@/components/recruitment/RecruitmentClient";
+import { getCanonicalJobSummary } from "@/lib/canonical-jobs";
 import "./admin.css";
 import "./public.css";
 
@@ -14,6 +15,7 @@ export async function ManagedJob({ job: j }: { job: ContentRecord }) {
   const hasExperience = (j.experienceMax > 0) || (j.experienceMin > 0);
   const rawPostingDate = j.employerPublishedAt || j.jobOriginalDate;
   const isExpired = Boolean(j.isExpired || (j.expiresAt && Date.parse(j.expiresAt) <= Date.now()));
+  const canonicalSummary = await getCanonicalJobSummary(j.id);
 
   return (
     <div className="cms-public cms-managed-job">
@@ -211,6 +213,38 @@ export async function ManagedJob({ job: j }: { job: ContentRecord }) {
               {j.applicationUrl ? "Apply on official employer site" : "Apply for this role"}
               <ArrowUpRight size={16} />
             </a>
+          )}
+          {canonicalSummary && canonicalSummary.authorizedPostings.length > 0 && (
+            <div style={{ margin: "16px 0", padding: "14px", background: "#f8fafc", borderRadius: "10px", border: "1px solid #e2e8f0" }}>
+              <div style={{ fontSize: "11px", fontWeight: 700, color: "#475569", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "8px" }}>
+                Authorized Sourcing Partners ({canonicalSummary.authorizedPostings.length})
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                {canonicalSummary.authorizedPostings.map((posting) => (
+                  <div
+                    key={posting.id}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      padding: "8px 10px",
+                      background: "#ffffff",
+                      borderRadius: "6px",
+                      border: "1px solid #e2e8f0",
+                      fontSize: "12px"
+                    }}
+                  >
+                    <div>
+                      <div style={{ fontWeight: 600, color: "#0f172a" }}>{posting.organizationName || "Authorized Partner"}</div>
+                      <div style={{ color: "#64748b", fontSize: "11px" }}>Ref: {posting.mandateReference}</div>
+                    </div>
+                    <span style={{ fontSize: "10px", color: "#15803d", background: "#f0fdf4", border: "1px solid #bbf7d0", padding: "2px 6px", borderRadius: "4px", fontWeight: 600 }}>
+                      Verified Partner
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
           )}
           <JobActions id={j.id} />
           <small>

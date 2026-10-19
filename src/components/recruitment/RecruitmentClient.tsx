@@ -40,7 +40,8 @@ import {
   Camera,
   ChevronDown,
   ChevronUp,
-  Search
+  Search,
+  AlertTriangle
 } from "lucide-react";
 import type { Candidate, CandidateProfile, Application, Inquiry, Recruiter, WorkExperience, Education } from "@/lib/recruitment";
 import type { ParsedResume } from "@/lib/resumeParser";
@@ -48,7 +49,7 @@ import type { ParsedResume } from "@/lib/resumeParser";
 async function api(path: string, body?: unknown) {
   const response = await fetch(`/api/recruitment/${path}`, { method: body === undefined ? "GET" : "POST", cache: "no-store", headers: body === undefined ? {} : { "Content-Type": "application/json" }, body: body === undefined ? undefined : JSON.stringify(body) });
   const result = await response.json();
-  if (!response.ok) throw Object.assign(new Error(result.error || "Please try again."), { status: response.status });
+  if (!response.ok) throw Object.assign(new Error(result.error || "Please try again."), { status: response.status, data: result });
   return result;
 }
 
@@ -1774,6 +1775,12 @@ export function CandidateApply({ job, user }: { job: { id: string; title: string
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [reference, setReference] = useState("");
+  const [duplicateWarning, setDuplicateWarning] = useState<{
+    priorAgencyName?: string;
+    priorApplicationDate?: string;
+    message?: string;
+    coverLetter?: string;
+  } | null>(null);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -1782,8 +1789,38 @@ export function CandidateApply({ job, user }: { job: { id: string; title: string
     try {
       const response = await api("apply", { jobId: job.id, coverLetter: values.coverLetter, consent: values.consent === "on" });
       setReference(response.reference);
-    } catch (err) {
-      setError((err as Error).message);
+    } catch (err: any) {
+      if (err?.data?.warning === "duplicate_canonical_application") {
+        setDuplicateWarning({
+          priorAgencyName: err.data.priorAgencyName || "another partner agency",
+          priorApplicationDate: err.data.priorApplicationDate ? date(err.data.priorApplicationDate) : "earlier",
+          message: err.data.message || err.message,
+          coverLetter: String(values.coverLetter || "")
+        });
+      } else {
+        setError(err.message || "Please try again.");
+      }
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function confirmDuplicateApplication() {
+    if (!duplicateWarning) return;
+    setBusy(true);
+    setError("");
+    try {
+      const response = await api("apply", {
+        jobId: job.id,
+        coverLetter: duplicateWarning.coverLetter,
+        consent: true,
+        confirmDuplicateSubmission: true
+      });
+      setReference(response.reference);
+      setDuplicateWarning(null);
+    } catch (err: any) {
+      setError(err.message || "Failed to submit application.");
+      setDuplicateWarning(null);
     } finally {
       setBusy(false);
     }
@@ -1846,6 +1883,64 @@ export function CandidateApply({ job, user }: { job: { id: string; title: string
           </>
         )}
       </section>
+
+      {duplicateWarning && (
+        <div className="talent-modal-backdrop" onClick={() => setDuplicateWarning(null)}>
+          <div className="talent-modal-box" onClick={e => e.stopPropagation()}>
+            <div className="talent-modal-head">
+              <div>
+                <h3 className="talent-modal-title" style={{ display: "flex", alignItems: "center", gap: 8, color: "#b45309" }}>
+                  <AlertTriangle size={20} color="#d97706" />
+                  Prior Application Detected
+                </h3>
+                <p className="talent-modal-sub">Multi-Recruiter Representation Transparency</p>
+              </div>
+              <button type="button" className="talent-modal-close" onClick={() => setDuplicateWarning(null)}>
+                <X size={16} />
+              </button>
+            </div>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: 14, fontSize: 14, color: "#334155", lineHeight: 1.6 }}>
+              <div style={{ background: "#fef3c7", border: "1px solid #fde68a", borderRadius: 12, padding: "14px 16px", color: "#92400e" }}>
+                <strong>Notice:</strong> You previously submitted an application for this opening at <strong>{job.company}</strong> via <strong>{duplicateWarning.priorAgencyName}</strong> on <strong>{duplicateWarning.priorApplicationDate}</strong>.
+              </div>
+              <p>
+                At ATSAI, hiring companies may authorize multiple partner recruitment agencies to source candidates for the same underlying vacancy.
+              </p>
+              <p>
+                Submitting through this recruiter will create a separate candidate submission for this opening. Both recruiters will evaluate your application independently and cannot see each other&apos;s review notes or hiring pipelines.
+              </p>
+              <p style={{ fontWeight: 600 }}>
+                Would you like to submit your profile through this recruiter as well?
+              </p>
+            </div>
+
+            <div className="talent-modal-actions" style={{ justifyContent: "space-between" }}>
+              <Link href="/candidate/dashboard" className="talent-action-btn" style={{ textDecoration: "none" }}>
+                View my applications
+              </Link>
+              <div style={{ display: "flex", gap: 10 }}>
+                <button
+                  type="button"
+                  className="talent-action-btn"
+                  disabled={busy}
+                  onClick={() => setDuplicateWarning(null)}
+                >
+                  Keep Existing Only
+                </button>
+                <button
+                  type="button"
+                  className="talent-button talent-action-btn-primary"
+                  disabled={busy}
+                  onClick={confirmDuplicateApplication}
+                >
+                  {busy ? "Submitting…" : "Yes, Submit via this Recruiter"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

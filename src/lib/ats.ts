@@ -6,11 +6,13 @@ import { candidateUser } from "@/lib/recruitment";
 import { randomBytes, randomUUID } from "node:crypto";
 import { cookies } from "next/headers";
 import { z } from "zod";
-import { db, transaction, audit, limit, media } from "@/lib/admin/db";
+import { db, transaction, audit, limit, media, records } from "@/lib/admin/db";
 import { assertOrigin, hashPassword, verifyPassword, tokenHash, currentUser } from "@/lib/admin/auth";
 import { blankRecord, slugify, type ContentRecord, type RichNode } from "@/lib/admin/types";
 import { contentSchema } from "@/lib/admin/validation";
 import { STAGES, type Employer, type Applicant, type EmployerWorkspace, type TrackingEvent, type Interview } from "@/lib/ats-types";
+import { findDuplicateJob } from "@/lib/job-intelligence/deduplication";
+import { syncContentToCanonical } from "@/lib/canonical-jobs";
 
 const COOKIE="atsai_employer_session";
 const text=(max:number)=>z.string().trim().max(max);
@@ -167,6 +169,11 @@ export async function atsRequest(request:Request,route:string):Promise<Response>
         recordToSave={...blankRecord("job",user.name),...previous,...input,id,kind:"job" as const,company:user.company,author:previous?.author||user.name,slug:previous?.slug||`${slugify(input.title)||"job"}-${id.slice(0,8)}`,content:{type:"doc",content:input.description.split(/\n\s*\n/).map(p=>({type:"paragraph",content:[{type:"text",text:p}]}))},createdAt:previous?.createdAt||now,updatedAt:now,publishedAt:input.status==="published"?previous?.publishedAt||now:previous?.publishedAt||null,version:(previous?.version||0)+1,googleJobs:input.status==="published"&&(input.workMode==="Remote"||!!input.jobCity),jobOriginalDate:previous?.publishedAt?previous.jobOriginalDate:now.slice(0,10),employerPublishedAt:previous?.employerPublishedAt||now.slice(0,10),applicationUrl:"",employerVerified:false,isExpired:isExp};
         contentSchema.parse(recordToSave);
       }
+      const existingJobs = await records("job", false);
+      const dupCheck = findDuplicateJob(recordToSave, existingJobs, user.organizationId);
+      if (dupCheck.action === "block_same_employer") {
+        fail(dupCheck.reason || "A job posting with identical title and details already exists in your workspace. Please edit your existing listing instead of creating a duplicate.", 409);
+      }
       await transaction(async()=>{
         const previous=await db().prepare("SELECT id FROM content WHERE id=?").get(recordToSave.id);
         if(previous){
@@ -176,6 +183,8 @@ export async function atsRequest(request:Request,route:string):Promise<Response>
           await db().prepare("INSERT INTO content VALUES (?,?,?,?,?,?,?,?)").run(recordToSave.id,"job",recordToSave.slug,recordToSave.status,JSON.stringify(recordToSave),recordToSave.createdAt,recordToSave.updatedAt,recordToSave.version);
         }
         await db().prepare("INSERT INTO ats_jobs (jobId, organizationId) VALUES (?,?) ON CONFLICT(jobId) DO UPDATE SET organizationId=excluded.organizationId").run(recordToSave.id,user.organizationId);
+        const postingRole = recordToSave.company.toLowerCase().trim() === user.company.toLowerCase().trim() ? "direct_employer" : "authorized_agency";
+        await syncContentToCanonical(recordToSave, user.organizationId, postingRole);
         await audit(user.email,"Company job saved",`${user.organizationId}: ${recordToSave.id} ${recordToSave.status}`);
       });return json({ok:true,record:recordToSave});
     }

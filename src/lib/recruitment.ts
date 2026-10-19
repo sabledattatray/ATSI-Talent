@@ -3,6 +3,7 @@ import { changeApplicationStage, recordApplicationEvent } from "@/lib/applicatio
 import { applicationMailStatus, emailConfiguration, retryApplicationEmail } from "@/lib/notifications";
 import { STAGES } from "@/lib/ats-types";
 import { storeCandidateResume } from "@/lib/resume-storage";
+import { checkCandidatePriorCanonicalApplication } from "@/lib/canonical-jobs";
 import { randomBytes, randomUUID } from "node:crypto";
 import { cookies } from "next/headers";
 import { z } from "zod";
@@ -471,7 +472,12 @@ export async function recruitmentRequest(request: Request, route: string): Promi
       await startCandidateSession(user.id); return result({ ok: true });
     }
     if (route === "saved" || route === "apply") {
-      const value = z.object({ jobId: text(80).min(1), consent: z.boolean().optional(), coverLetter: text(6000).default("") }).parse(body);
+      const value = z.object({
+        jobId: text(80).min(1),
+        consent: z.boolean().optional(),
+        coverLetter: text(6000).default(""),
+        confirmDuplicateSubmission: z.boolean().optional().default(false)
+      }).parse(body);
       return await transaction(async () => {
         const job = (await records("job", true)).find(job => job.id === value.jobId);
         if (!job) return result({ error: "This role is no longer accepting applications." }, 404);
@@ -483,9 +489,22 @@ export async function recruitmentRequest(request: Request, route: string): Promi
         }
         if (job.applicationUrl) return result({ error: "Apply using the employer's external application link." }, 409);
         if (value.consent !== true) return result({ error: "Consent is required for this application." }, 400);
+
+        const priorCheck = await checkCandidatePriorCanonicalApplication(user.id, job.id);
+        if (priorCheck.hasPrior && !priorCheck.isSameRecruiter && !value.confirmDuplicateSubmission) {
+          return result({
+            warning: "duplicate_canonical_application",
+            error: `Notice: You previously applied to this vacancy at ${job.company} via ${priorCheck.priorAgencyName} on ${new Date(priorCheck.priorApplicationDate!).toLocaleDateString("en-IN")}.`,
+            message: `You previously applied to this opening at ${job.company} via ${priorCheck.priorAgencyName} on ${new Date(priorCheck.priorApplicationDate!).toLocaleDateString("en-IN")}. Submitting through this recruiter will create a separate candidate submission for the same underlying opening.`,
+            priorAgencyName: priorCheck.priorAgencyName,
+            priorApplicationDate: priorCheck.priorApplicationDate
+          }, 409);
+        }
+
         await limit(`candidate-apply:${user.id}`, 25);
         const id = randomUUID(); const now = new Date().toISOString();
-        await db().prepare("INSERT INTO candidate_applications VALUES (?,?,?,?,?,?,?,?,?)").run(id, user.id, job.id, job.title, job.company, "submitted", JSON.stringify({ profile: user.profile, name: user.name, email: user.email, coverLetter: value.coverLetter, consentAt: now }), now, now);
+        const canonicalId = priorCheck.canonicalJobId || null;
+        await db().prepare("INSERT INTO candidate_applications (id, candidateId, jobId, jobTitle, company, status, document, createdAt, updatedAt, canonicalJobId) VALUES (?,?,?,?,?,?,?,?,?,?)").run(id, user.id, job.id, job.title, job.company, "submitted", JSON.stringify({ profile: user.profile, name: user.name, email: user.email, coverLetter: value.coverLetter, consentAt: now }), now, now, canonicalId);
         await recordApplicationEvent(id,"submitted","submitted","Your application was received.","candidate",user.id);
         return result({ ok: true, reference: `APP-${id.slice(0,8).toUpperCase()}` }, 201);
       });

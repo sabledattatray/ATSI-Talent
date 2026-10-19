@@ -50,6 +50,14 @@ const schema = [
   "CREATE INDEX IF NOT EXISTS ji_evidence_item ON ji_job_evidence(itemId, field)",
   "CREATE INDEX IF NOT EXISTS ji_duplicate_item ON ji_duplicates(candidateItemId)",
   "CREATE INDEX IF NOT EXISTS ji_audit_time ON ji_audit_events(createdAt DESC)",
+  "CREATE TABLE IF NOT EXISTS canonical_jobs (id TEXT PRIMARY KEY,slug TEXT NOT NULL UNIQUE,hiringCompanyName TEXT NOT NULL,hiringCompanyNormalized TEXT NOT NULL,requisitionId TEXT NOT NULL DEFAULT '',jobTitle TEXT NOT NULL,jobTitleNormalized TEXT NOT NULL,category TEXT NOT NULL,locationCity TEXT NOT NULL DEFAULT '',locationRegion TEXT NOT NULL DEFAULT '',locationCountry TEXT NOT NULL DEFAULT 'IN',workMode TEXT NOT NULL CHECK(workMode IN ('On-site', 'Hybrid', 'Remote')),experienceMin INTEGER NOT NULL DEFAULT 0,experienceMax INTEGER NOT NULL DEFAULT 0,fingerprintHash TEXT NOT NULL,status TEXT NOT NULL CHECK(status IN ('draft', 'published', 'archived', 'merged')) DEFAULT 'published',primaryPostingId TEXT,createdAt TEXT NOT NULL,updatedAt TEXT NOT NULL)",
+  "CREATE TABLE IF NOT EXISTS employer_job_postings (id TEXT PRIMARY KEY,canonicalJobId TEXT NOT NULL REFERENCES canonical_jobs(id) ON DELETE CASCADE,contentId TEXT NOT NULL UNIQUE REFERENCES content(id) ON DELETE CASCADE,organizationId TEXT NOT NULL REFERENCES ats_organizations(id) ON DELETE CASCADE,postingRole TEXT NOT NULL CHECK(postingRole IN ('direct_employer', 'authorized_agency', 'independent_curated')),authorizationStatus TEXT NOT NULL CHECK(authorizationStatus IN ('verified', 'pending_review', 'rejected', 'revoked')) DEFAULT 'verified',mandateReference TEXT NOT NULL DEFAULT '',mandateProofMediaId TEXT DEFAULT '',isPrimary INTEGER NOT NULL DEFAULT 0,displayAgencyBrand INTEGER NOT NULL DEFAULT 1,recruiterNotes TEXT NOT NULL DEFAULT '',createdAt TEXT NOT NULL,updatedAt TEXT NOT NULL)",
+  "CREATE TABLE IF NOT EXISTS job_duplicate_audits (id TEXT PRIMARY KEY,incomingJobId TEXT NOT NULL,canonicalJobId TEXT NOT NULL REFERENCES canonical_jobs(id) ON DELETE CASCADE,matchMethod TEXT NOT NULL,confidenceScore REAL NOT NULL,featuresJson TEXT NOT NULL,status TEXT NOT NULL CHECK(status IN ('auto_linked', 'held_for_review', 'dismissed', 'merged')),resolvedBy TEXT,resolvedAt TEXT,createdAt TEXT NOT NULL)",
+  "CREATE INDEX IF NOT EXISTS idx_canonical_lookup ON canonical_jobs(hiringCompanyNormalized, requisitionId)",
+  "CREATE INDEX IF NOT EXISTS idx_canonical_fingerprint ON canonical_jobs(fingerprintHash)",
+  "CREATE INDEX IF NOT EXISTS idx_postings_canonical ON employer_job_postings(canonicalJobId, authorizationStatus)",
+  "CREATE INDEX IF NOT EXISTS idx_postings_org ON employer_job_postings(organizationId)",
+  "CREATE INDEX IF NOT EXISTS idx_duplicate_audits_status ON job_duplicate_audits(status, createdAt DESC)",
 ];
 
 const transactionContext = new AsyncLocalStorage<Transaction>();
@@ -108,6 +116,8 @@ async function initializedClient(): Promise<Client> {
     initialization = (async () => {
       await connection.execute("PRAGMA foreign_keys=ON");
       await connection.batch(schema, "write");
+      try { await connection.execute("ALTER TABLE candidate_applications ADD COLUMN canonicalJobId TEXT"); } catch {}
+      try { await connection.execute("ALTER TABLE candidate_applications ADD COLUMN postingId TEXT"); } catch {}
       await seedDefaultArticles(connection);
     })().catch(error => { initialization = undefined; throw error; });
   }

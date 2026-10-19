@@ -5,6 +5,7 @@ import { audit, db, hasOwner, limit, records, transaction, users, workspace } fr
 import { contentSchema, credentials, registration, settingsSchema } from "@/lib/admin/validation";
 import type { ContentRecord } from "@/lib/admin/types";
 import { z } from "zod";
+import { getPendingDuplicateAudits, resolveDuplicateAudit, syncContentToCanonical } from "@/lib/canonical-jobs";
 
 type Context = { params: Promise<{ path: string[] }> };
 const response = (data: unknown, status = 200) => NextResponse.json(data, { status, headers: { "Cache-Control": "no-store" } });
@@ -24,6 +25,7 @@ export async function GET(_request: Request, context: Context) {
     if (route === "setup") return response({ needsSetup: !(await hasOwner()), setupTokenRequired: process.env.NODE_ENV === "production", setupTokenConfigured: (process.env.ATSAI_ADMIN_SETUP_TOKEN || "").length >= 32, authenticated: !!await currentUser() });
     const user = await requireUser();
     if (route === "workspace") return response(await workspace(user));
+    if (route === "duplicates") return response({ audits: await getPendingDuplicateAudits() });
     return response({ error: "Not found." }, 404);
   } catch (e) { return fail(e); }
 }
@@ -70,9 +72,21 @@ export async function POST(request: Request, context: Context) {
         const now = new Date().toISOString();
         const record = { ...value, id: previous?.id || randomUUID(), createdAt: previous?.createdAt || now, updatedAt: now, publishedAt: value.status === "published" ? previous?.publishedAt || now : previous?.publishedAt || null, version: (previous?.version || 0) + 1 };
         (await db().prepare("INSERT INTO content VALUES (?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET slug=excluded.slug,status=excluded.status,document=excluded.document,updatedAt=excluded.updatedAt,version=excluded.version").run(record.id, record.kind, record.slug, record.status, JSON.stringify(record), record.createdAt, now, record.version));
+        if (record.kind === "job") {
+          await syncContentToCanonical(record as ContentRecord, "platform_admin", "direct_employer");
+        }
         (await audit(user.email, previous ? "Content updated" : "Content created", `${record.title} · ${record.status}`)); return record;
       }));
       return response({ record: saved });
+    }
+    if (route === "duplicates/resolve") {
+      await requireUser();
+      const value = z.object({
+        auditId: z.string().min(1),
+        decision: z.enum(["link_authorized", "declare_separate", "dismiss"])
+      }).parse(await json(request));
+      const res = await resolveDuplicateAudit(value.auditId, value.decision, user.email);
+      return response({ ok: true, result: res });
     }
     if (route === "media") {
       (await limit(`upload:${user.id}`, 100));

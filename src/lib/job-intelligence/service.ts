@@ -8,6 +8,7 @@ import { findDuplicateJob } from "./deduplication";
 import { generateFactualJobContent } from "./summary";
 import { resolveAtsPayload } from "./ats-resolver";
 import { toCountryCode } from "@/lib/countries";
+import { syncContentToCanonical } from "@/lib/canonical-jobs";
 import type {
   JobSource,
   ImportBatch,
@@ -642,6 +643,13 @@ export async function approveAndPublishItem(itemId: string, actor: string, orgId
     await db().prepare(
       `INSERT INTO ats_jobs (jobId, organizationId) VALUES (?, ?) ON CONFLICT(jobId) DO UPDATE SET organizationId=excluded.organizationId`
     ).run(jobId, orgId);
+  }
+
+  // Sync to canonical vacancy structure
+  try {
+    await syncContentToCanonical(record, orgId || "platform_admin", orgId ? "authorized_agency" : "direct_employer");
+  } catch (err) {
+    console.warn("Failed to sync published job to canonical vacancy:", err);
   }
 
   // Update import item status
