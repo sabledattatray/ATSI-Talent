@@ -6,9 +6,9 @@ import { candidateUser } from "@/lib/recruitment";
 import { randomBytes, randomUUID } from "node:crypto";
 import { cookies } from "next/headers";
 import { z } from "zod";
-import { db, transaction, audit, limit } from "@/lib/admin/db";
+import { db, transaction, audit, limit, media } from "@/lib/admin/db";
 import { assertOrigin, hashPassword, verifyPassword, tokenHash, currentUser } from "@/lib/admin/auth";
-import { blankRecord, slugify, type ContentRecord } from "@/lib/admin/types";
+import { blankRecord, slugify, type ContentRecord, type RichNode } from "@/lib/admin/types";
 import { contentSchema } from "@/lib/admin/validation";
 import { STAGES, type Employer, type Applicant, type EmployerWorkspace, type TrackingEvent, type Interview } from "@/lib/ats-types";
 
@@ -30,20 +30,26 @@ const event = recordApplicationEvent;
 
 export async function employerWorkspace(user:Employer):Promise<EmployerWorkspace>{
   const org=user.organizationId;
-  const [rows,applications,events,interviews,team]=await Promise.all([
+  const [rows,applications,events,interviews,team,mediaItems]=await Promise.all([
     db().prepare("SELECT c.document FROM content c JOIN ats_jobs j ON j.jobId=c.id WHERE j.organizationId=? ORDER BY c.updatedAt DESC").all(org),
     db().prepare("SELECT a.*,c.name,c.email FROM candidate_applications a JOIN ats_jobs j ON j.jobId=a.jobId JOIN candidate_accounts c ON c.id=a.candidateId WHERE j.organizationId=? ORDER BY a.createdAt DESC").all(org),
     db().prepare("SELECT e.id,e.applicationId,e.kind,e.stage,e.message,e.createdAt FROM ats_events e JOIN candidate_applications a ON a.id=e.applicationId JOIN ats_jobs j ON j.jobId=a.jobId WHERE j.organizationId=? ORDER BY e.createdAt DESC").all(org),
     db().prepare("SELECT id,applicationId,title,startsAt,timeZone,location,status,createdAt FROM ats_interviews WHERE organizationId=? ORDER BY startsAt").all(org),
     db().prepare("SELECT id,name,email,role FROM ats_employers WHERE organizationId=? ORDER BY createdAt").all(org),
+    media(),
   ]);
   return {
     user: { ...user },
-    jobs: (rows as { document: string }[]).map(r => JSON.parse(r.document)),
+    jobs: (rows as { document: string }[]).map(r => {
+      const doc = JSON.parse(r.document);
+      const isExp = Boolean(doc.expiresAt && Number.isFinite(Date.parse(doc.expiresAt)) && Date.parse(doc.expiresAt) <= Date.now());
+      return { ...doc, isExpired: isExp };
+    }),
     applications: (applications as Applicant[]).map(a => ({ ...a })),
     events: (events as TrackingEvent[]).map(e => ({ ...e })),
     interviews: (interviews as Interview[]).map(i => ({ ...i })),
     team: (team as EmployerWorkspace["team"]).map(t => ({ ...t })),
+    media: mediaItems,
   };
 }
 async function readBody(request:Request){if(Number(request.headers.get("content-length"))>200_000)fail("Request is too large.",413);const value=await request.text();if(Buffer.byteLength(value)>200_000)fail("Request is too large.",413);try{return JSON.parse(value);}catch{fail("Invalid request.");}}
@@ -105,20 +111,73 @@ export async function atsRequest(request:Request,route:string):Promise<Response>
       await transaction(async()=>{const changed=await db().prepare("DELETE FROM ats_resumes WHERE id=? AND candidateId=?").run(value.id,candidate.id);if(!changed.changes)fail("Resume not found.",404);const latest=await db().prepare("SELECT profile FROM candidate_accounts WHERE id=?").get(candidate.id) as {profile:string};const profile=JSON.parse(latest.profile);if(profile.resumeUrl===`/api/ats/resume/${value.id}`)await db().prepare("UPDATE candidate_accounts SET profile=? WHERE id=?").run(JSON.stringify({...profile,resumeUrl:""}),candidate.id);});return json({ok:true});
     }
     const user=await requireEmployer();
+    if(route==="media"){
+      if (Number(request.headers.get("content-length")) > 3_200_000) return json({ error: "Images must be no larger than 3 MB." }, 413);
+      const form = await request.formData(); const file = form.get("file");
+      if (!(file instanceof File) || !file.size || file.size > 3_145_728) return json({ error: "Choose an image no larger than 3 MB." }, 400);
+      const bytes = Buffer.from(await file.arrayBuffer());
+      const type = bytes.subarray(0, 8).equals(Buffer.from([137,80,78,71,13,10,26,10])) ? "image/png" : bytes[0] === 255 && bytes[1] === 216 && bytes[2] === 255 ? "image/jpeg" : bytes.toString("ascii", 0, 4) === "RIFF" && bytes.toString("ascii", 8, 12) === "WEBP" ? "image/webp" : "";
+      if (!type) return json({ error: "Use a PNG, JPEG, or WebP image. SVG and executable uploads are not accepted." }, 400);
+      const id = randomUUID(); const name = file.name.replace(/[^\w. -]/g, "").slice(0, 140) || "image"; const createdAt = new Date().toISOString();
+      await db().prepare("INSERT INTO media VALUES (?,?,?,?,?,?)").run(id, name, type, bytes.length, bytes, createdAt);
+      await audit(user.email, "Employer image uploaded", name);
+      return json({ media: { id, name, type, size: bytes.length, url: `/api/media/${id}`, createdAt } }, 201);
+    }
     if(route==="jobs/save"){
-      const input=z.object({id:text(80).default(""),version:z.number().int().min(0).default(0),title:text(180).min(3),description:text(30000).min(20),excerpt:text(600).min(20),category:text(80).min(2),location:text(160).min(2),jobCountry:text(2).refine(isCountryCode,"Choose a valid country."),jobCity:text(120).default(""),jobRegion:text(120).default(""),workMode:z.enum(["Remote","Hybrid","On-site"]),employmentType:z.enum(["Full-time","Part-time","Contract","Executive","Temporary","Internship","Volunteer"]),salaryCurrency:text(3).regex(/^[A-Z]{3}$/),salaryPeriod:z.enum(["YEAR","MONTH","WEEK","DAY","HOUR"]),salaryMin:z.number().min(0).max(1e9),salaryMax:z.number().min(0).max(1e9),experienceMin:z.number().min(0).max(60),experienceMax:z.number().min(0).max(60),skills:text(1200).default(""),expiresAt:text(40).default(""),status:z.enum(["draft","published","archived"])}).parse(body);
-      try{new Intl.NumberFormat("en",{style:"currency",currency:input.salaryCurrency});}catch{fail("Choose a valid three-letter currency code.");}
-      if(!Intl.supportedValuesOf("currency").includes(input.salaryCurrency))fail("Choose a supported ISO currency.");
-      await transaction(async()=>{
+      let recordToSave: ContentRecord;
+      const isRich = body && typeof (body as any).content === "object" && (body as any).content !== null;
+      if (isRich) {
+        const raw = body as any;
+        const candidateRecord = {
+          ...blankRecord("job", user.name),
+          ...raw,
+          kind: "job" as const,
+          company: raw.company || user.company,
+          author: raw.author || user.name,
+          salaryCurrency: raw.salaryCurrency || "INR",
+          salaryPeriod: raw.salaryPeriod || "YEAR",
+        };
+        const input = contentSchema.parse(candidateRecord);
+        const previous = input.id ? await ownedJob(input.id, user.organizationId) : null;
+        if (previous && previous.version !== input.version) fail("Another team member changed this job. Refresh before saving.", 409);
+        const now = new Date().toISOString(), id = previous?.id || (input.id && /^[a-f0-9-]{36}$/.test(input.id) ? input.id : randomUUID());
+        const isExp = Boolean(input.expiresAt && Number.isFinite(Date.parse(input.expiresAt)) && Date.parse(input.expiresAt) <= Date.now());
+        recordToSave = {
+          ...input,
+          content: input.content as RichNode,
+          id,
+          kind: "job",
+          company: input.company || user.company,
+          author: input.author || user.name,
+          slug: input.slug || (previous?.slug || `${slugify(input.title) || "job"}-${id.slice(0, 8)}`),
+          createdAt: previous?.createdAt || now,
+          updatedAt: now,
+          publishedAt: input.status === "published" ? previous?.publishedAt || now : previous?.publishedAt || null,
+          version: (previous?.version || 0) + 1,
+          isExpired: isExp,
+        };
+      } else {
+        const input=z.object({id:text(80).default(""),version:z.number().int().min(0).default(0),title:text(180).min(3),description:text(30000).min(20),excerpt:text(600).min(20),category:text(80).min(2),location:text(160).min(2),jobCountry:text(2).refine(isCountryCode,"Choose a valid country."),jobCity:text(120).default(""),jobRegion:text(120).default(""),workMode:z.enum(["Remote","Hybrid","On-site"]),employmentType:z.enum(["Full-time","Part-time","Contract","Executive","Temporary","Internship","Volunteer"]),salaryCurrency:text(3).regex(/^[A-Z]{3}$/),salaryPeriod:z.enum(["YEAR","MONTH","WEEK","DAY","HOUR"]),salaryMin:z.number().min(0).max(1e9),salaryMax:z.number().min(0).max(1e9),experienceMin:z.number().min(0).max(60),experienceMax:z.number().min(0).max(60),skills:text(1200).default(""),expiresAt:text(40).default(""),status:z.enum(["draft","published","archived"])}).parse(body);
+        try{new Intl.NumberFormat("en",{style:"currency",currency:input.salaryCurrency});}catch{fail("Choose a valid three-letter currency code.");}
+        if(!Intl.supportedValuesOf("currency").includes(input.salaryCurrency))fail("Choose a supported ISO currency.");
         const previous=input.id?await ownedJob(input.id,user.organizationId):null;
         if(previous&&previous.version!==input.version)fail("Another team member changed this job. Refresh before saving.",409);
         const now=new Date().toISOString(),id=previous?.id||randomUUID();
-        const record={...blankRecord("job",user.name),...previous,...input,id,kind:"job" as const,company:user.company,author:previous?.author||user.name,slug:previous?.slug||`${slugify(input.title)||"job"}-${id.slice(0,8)}`,content:{type:"doc",content:input.description.split(/\n\s*\n/).map(p=>({type:"paragraph",content:[{type:"text",text:p}]}))},createdAt:previous?.createdAt||now,updatedAt:now,publishedAt:input.status==="published"?previous?.publishedAt||now:previous?.publishedAt||null,version:(previous?.version||0)+1,googleJobs:input.status==="published"&&(input.workMode==="Remote"||!!input.jobCity),jobOriginalDate:previous?.publishedAt?previous.jobOriginalDate:now.slice(0,10),applicationUrl:"",employerVerified:false};
-        contentSchema.parse(record);
-        if(previous){const changed=await db().prepare("UPDATE content SET status=?,document=?,updatedAt=?,version=? WHERE id=? AND version=?").run(record.status,JSON.stringify(record),now,record.version,id,input.version);if(!changed.changes)fail("This job has changed. Refresh before saving.",409);}
-        else{await db().prepare("INSERT INTO content VALUES (?,?,?,?,?,?,?,?)").run(id,"job",record.slug,record.status,JSON.stringify(record),now,now,record.version);await db().prepare("INSERT INTO ats_jobs VALUES (?,?)").run(id,user.organizationId);}
-        await audit(user.email,"Company job saved",`${user.organizationId}: ${id} ${record.status}`);
-      });return json({ok:true});
+        const isExp = Boolean(input.expiresAt && Number.isFinite(Date.parse(input.expiresAt)) && Date.parse(input.expiresAt) <= Date.now());
+        recordToSave={...blankRecord("job",user.name),...previous,...input,id,kind:"job" as const,company:user.company,author:previous?.author||user.name,slug:previous?.slug||`${slugify(input.title)||"job"}-${id.slice(0,8)}`,content:{type:"doc",content:input.description.split(/\n\s*\n/).map(p=>({type:"paragraph",content:[{type:"text",text:p}]}))},createdAt:previous?.createdAt||now,updatedAt:now,publishedAt:input.status==="published"?previous?.publishedAt||now:previous?.publishedAt||null,version:(previous?.version||0)+1,googleJobs:input.status==="published"&&(input.workMode==="Remote"||!!input.jobCity),jobOriginalDate:previous?.publishedAt?previous.jobOriginalDate:now.slice(0,10),employerPublishedAt:previous?.employerPublishedAt||now.slice(0,10),applicationUrl:"",employerVerified:false,isExpired:isExp};
+        contentSchema.parse(recordToSave);
+      }
+      await transaction(async()=>{
+        const previous=await db().prepare("SELECT id FROM content WHERE id=?").get(recordToSave.id);
+        if(previous){
+          const changed=await db().prepare("UPDATE content SET status=?,document=?,updatedAt=?,version=? WHERE id=?").run(recordToSave.status,JSON.stringify(recordToSave),recordToSave.updatedAt,recordToSave.version,recordToSave.id);
+          if(!changed.changes)fail("This job has changed. Refresh before saving.",409);
+        }else{
+          await db().prepare("INSERT INTO content VALUES (?,?,?,?,?,?,?,?)").run(recordToSave.id,"job",recordToSave.slug,recordToSave.status,JSON.stringify(recordToSave),recordToSave.createdAt,recordToSave.updatedAt,recordToSave.version);
+        }
+        await db().prepare("INSERT INTO ats_jobs (jobId, organizationId) VALUES (?,?) ON CONFLICT(jobId) DO UPDATE SET organizationId=excluded.organizationId").run(recordToSave.id,user.organizationId);
+        await audit(user.email,"Company job saved",`${user.organizationId}: ${recordToSave.id} ${recordToSave.status}`);
+      });return json({ok:true,record:recordToSave});
     }
     if(route==="applications/stage"){
       const value=z.object({id:text(80),status:z.enum(STAGES),updatedAt:text(40).min(1),message:text(2000).default("")}).parse(body);

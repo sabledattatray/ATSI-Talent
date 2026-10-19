@@ -28,3 +28,55 @@ export function assertOrigin(request: Request) {
   const expected = process.env.ATSAI_ADMIN_ORIGIN || `${requestUrl.protocol}//${request.headers.get("host") || requestUrl.host}`;
   if (!origin || origin !== expected) throw Object.assign(new Error("Request origin is not allowed."), { status: 403 });
 }
+
+export const EMPLOYER_COOKIE = "atsai_employer_session";
+
+export async function currentEmployer(): Promise<{ id: string; organizationId: string; name: string; email: string; role: "owner" | "recruiter"; company: string; country: string; website: string } | null> {
+  const token = (await cookies()).get(EMPLOYER_COOKIE)?.value;
+  if (!token || token.length !== 64) return null;
+  return ((await db().prepare("SELECT e.id,e.organizationId,e.name,e.email,e.role,o.name AS company,o.country,o.website FROM ats_employers e JOIN ats_organizations o ON o.id=e.organizationId JOIN ats_sessions s ON s.userId=e.id WHERE s.hash=? AND s.expiresAt>?").get(tokenHash(token), Date.now())) as any) || null;
+}
+
+export type UnifiedUser = {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  isEmployer: boolean;
+  organizationId?: string;
+  company?: string;
+};
+
+export async function currentAdminOrEmployerUser(): Promise<UnifiedUser | null> {
+  const admin = await currentUser();
+  if (admin) {
+    return {
+      id: admin.id,
+      name: admin.name,
+      email: admin.email,
+      role: admin.role,
+      isEmployer: false
+    };
+  }
+  const employer = await currentEmployer();
+  if (employer) {
+    return {
+      id: employer.id,
+      name: employer.name,
+      email: employer.email,
+      role: employer.role,
+      isEmployer: true,
+      organizationId: employer.organizationId,
+      company: employer.company
+    };
+  }
+  return null;
+}
+
+export async function requireAdminOrEmployer(owner = false): Promise<UnifiedUser> {
+  const user = await currentAdminOrEmployerUser();
+  if (!user) throw Object.assign(new Error("Please sign in to continue."), { status: 401 });
+  if (owner && user.role !== "owner") throw Object.assign(new Error("Only the owner can manage this setting."), { status: 403 });
+  return user;
+}
+

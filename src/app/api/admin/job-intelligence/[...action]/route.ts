@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { assertOrigin, requireUser } from "@/lib/admin/auth";
+import { assertOrigin, requireAdminOrEmployer } from "@/lib/admin/auth";
 import {
   getOverview,
   getSources,
@@ -37,7 +37,7 @@ function fail(error: unknown) {
 
 export async function GET(request: Request, context: Context) {
   try {
-    const user = await requireUser();
+    const user = await requireAdminOrEmployer();
     const action = (await context.params).action || [];
     const url = new URL(request.url);
 
@@ -80,7 +80,7 @@ export async function GET(request: Request, context: Context) {
 export async function POST(request: Request, context: Context) {
   try {
     assertOrigin(request);
-    const user = await requireUser();
+    const user = await requireAdminOrEmployer();
     const action = (await context.params).action || [];
     const body = await json(request);
 
@@ -127,7 +127,7 @@ export async function POST(request: Request, context: Context) {
     }
 
     if (action[0] === "items" && action[1] && action[2] === "approve") {
-      const published = await approveAndPublishItem(action[1], user.name);
+      const published = await approveAndPublishItem(action[1], user.name, user.organizationId);
       return response({ ok: true, job: published });
     }
 
@@ -143,7 +143,7 @@ export async function POST(request: Request, context: Context) {
     }
 
     if (action[0] === "purge-dummy-jobs") {
-      if (user.role !== "owner") {
+      if (user.isEmployer || user.role !== "owner") {
         return response({ error: "Only the platform owner can purge dummy jobs." }, 403);
       }
       const result = await purgeDummyJobs(user.name);
@@ -151,7 +151,7 @@ export async function POST(request: Request, context: Context) {
     }
 
     if (action[0] === "repair-all-jobs") {
-      if (user.role !== "owner") {
+      if (user.isEmployer || user.role !== "owner") {
         return response({ error: "Only the platform owner can audit and repair jobs." }, 403);
       }
       const result = await auditAndRepairAllJobs(user.name);

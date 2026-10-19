@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { randomBytes, randomUUID, timingSafeEqual } from "node:crypto";
-import { assertOrigin, currentUser, endSession, hashPassword, requireUser, startSession, tokenHash, verifyPassword } from "@/lib/admin/auth";
+import { assertOrigin, currentUser, currentAdminOrEmployerUser, endSession, hashPassword, requireUser, startSession, tokenHash, verifyPassword } from "@/lib/admin/auth";
 import { audit, db, hasOwner, limit, records, transaction, users, workspace } from "@/lib/admin/db";
 import { contentSchema, credentials, registration, settingsSchema } from "@/lib/admin/validation";
 import type { ContentRecord } from "@/lib/admin/types";
@@ -59,7 +59,7 @@ export async function POST(request: Request, context: Context) {
       }));
       await startSession(id); return response({ ok: true }, 201);
     }
-    const user = await requireUser();
+    const user = (route === "media" ? await currentAdminOrEmployerUser() : null) || await requireUser();
     if (route === "content") {
       const value = contentSchema.parse(await json(request));
       const saved = (await transaction(async () => {

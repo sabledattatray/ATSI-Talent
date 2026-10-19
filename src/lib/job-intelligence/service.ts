@@ -566,7 +566,7 @@ export async function getItemEvidence(itemId: string) {
 /**
  * Approves a verified draft item and publishes it into the main ATSAI content table.
  */
-export async function approveAndPublishItem(itemId: string, actor: string): Promise<ContentRecord> {
+export async function approveAndPublishItem(itemId: string, actor: string, orgId?: string): Promise<ContentRecord> {
   const itemRow = await db().prepare("SELECT * FROM ji_import_items WHERE id=?").get(itemId) as any;
   if (!itemRow) throw new Error(`Import item '${itemId}' not found.`);
   if (!itemRow.extractedData) throw new Error("Item has no extracted job facts to publish.");
@@ -636,6 +636,12 @@ export async function approveAndPublishItem(itemId: string, actor: string): Prom
        document = excluded.document,
        updatedAt = excluded.updatedAt`
   ).run(jobId, slug, docJson, now, now);
+
+  if (orgId) {
+    await db().prepare(
+      `INSERT INTO ats_jobs (jobId, organizationId) VALUES (?, ?) ON CONFLICT(jobId) DO UPDATE SET organizationId=excluded.organizationId`
+    ).run(jobId, orgId);
+  }
 
   // Update import item status
   await db().prepare(
