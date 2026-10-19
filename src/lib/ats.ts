@@ -1,3 +1,4 @@
+import { assertEmailDeliveryConfigured, beginEmailVerification, emailLogin } from "@/lib/auth/identity";
 import "server-only";
 import { changeApplicationStage, recordApplicationEvent } from "@/lib/application-workflow";
 import { applicationMailStatus, emailConfiguration, retryApplicationEmail } from "@/lib/notifications";
@@ -22,7 +23,7 @@ function fail(message:string,status=400):never { throw Object.assign(new Error(m
 const json=(body:unknown,status=200)=>Response.json(body,{status,headers:{"Cache-Control":"no-store"}});
 export async function employerUser():Promise<Employer|null>{
   const token=(await cookies()).get(COOKIE)?.value;if(!token||token.length!==64)return null;
-  return await db().prepare("SELECT e.id,e.organizationId,e.name,e.email,e.role,o.name AS company,o.country,o.website FROM ats_employers e JOIN ats_organizations o ON o.id=e.organizationId JOIN ats_sessions s ON s.userId=e.id WHERE s.hash=? AND s.expiresAt>?").get(tokenHash(token),Date.now()) as Employer|undefined || null;
+  return await db().prepare("SELECT e.id,e.organizationId,e.name,e.email,e.role,o.name AS company,o.country,o.website FROM ats_employers e JOIN ats_organizations o ON o.id=e.organizationId JOIN ats_sessions s ON s.userId=e.id WHERE s.hash=? AND s.expiresAt>? AND EXISTS (SELECT 1 FROM account_auth m WHERE m.scope='employer' AND m.userId=e.id AND m.emailVerifiedAt IS NOT NULL AND m.verifiedEmail=e.email AND NOT EXISTS (SELECT 1 FROM account_controls ctrl WHERE ctrl.scope='employer' AND ctrl.userId=e.id AND ctrl.status='suspended'))").get(tokenHash(token),Date.now()) as Employer|undefined || null;
 }
 async function requireEmployer(owner=false){const user=await employerUser();if(!user)fail("Sign in to your company workspace.",401);if(owner&&user.role!=="owner")fail("Only the company owner can manage team access.",403);return user;}
 async function session(userId:string){const token=randomBytes(32).toString("hex");const expiresAt=Date.now()+8*60*60*1000;await db().prepare("DELETE FROM ats_sessions WHERE expiresAt<?").run(Date.now());await db().prepare("INSERT INTO ats_sessions VALUES (?,?,?)").run(tokenHash(token),userId,expiresAt);(await cookies()).set(COOKIE,token,{httpOnly:true,sameSite:"strict",secure:process.env.NODE_ENV==="production",path:"/",expires:new Date(expiresAt)});}
@@ -87,10 +88,10 @@ export async function atsRequest(request:Request,route:string):Promise<Response>
       const input=credentials.parse(body);const fingerprint=tokenHash(request.headers.get("x-forwarded-for")?.split(",")[0]?.trim()||"local");await limit(`employer-auth-ip:${fingerprint}`,30);await limit(`employer-auth-email:${tokenHash(input.email)}`,12);
       if(route==="auth/login"){
         const row=await db().prepare("SELECT id,password FROM ats_employers WHERE email=?").get(input.email) as {id:string;password:string}|undefined;
-        if(!row||!await verifyPassword(input.password,row.password))fail("Email or password is incorrect.",401);await session(row.id);return json({ok:true});
+        const valid=await verifyPassword(input.password,row?.password||"0".repeat(32)+":"+"0".repeat(128));if(!row||!valid)fail("Email or password is incorrect.",401);const login=await emailLogin("employer",row.id,input.email);return json(login,"verificationRequired" in login?202:200);
       }
       const value=z.object({name:text(80).min(2),company:text(120).min(2).optional(),country:z.string().trim().max(120).transform(v=>toCountryCode(v,"IN")).refine(isCountryCode,"Choose a valid country.").optional(),website:text(1000).refine(s=>!s||/^https:\/\/[^\s]+$/.test(s),"Use an HTTPS website URL.").default(""),invite:text(128).optional(),consent:z.literal(true)}).parse(body);
-      const password=await hashPassword(input.password);const id=randomUUID();const now=new Date().toISOString();
+      assertEmailDeliveryConfigured();const password=await hashPassword(input.password);const id=randomUUID();const now=new Date().toISOString();
       await transaction(async()=>{
         let org:string,role:"owner"|"recruiter"="owner";
         if(route==="auth/accept"){
@@ -103,7 +104,7 @@ export async function atsRequest(request:Request,route:string):Promise<Response>
         await db().prepare("INSERT INTO ats_employers VALUES (?,?,?,?,?,?,?)").run(id,org,value.name,input.email,password,role,now);
         await audit(input.email,"Employer account created",org);
       });
-      await session(id);return json({ok:true},201);
+      return json(await beginEmailVerification("employer",id,input.email),201);
     }
     if(route==="auth/logout"){
       const jar=await cookies();const token=jar.get(COOKIE)?.value;if(token)await db().prepare("DELETE FROM ats_sessions WHERE hash=?").run(tokenHash(token));jar.delete(COOKIE);return json({ok:true});

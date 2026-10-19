@@ -44,6 +44,6 @@ Existing Turso credentials and the exact production trusted origin remain requir
 
 ### External services
 
-Candidate status and interview updates use a durable Resend email queue with delivery controls. Configure the verified sender, server credentials and retry scheduler as described in [docs/NOTIFICATIONS.md](docs/NOTIFICATIONS.md). Candidate dashboards receive live updates with polling fallback. Email verification/password recovery, external calendar/video integrations, SSO/MFA and e-signing are not configured. Companies publish their own opportunities; no global job-feed subscription is bundled. Consult docs/ATS.md for remaining operational and scale considerations.
+Candidate status and interview updates use a durable Resend email queue with delivery controls. Configure the verified sender, server credentials and retry scheduler as described in [docs/NOTIFICATIONS.md](docs/NOTIFICATIONS.md). Candidate dashboards receive live updates with polling fallback. Google sign-in and email OTP verification are available after configuration in [docs/AUTHENTICATION.md](docs/AUTHENTICATION.md). Password recovery, external calendar/video integrations, SSO/MFA and e-signing are not configured. Companies publish their own opportunities; no global job-feed subscription is bundled. Consult docs/ATS.md for remaining operational and scale considerations.
 
 Created by [Datta Sable](https://dattasable.com). [MIT license](LICENSE).

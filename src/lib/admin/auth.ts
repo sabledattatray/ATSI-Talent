@@ -34,7 +34,7 @@ export const EMPLOYER_COOKIE = "atsai_employer_session";
 export async function currentEmployer(): Promise<{ id: string; organizationId: string; name: string; email: string; role: "owner" | "recruiter"; company: string; country: string; website: string } | null> {
   const token = (await cookies()).get(EMPLOYER_COOKIE)?.value;
   if (!token || token.length !== 64) return null;
-  return ((await db().prepare("SELECT e.id,e.organizationId,e.name,e.email,e.role,o.name AS company,o.country,o.website FROM ats_employers e JOIN ats_organizations o ON o.id=e.organizationId JOIN ats_sessions s ON s.userId=e.id WHERE s.hash=? AND s.expiresAt>?").get(tokenHash(token), Date.now())) as any) || null;
+  return ((await db().prepare("SELECT e.id,e.organizationId,e.name,e.email,e.role,o.name AS company,o.country,o.website FROM ats_employers e JOIN ats_organizations o ON o.id=e.organizationId JOIN ats_sessions s ON s.userId=e.id WHERE s.hash=? AND s.expiresAt>? AND EXISTS (SELECT 1 FROM account_auth m WHERE m.scope='employer' AND m.userId=e.id AND m.emailVerifiedAt IS NOT NULL AND m.verifiedEmail=e.email AND NOT EXISTS (SELECT 1 FROM account_controls ctrl WHERE ctrl.scope='employer' AND ctrl.userId=e.id AND ctrl.status='suspended'))").get(tokenHash(token), Date.now())) as any) || null;
 }
 
 export type UnifiedUser = {

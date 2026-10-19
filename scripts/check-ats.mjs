@@ -1,10 +1,30 @@
+import fs from "node:fs/promises";
 import { pdfFixture } from "../tests/fixtures/pdf.mjs";
 // Writes fictional records only to a local server backed by a separate test database.
 import assert from "node:assert/strict";
 const base=new URL(process.argv[2]||"http://127.0.0.1:3005");
 if(!["127.0.0.1","localhost"].includes(base.hostname))throw new Error("ATS smoke tests may run only against an isolated local server.");
 const seed=Date.now();
-function client(){let cookie="";return async(path,body,method=body===undefined?"GET":"POST")=>{const response=await fetch(new URL(path,base),{method,headers:{origin:base.origin,...(cookie?{cookie}:{}),...(body instanceof FormData?{}:{"content-type":"application/json"})},body:body===undefined?undefined:body instanceof FormData?body:JSON.stringify(body),redirect:"manual"});const cookies=response.headers.getSetCookie();if(cookies.length)cookie=cookies.map(c=>c.split(";")[0]).join("; ");return response;};}
+const inbox=process.env.ATSAI_TEST_OTP_INBOX;
+if(!inbox)throw new Error("OTP smoke tests require an isolated server with scripts/fixtures/otp-mail.mjs and ATSAI_TEST_OTP_INBOX. See docs/AUTHENTICATION.md.");
+function client(){
+  const jar=new Map();
+  async function request(path,body,method=body===undefined?"GET":"POST"){
+    const cookie=[...jar].map(([key,value])=>key+"="+value).join("; ");
+    const response=await fetch(new URL(path,base),{method,headers:{origin:base.origin,...(cookie?{cookie}:{}),...(body instanceof FormData?{}:{"content-type":"application/json"})},body:body===undefined?undefined:body instanceof FormData?body:JSON.stringify(body),redirect:"manual"});
+    for(const header of response.headers.getSetCookie()){const entry=header.split(";")[0],split=entry.indexOf("="),key=entry.slice(0,split),value=entry.slice(split+1);if(value)jar.set(key,value);else jar.delete(key);}
+    if(response.ok&&response.headers.get("content-type")?.includes("application/json")){
+      const data=await response.clone().json();
+      if(data.verificationRequired){
+        const codes=JSON.parse(await fs.readFile(inbox,"utf8"));
+        const verified=await request("/api/auth/otp/verify",{scope:path.startsWith("/api/ats/")?"employer":"candidate",code:codes[data.email]});
+        assert.equal(verified.status,200,"QA email verification must succeed before workspace access");
+      }
+    }
+    return response;
+  }
+  return request;
+}
 async function result(response,status=200){const body=await response.json();assert.equal(response.status,status,JSON.stringify(body));return body;}
 const employer=client(),candidate=client(),outsider=client();
 const owner={name:"QA Hiring Owner",email:`qa-employer-${seed}@example.test`,password:"Local-ATS-fixture-password-2026",company:`QA Global Health ${seed}`,country:"GB",consent:true};

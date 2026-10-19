@@ -8,7 +8,7 @@ export async function AdminRoute({ section }: { section: string }) {
   await connection();
   const user = await currentUser();
   if (section === "login" || section === "signup") { if (user) redirect("/admin"); return <AuthForm signup={section === "signup"} />; }
-  if (section === "inbox" && user && user.role !== "owner") redirect("/admin");
+  if (["inbox", "users"].includes(section) && user && user.role !== "owner") redirect("/admin");
   if (!user) redirect(await hasOwner() ? "/admin/login" : "/admin/signup");
   return <AdminWorkspace key={section} section={section} initial={JSON.parse(JSON.stringify(await workspace(user)))} />;
 }

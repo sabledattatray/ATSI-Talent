@@ -1,4 +1,7 @@
 "use client";
+import { GoogleSignIn } from "@/components/auth/GoogleSignIn";
+import { EmailVerification } from "@/components/auth/EmailVerification";
+import { AuthenticationActivity } from "@/components/auth/AuthenticationActivity";
 import { ResumeLibrary } from "@/components/ats/ResumeLibrary";
 import { ApplicationStatusEditor } from "@/components/ats/ApplicationStatusEditor";
 import { EmailDelivery } from "@/components/ats/EmailDelivery";
@@ -69,18 +72,25 @@ function Notice({ error, message }: { error?: string; message?: string }) { retu
 function Consent({ label: content }: { label: React.ReactNode }) { return <label className="talent-consent"><input type="checkbox" name="consent" required /><span>{content}</span></label>; }
 
 export function CandidateAuth({ signup }: { signup: boolean }) {
-  const router = useRouter(); const params = useSearchParams();
-  const [busy, setBusy] = useState(false); const [error, setError] = useState("");
-  async function submit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault(); setBusy(true); setError("");
-    const fields = Object.fromEntries(new FormData(event.currentTarget));
-    try {
-      await api(`auth/${signup ? "signup" : "login"}`, { ...fields, consent: fields.consent === "on" });
-      const next = params.get("next") || "";
-      router.replace(/^\/candidate\/(dashboard|apply\/[a-z0-9-]+)$/.test(next) ? next : "/candidate/dashboard"); router.refresh();
-    } catch (error) { setError((error as Error).message); setBusy(false); }
+  const router=useRouter(),params=useSearchParams();
+  const [busy,setBusy]=useState(false),[error,setError]=useState(""),[pendingEmail,setPendingEmail]=useState(""),[consent,setConsent]=useState(false);
+  function finish(){const next=params.get("next")||"";router.replace(/^\/candidate\/(dashboard|apply\/[a-z0-9-]+)$/.test(next)?next:"/candidate/dashboard");router.refresh();}
+  async function submit(event:FormEvent<HTMLFormElement>){
+    event.preventDefault();setBusy(true);setError("");
+    const fields=Object.fromEntries(new FormData(event.currentTarget));
+    try{const result=await api("auth/"+(signup?"signup":"login"),{...fields,consent:fields.consent==="on"});if(result.verificationRequired){setPendingEmail(result.email);setBusy(false);}else finish();}
+    catch(error){setError((error as Error).message);setBusy(false);}
   }
-  return <div className="talent-auth"><aside><span className="talent-eyebrow">YOUR CAREER, WITH CLARITY</span><h1>A new account.<br /><em>A world of opportunity.</em></h1><p>Keep your profile, saved roles, and applications together. Take your next step at your own pace.</p><ul><li><Bookmark size={18} />Save roles that feel right</li><li><BriefcaseBusiness size={18} />Track your applications</li><li><ShieldCheck size={18} />Choose when to share your profile</li></ul><small>No candidate registration or application fees.</small></aside><section className="talent-card"><span className="talent-icon"><UserRound /></span><span className="talent-eyebrow">CANDIDATE ACCOUNT</span><h2>{signup ? "Start your next chapter." : "Welcome back."}</h2><p>{signup ? "Create your free job-seeker account." : "Sign in to manage your career search."}</p><Notice error={error} /><form className="talent-form" onSubmit={submit}>{signup && <label>Full name<input name="name" autoComplete="name" required minLength={2} maxLength={80} /></label>}<label>Email address<input name="email" type="email" autoComplete="email" required maxLength={254} /></label><label>Password<input name="password" type="password" autoComplete={signup ? "new-password" : "current-password"} required minLength={12} maxLength={128} />{signup && <small>Use at least 12 characters.</small>}</label>{signup && <><input name="website" className="talent-honeypot" tabIndex={-1} autoComplete="off" aria-hidden="true" /><Consent label={<>I agree to the <Link href="/legal/candidate-terms">candidate terms</Link> and <Link href="/legal/privacy-policy">privacy notice</Link>, and consent to storing my account details.</>} /></>}<button className="talent-button" disabled={busy}>{busy ? "Please wait…" : signup ? "Create free account" : "Sign in"}<ArrowRight size={17} /></button></form><p>{signup ? "Already registered?" : "New to ATSAI?"} <Link href={`/candidate/${signup ? "login" : "signup"}${params.get("next") ? `?next=${encodeURIComponent(params.get("next")!)}` : ""}`}>{signup ? "Sign in" : "Create a free account"}</Link></p>{!signup && <Link href="/forgot-password">Need help accessing your account?</Link>}<div className="talent-auth-bottom"><Link href="/jobs">Browse jobs</Link><Link href="/admin/login">Staff sign in</Link></div></section></div>;
+  return <div className="talent-auth"><aside><span className="talent-eyebrow">YOUR CAREER, WITH CLARITY</span><h1>Your next chapter.<br /><em>A world of opportunity.</em></h1><p>Keep your profile, saved roles and applications together. Take your next step at your own pace.</p><ul><li><Bookmark size={18} />Save roles that feel right</li><li><BriefcaseBusiness size={18} />Track your applications</li><li><ShieldCheck size={18} />Choose when to share your profile</li></ul><small>No candidate registration or application fees.</small></aside>
+    <section className="talent-card"><span className="talent-icon"><UserRound /></span><span className="talent-eyebrow">CANDIDATE ACCOUNT</span><h2>{signup?"Start your next chapter.":"Welcome back."}</h2><p>{signup?"Create your free job-seeker account.":"Sign in with Google or your email and password."}</p><Notice error={error} />
+      {pendingEmail?<EmailVerification scope="candidate" email={pendingEmail} onVerified={finish} onBack={()=>{setPendingEmail("");setError("");}} />:<>
+        {signup&&<label className="talent-consent"><input type="checkbox" checked={consent} onChange={event=>setConsent(event.target.checked)} /><span>I agree to the <Link href="/legal/candidate-terms">candidate terms</Link> and <Link href="/legal/privacy-policy">privacy notice</Link>, and consent to storing my account details.</span></label>}
+        <GoogleSignIn scope="candidate" intent={signup?"signup":"login"} onSuccess={finish} getRegistration={()=>({consent})} />
+        <form className="talent-form" onSubmit={submit}>{signup&&<><input type="hidden" name="consent" value={consent?"on":""} /><label>Full name<input name="name" autoComplete="name" required minLength={2} maxLength={80} /></label></>}<label>Email address<input name="email" type="email" autoComplete="email" required maxLength={254} /></label><label>Password<input name="password" type="password" autoComplete={signup?"new-password":"current-password"} required minLength={12} maxLength={128} />{signup&&<small>Use at least 12 characters. We will email you a verification code.</small>}</label>{signup&&<input name="website" className="talent-honeypot" tabIndex={-1} autoComplete="off" aria-hidden="true" />}<button className="talent-button" disabled={busy||(signup&&!consent)}>{busy?"Please wait…":signup?"Create free account":"Sign in"}<ArrowRight size={17} /></button></form>
+      </>}
+      <p>{signup?"Already registered?":"New to ATSAI?"} <Link href={"/candidate/"+(signup?"login":"signup")+(params.get("next")?"?next="+encodeURIComponent(params.get("next")!):"")}>{signup?"Sign in":"Create a free account"}</Link></p>{!signup&&<Link href="/forgot-password">Need help accessing your account?</Link>}<div className="talent-auth-bottom"><Link href="/jobs">Browse jobs</Link><Link href="/admin/login">Staff sign in</Link></div>
+    </section>
+  </div>;
 }
 
 export function InquiryForm({ kind = "contact" }: { kind?: "contact" | "employer" | "report" | "privacy" | "account" }) {
@@ -513,7 +523,7 @@ export function CandidatePortal({ initial, defaultTab }: { initial: Dashboard; d
             <p className="talent-workspace-sub">Manage your applications, job shortlist, and your complete verified candidate profile.</p>
           </div>
         </div>
-        <div className="talent-workspace-actions">
+        <div className="talent-workspace-actions"><Link className="talent-button talent-secondary" href="/candidate/security">Account security</Link>
           <Link className="talent-button talent-explore-btn" href="/jobs">
             Explore jobs <ArrowRight size={15} />
           </Link>
@@ -2210,6 +2220,7 @@ export function RecruitmentInbox() {
         </div>
       </div>
 
+      <AuthenticationActivity />
       <div className="talent-tabs">
         {["applications", "inquiries", "candidates", "recruiters"].map(key => (
           <button

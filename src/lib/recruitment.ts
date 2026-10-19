@@ -1,3 +1,4 @@
+import { assertEmailDeliveryConfigured, beginEmailVerification, emailLogin } from "@/lib/auth/identity";
 import "server-only";
 import { changeApplicationStage, recordApplicationEvent } from "@/lib/application-workflow";
 import { applicationMailStatus, emailConfiguration, retryApplicationEmail } from "@/lib/notifications";
@@ -33,7 +34,7 @@ const emptyProfile: CandidateProfile = { photoUrl: "", phone: "", location: "", 
 export async function candidateUser(): Promise<Candidate | null> {
   const token = (await cookies()).get(COOKIE)?.value;
   if (!token || token.length !== 64) return null;
-  const row = await db().prepare("SELECT c.id,c.name,c.email,c.profile,c.createdAt FROM candidate_accounts c JOIN candidate_sessions s ON s.candidateId=c.id WHERE s.hash=? AND s.expiresAt>?").get(tokenHash(token), Date.now()) as (Omit<Candidate, "profile"> & { profile: string }) | undefined;
+  const row = await db().prepare("SELECT c.id,c.name,c.email,c.profile,c.createdAt FROM candidate_accounts c JOIN candidate_sessions s ON s.candidateId=c.id WHERE s.hash=? AND s.expiresAt>? AND EXISTS (SELECT 1 FROM account_auth m WHERE m.scope='candidate' AND m.userId=c.id AND m.emailVerifiedAt IS NOT NULL AND m.verifiedEmail=c.email AND NOT EXISTS (SELECT 1 FROM account_controls ctrl WHERE ctrl.scope='candidate' AND ctrl.userId=c.id AND ctrl.status='suspended'))").get(tokenHash(token), Date.now()) as (Omit<Candidate, "profile"> & { profile: string }) | undefined;
   if (!row) return null;
   let parsed: Partial<CandidateProfile> = {};
   try { parsed = JSON.parse(row.profile); } catch {}
@@ -209,18 +210,17 @@ export async function recruitmentRequest(request: Request, route: string): Promi
       await limit(`candidate-auth-ip:${fingerprint}`, 30);
       await limit(`candidate-auth-email:${tokenHash(input.email)}`, 12);
       if (route === "auth/signup") {
-        const value = registration.parse(body); const id = randomUUID(); const password = await hashPassword(value.password); const now = new Date().toISOString();
+        const value = registration.parse(body); assertEmailDeliveryConfigured(); const id = randomUUID(); const password = await hashPassword(value.password); const now = new Date().toISOString();
         await transaction(async () => {
           await db().prepare("INSERT INTO candidate_accounts VALUES (?,?,?,?,?,?,?)").run(id, value.name, value.email, password, JSON.stringify(emptyProfile), now, now);
         });
-        await startCandidateSession(id);
-        return result({ ok: true }, 201);
+        return result(await beginEmailVerification("candidate", id, value.email), 201);
       }
       if (route === "auth/login") {
         const row = await db().prepare("SELECT id,password FROM candidate_accounts WHERE email=?").get(input.email) as { id: string; password: string } | undefined;
         const valid = await verifyPassword(input.password, row?.password || `${"0".repeat(32)}:${"0".repeat(128)}`);
         if (!row || !valid) return result({ error: "Email or password is incorrect." }, 401);
-        await startCandidateSession(row.id); return result({ ok: true });
+        const login = await emailLogin("candidate", row.id, input.email); return result(login, "verificationRequired" in login ? 202 : 200);
       }
       return result({ error: "Not found." }, 404);
     }

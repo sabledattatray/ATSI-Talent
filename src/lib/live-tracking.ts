@@ -9,8 +9,8 @@ export async function openApplicationStream(request:Request,kind:"candidate"|"em
   if(!token||token.length!==64)return Response.json({error:"Please sign in."},{status:401});
   const hash=tokenHash(token);
   async function owner(){return kind==="candidate"
-    ?await db().prepare("SELECT candidateId AS id FROM candidate_sessions WHERE hash=? AND expiresAt>?").get(hash,Date.now()) as {id:string}|undefined
-    :await db().prepare("SELECT e.organizationId AS id FROM ats_sessions s JOIN ats_employers e ON e.id=s.userId WHERE s.hash=? AND s.expiresAt>?").get(hash,Date.now()) as {id:string}|undefined;}
+    ?await db().prepare("SELECT c.id FROM candidate_sessions s JOIN candidate_accounts c ON c.id=s.candidateId JOIN account_auth m ON m.scope='candidate' AND m.userId=c.id WHERE s.hash=? AND s.expiresAt>? AND m.emailVerifiedAt IS NOT NULL AND m.verifiedEmail=c.email AND NOT EXISTS (SELECT 1 FROM account_controls ctrl WHERE ctrl.scope='candidate' AND ctrl.userId=c.id AND ctrl.status='suspended')").get(hash,Date.now()) as {id:string}|undefined
+    :await db().prepare("SELECT e.organizationId AS id FROM ats_sessions s JOIN ats_employers e ON e.id=s.userId JOIN account_auth m ON m.scope='employer' AND m.userId=e.id WHERE s.hash=? AND s.expiresAt>? AND m.emailVerifiedAt IS NOT NULL AND m.verifiedEmail=e.email AND NOT EXISTS (SELECT 1 FROM account_controls ctrl WHERE ctrl.scope='employer' AND ctrl.userId=e.id AND ctrl.status='suspended')").get(hash,Date.now()) as {id:string}|undefined;}
   const principal=await owner();if(!principal)return Response.json({error:"Please sign in."},{status:401});
   let closed=false,timer:ReturnType<typeof setTimeout>|undefined;
   const encoder=new TextEncoder();const deadline=Date.now()+25_000;

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowDown, ArrowRight, ArrowUpRight, BookOpen, Check, CheckCircle2, Clock3, MessageSquare, Target } from "lucide-react";
+import { ArrowRight, ArrowUpRight, BookOpen, CheckCircle2, MessageSquare, Target } from "lucide-react";
 import { staticMetadata } from "@/lib/seo";
 import { breadcrumbs } from "@/lib/structured-data";
 import { StructuredData } from "@/components/common/StructuredData";
@@ -23,34 +23,24 @@ const star = [
 export default function InterviewGuidesPage() {
   return <div className="ig-page">
     <StructuredData data={breadcrumbs([{ name: "Interview guides", path: "/interview-guides" }])} />
-    <section className="ig-hero">
-      <div className="ig-container ig-hero-grid">
-        <div>
-          <nav aria-label="Breadcrumb" className="ig-breadcrumb"><Link href="/">Home</Link><span>/</span><span>Interview guides</span></nav>
-          <span className="ig-kicker ig-kicker-light"><i />THE CANDIDATE PLAYBOOK</span>
-          <h1>Good preparation.<br />Clearer answers.<br /><em>A more confident you.</em></h1>
-          <p className="ig-hero-description">Practical interview guides for your next career move. Explore questions by role, shape your experience into stories and walk in with a plan.</p>
-          <div className="ig-hero-actions"><a className="ig-button" href="#guide-library">Explore the guides <ArrowDown size={17} /></a><a className="ig-button ig-button-ghost" href="#preparation-checklist">Build your checklist <ArrowRight size={17} /></a></div>
-          <div className="ig-hero-notes"><span><Check size={15} />Free to explore</span><span><Check size={15} />No sign-up needed</span><span><Check size={15} />Examples you can make your own</span></div>
+    <header className="ig-intro">
+      <div className="ig-container">
+        <nav aria-label="Breadcrumb" className="ig-breadcrumb"><Link href="/">Home</Link><span>/</span><span>Interview guides</span></nav>
+        <div className="ig-intro-row">
+          <div><h1>Interview guides</h1><p>Practise questions by role, build clear answers and prepare for your next conversation.</p></div>
+          <a className="ig-text-link" href="#preparation-checklist">Your preparation checklist <ArrowRight size={16} /></a>
         </div>
-        <aside className="ig-playbook" aria-label="A simple interview preparation plan">
-          <div className="ig-playbook-top"><span><span className="ig-live-dot" />YOUR NEXT CONVERSATION</span><BookOpen size={19} /></div>
-          <div className="ig-playbook-body"><span className="ig-mini-label">A LITTLE STRUCTURE GOES A LONG WAY</span><h2>Turn experience<br />into a clear story.</h2><p>Start with one real example.<br />Build an answer that sounds like you.</p>
-            <div className="ig-story-preview">{star.map(item => <div key={item.letter}><span>{item.letter}</span><strong>{item.title}</strong><span className="ig-preview-line" /></div>)}</div>
-          </div>
-          <div className="ig-playbook-bottom"><Clock3 size={17} /><span>One question. A few thoughtful minutes.<br /><strong>A useful place to start.</strong></span></div>
-        </aside>
+        <p className="ig-intro-meta">{guides.length} guide collections <span aria-hidden="true">·</span> {questionCount} practice questions <span aria-hidden="true">·</span> Free, no sign-up needed</p>
       </div>
-    </section>
-    <div className="ig-container ig-overview"><div><strong>{guides.length}</strong><span>Focused guide collections</span></div><div><strong>{questionCount}</strong><span>Questions to practise</span></div><div><strong>One clear approach</strong><span>Real examples. Your own words.</span></div><a href="#guide-library">Find your starting point <ArrowDown size={16} /></a></div>
-    <section className="ig-container ig-section" aria-labelledby="preparation-title">
-      <div className="ig-section-heading"><div><span className="ig-kicker">PREPARE WITH PURPOSE</span><h2 id="preparation-title">Before the questions, build your foundation.</h2></div><p>You do not need a perfect script. You need to understand the role and explain what you can bring to it.</p></div>
-      <div className="ig-steps">{steps.map(step => <article key={step.number}><div><span>{step.number}</span><step.icon size={23} aria-hidden="true" /></div><h3>{step.title}</h3><p>{step.text}</p></article>)}</div>
-    </section>
+    </header>
     <section id="guide-library" className="ig-library-section" aria-labelledby="library-title"><div className="ig-container ig-section">
       <div className="ig-section-heading"><div><span className="ig-kicker">THE GUIDE LIBRARY</span><h2 id="library-title">Find the questions that fit your next step.</h2></div><p>Choose a focus, explore the approach and practise with your own experience. These are preparation prompts, not an employer&apos;s exact question list.</p></div>
       <GuideLibrary />
     </div></section>
+    <section className="ig-container ig-section" aria-labelledby="preparation-title">
+      <div className="ig-section-heading"><div><span className="ig-kicker">PREPARE WITH PURPOSE</span><h2 id="preparation-title">Before the questions, build your foundation.</h2></div><p>You do not need a perfect script. You need to understand the role and explain what you can bring to it.</p></div>
+      <div className="ig-steps">{steps.map(step => <article key={step.number}><div><span>{step.number}</span><step.icon size={23} aria-hidden="true" /></div><h3>{step.title}</h3><p>{step.text}</p></article>)}</div>
+    </section>
     <section id="star-method" className="ig-container ig-section ig-star-layout" aria-labelledby="star-title">
       <div><span className="ig-kicker">A FRAMEWORK, NOT A SCRIPT</span><h2 id="star-title">Give your answer<br />a little STAR quality.</h2><p>The Situation, Task, Action, Result framework helps organise answers to questions about past experience. Keep the context brief and make your own actions clear.</p><a className="ig-text-link" href="https://nationalcareers.service.gov.uk/careers-advice/interview-advice/the-star-method/" target="_blank" rel="noopener noreferrer">Read the National Careers Service guide <ArrowUpRight size={15} /></a><div className="ig-example-note"><CheckCircle2 size={19} /><p>Use real examples. If you do not have a measured result, explain the observable outcome and what you learned.</p></div></div>
       <div className="ig-star-cards">{star.map(item => <article key={item.letter}><span>{item.letter}</span><div><h3>{item.title}</h3><p>{item.detail}</p></div></article>)}</div>

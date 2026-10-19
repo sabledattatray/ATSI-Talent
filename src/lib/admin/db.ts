@@ -8,6 +8,13 @@ import { createClient, type Client, type InValue, type Transaction } from "@libs
 import type { AdminUser, ContentRecord, SiteSettings, AuditRecord, MediaRecord } from "./types";
 
 const schema = [
+  "CREATE TABLE IF NOT EXISTS account_controls (scope TEXT NOT NULL CHECK(scope IN ('candidate','employer')),userId TEXT NOT NULL,status TEXT NOT NULL CHECK(status IN ('active','suspended')) DEFAULT 'active',version INTEGER NOT NULL DEFAULT 0,updatedAt TEXT NOT NULL,PRIMARY KEY(scope,userId))",
+  "CREATE TABLE IF NOT EXISTS auth_google_nonces (hash TEXT PRIMARY KEY,scope TEXT NOT NULL,expiresAt INTEGER NOT NULL)",
+  "CREATE TABLE IF NOT EXISTS account_auth (scope TEXT NOT NULL CHECK(scope IN ('candidate','employer')),userId TEXT NOT NULL,googleSub TEXT,verifiedEmail TEXT NOT NULL DEFAULT '',emailVerifiedAt TEXT,registeredWith TEXT NOT NULL DEFAULT 'email',lastMethod TEXT,lastLoginAt TEXT,PRIMARY KEY(scope,userId),UNIQUE(scope,googleSub))",
+  "CREATE TABLE IF NOT EXISTS auth_challenges (id TEXT PRIMARY KEY,scope TEXT NOT NULL,userId TEXT NOT NULL,email TEXT NOT NULL,codeHash TEXT NOT NULL,expiresAt INTEGER NOT NULL,attempts INTEGER NOT NULL DEFAULT 0,createdAt INTEGER NOT NULL)",
+  "CREATE INDEX IF NOT EXISTS auth_challenge_user ON auth_challenges(scope,userId)",
+  "CREATE TABLE IF NOT EXISTS auth_logins (id TEXT PRIMARY KEY,scope TEXT NOT NULL,userId TEXT NOT NULL,method TEXT NOT NULL,createdAt TEXT NOT NULL)",
+  "CREATE INDEX IF NOT EXISTS auth_login_user ON auth_logins(scope,userId,createdAt)",
   "CREATE TABLE IF NOT EXISTS users (id TEXT PRIMARY KEY,name TEXT NOT NULL,email TEXT NOT NULL UNIQUE,password TEXT NOT NULL,role TEXT NOT NULL CHECK(role IN ('owner','editor')),createdAt TEXT NOT NULL)",
   "CREATE TABLE IF NOT EXISTS sessions (hash TEXT PRIMARY KEY,userId TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,expiresAt INTEGER NOT NULL)",
   "CREATE TABLE IF NOT EXISTS content (id TEXT PRIMARY KEY,kind TEXT NOT NULL,slug TEXT NOT NULL,status TEXT NOT NULL,document TEXT NOT NULL,createdAt TEXT NOT NULL,updatedAt TEXT NOT NULL,version INTEGER NOT NULL,UNIQUE(kind,slug))",
@@ -21,10 +28,14 @@ const schema = [
   "CREATE TABLE IF NOT EXISTS candidate_applications (id TEXT PRIMARY KEY,candidateId TEXT NOT NULL REFERENCES candidate_accounts(id) ON DELETE CASCADE,jobId TEXT NOT NULL REFERENCES content(id),jobTitle TEXT NOT NULL,company TEXT NOT NULL,status TEXT NOT NULL,document TEXT NOT NULL,createdAt TEXT NOT NULL,updatedAt TEXT NOT NULL,UNIQUE(candidateId,jobId))",
   "CREATE TABLE IF NOT EXISTS candidate_saved_jobs (candidateId TEXT NOT NULL REFERENCES candidate_accounts(id) ON DELETE CASCADE,jobId TEXT NOT NULL REFERENCES content(id),PRIMARY KEY(candidateId,jobId))",
   "CREATE TABLE IF NOT EXISTS public_inquiries (id TEXT PRIMARY KEY,kind TEXT NOT NULL,name TEXT NOT NULL,email TEXT NOT NULL,phone TEXT NOT NULL,company TEXT NOT NULL,subject TEXT NOT NULL,message TEXT NOT NULL,status TEXT NOT NULL,createdAt TEXT NOT NULL,updatedAt TEXT NOT NULL)",
+  "CREATE TRIGGER IF NOT EXISTS candidate_controls_cleanup AFTER DELETE ON candidate_accounts BEGIN DELETE FROM account_controls WHERE scope='candidate' AND userId=OLD.id; END",
+  "CREATE TRIGGER IF NOT EXISTS candidate_auth_cleanup AFTER DELETE ON candidate_accounts BEGIN DELETE FROM account_auth WHERE scope='candidate' AND userId=OLD.id; DELETE FROM auth_challenges WHERE scope='candidate' AND userId=OLD.id; DELETE FROM auth_logins WHERE scope='candidate' AND userId=OLD.id; END",
   "CREATE TABLE IF NOT EXISTS public_recruiters (id TEXT PRIMARY KEY,name TEXT NOT NULL,email TEXT NOT NULL UNIQUE,title TEXT NOT NULL,active INTEGER NOT NULL)",
   "CREATE TABLE IF NOT EXISTS ats_resumes (id TEXT PRIMARY KEY,candidateId TEXT NOT NULL REFERENCES candidate_accounts(id) ON DELETE CASCADE,name TEXT NOT NULL,type TEXT NOT NULL,bytes BLOB NOT NULL,hash TEXT NOT NULL,createdAt TEXT NOT NULL,UNIQUE(candidateId,hash))",
   "CREATE TABLE IF NOT EXISTS ats_organizations (id TEXT PRIMARY KEY,name TEXT NOT NULL,country TEXT NOT NULL,website TEXT NOT NULL,createdAt TEXT NOT NULL)",
   "CREATE TABLE IF NOT EXISTS ats_employers (id TEXT PRIMARY KEY,organizationId TEXT NOT NULL REFERENCES ats_organizations(id),name TEXT NOT NULL,email TEXT NOT NULL UNIQUE,password TEXT NOT NULL,role TEXT NOT NULL CHECK(role IN ('owner','recruiter')),createdAt TEXT NOT NULL)",
+  "CREATE TRIGGER IF NOT EXISTS employer_controls_cleanup AFTER DELETE ON ats_employers BEGIN DELETE FROM account_controls WHERE scope='employer' AND userId=OLD.id; END",
+  "CREATE TRIGGER IF NOT EXISTS employer_auth_cleanup AFTER DELETE ON ats_employers BEGIN DELETE FROM account_auth WHERE scope='employer' AND userId=OLD.id; DELETE FROM auth_challenges WHERE scope='employer' AND userId=OLD.id; DELETE FROM auth_logins WHERE scope='employer' AND userId=OLD.id; END",
   "CREATE TABLE IF NOT EXISTS ats_sessions (hash TEXT PRIMARY KEY,userId TEXT NOT NULL REFERENCES ats_employers(id) ON DELETE CASCADE,expiresAt INTEGER NOT NULL)",
   "CREATE TABLE IF NOT EXISTS ats_jobs (jobId TEXT PRIMARY KEY REFERENCES content(id),organizationId TEXT NOT NULL REFERENCES ats_organizations(id))",
   "CREATE TABLE IF NOT EXISTS ats_invites (hash TEXT PRIMARY KEY,organizationId TEXT NOT NULL REFERENCES ats_organizations(id),email TEXT NOT NULL,expiresAt INTEGER NOT NULL)",

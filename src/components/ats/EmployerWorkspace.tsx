@@ -310,7 +310,7 @@ export function EmployerWorkspace({ initial }: { initial: Workspace }) {
             </button>
           ))}
         </nav>
-        <div className="ats-sidebar-bottom">
+        <div className="ats-sidebar-bottom"><Link href="/employer/security">Account security</Link>
           <Link href="/jobs" target="_blank">
             <ArrowUpRight size={16} />
             View job board

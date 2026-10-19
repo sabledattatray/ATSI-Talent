@@ -9,7 +9,10 @@ import ts from "typescript";
 const nativeRequire=createRequire(import.meta.url);
 function environment(mode="development", Clock=Date, mail={}) {
   const jar=new Map(),options=new Map(),cache=new Map();
-  const context=vm.createContext({console,Buffer,URL,Request,Response,File,FormData,TextEncoder,ReadableStream,AbortSignal,fetch:mail.fetch||fetch,Date:Clock,setTimeout,clearTimeout,process:{cwd:()=>process.cwd(),env:{NODE_ENV:mode,ATSAI_DATABASE_PATH:":memory:",ATSAI_ADMIN_SETUP_TOKEN:"fixture-owner-setup-secret-at-least-32-characters",...mail.env}}});
+  const codes=new Map();
+  const testFetch=async(url,options={})=>{const payload=options.body?JSON.parse(options.body):{};if(String(url)==="https://api.resend.com/emails"&&payload.subject==="Your ATSAI email verification code"){codes.set(payload.to[0],payload.text.match(/code is (\d{6})/)[1]);return Response.json({id:"otp-fixture"});}return (mail.fetch||fetch)(url,options);};
+  async function verifyFixture(response,scope){if(!response.headers.get("content-type")?.includes("application/json"))return response;const body=await response.clone().json();if(response.ok&&body.verificationRequired){const request=new Request("https://atsai.test/api/auth/otp/verify",{method:"POST",headers:{origin:"https://atsai.test","content-type":"application/json"},body:JSON.stringify({scope,code:codes.get(body.email)})});const verified=await load("src/app/api/auth/[...path]/route.ts").POST(request,{params:Promise.resolve({path:["otp","verify"]})});assert.equal(verified.status,200,JSON.stringify(await verified.json()));}return response;}
+  const context=vm.createContext({console,Buffer,URL,Request,Response,File,FormData,TextEncoder,ReadableStream,AbortSignal,fetch:testFetch,Date:Clock,setTimeout,clearTimeout,process:{cwd:()=>process.cwd(),env:{NODE_ENV:mode,ATSAI_AUTH_RESEND_API_KEY:"test-otp-key",ATSAI_AUTH_EMAIL_FROM:"ATSAI <verify@example.test>",ATSAI_DATABASE_PATH:":memory:",ATSAI_ADMIN_SETUP_TOKEN:"fixture-owner-setup-secret-at-least-32-characters",...mail.env}}});
   const cookies={get:key=>jar.has(key)?{value:jar.get(key)}:undefined,set:(key,value,config)=>{jar.set(key,value);options.set(key,config);},delete:key=>jar.delete(key)};
   function load(file) {
     const full=path.resolve(file);if(cache.has(full))return cache.get(full).exports;
@@ -20,7 +23,7 @@ function environment(mode="development", Clock=Date, mail={}) {
   }
   async function call(route,body,method=body===undefined?"GET":"POST",origin="https://atsai.test") {
     const request=new Request(`https://atsai.test/api/recruitment/${route}`,{method,headers:{origin,"content-type":"application/json"},body:method==="GET"?undefined:JSON.stringify(body)});
-    return load("src/lib/recruitment.ts").recruitmentRequest(request,route.split("?")[0]);
+    return verifyFixture(await load("src/lib/recruitment.ts").recruitmentRequest(request,route.split("?")[0]),"candidate");
   }
   async function callFormData(route,formData,origin="https://atsai.test") {
     const request=new Request(`https://atsai.test/api/recruitment/${route}`,{method:"POST",headers:{origin},body:formData});
@@ -32,7 +35,7 @@ function environment(mode="development", Clock=Date, mail={}) {
   }
   async function callATS(route,body,method=body===undefined?"GET":"POST",origin="https://atsai.test") {
     const request=new Request(`https://atsai.test/api/ats/${route}`,{method,headers:{origin,"content-type":"application/json"},body:method==="GET"?undefined:JSON.stringify(body)});
-    return load("src/lib/ats.ts").atsRequest(request,route.split("?")[0]);
+    return verifyFixture(await load("src/lib/ats.ts").atsRequest(request,route.split("?")[0]),"employer");
   }
   return {load,call,callATS,callFormData,owner,jar,options};
 }
