@@ -14,7 +14,8 @@
     "check:ats": "node scripts/check-ats.mjs",
     "check:pdf-runtime": "node scripts/check-pdf-runtime.mjs",
     "purge:jobs": "node scripts/purge-dummy-jobs.mjs",
-    "repair:jobs": "node scripts/repair-existing-jobs.mjs"
+    "repair:jobs": "node scripts/repair-existing-jobs.mjs",
+    "seed:content": "node scripts/seed-content.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.9.1",

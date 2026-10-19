@@ -12,7 +12,7 @@ globalThis.fetch=async(input,options)=>{
   const url=typeof input==="string"?input:input instanceof URL?input.href:input.url;
   if(new URL(url).hostname!=="api.resend.com")return realFetch(input,options);
   const body=JSON.parse(options?.body||"{}");
-  if(body.subject!=="Your ATSAI email verification code"||!body.to?.every(email=>email.endsWith("@example.test")))throw new Error("QA mail transport accepts only fictional verification emails.");
+  if(body.subject!=="Verify your email address | ATSAI"||!body.to?.every(email=>email.endsWith("@example.test")))throw new Error("QA mail transport accepts only fictional verification emails.");
   const code=body.text?.match(/code is (\d{6})/)?.[1];if(!code)throw new Error("Missing fixture OTP");
   for(const email of body.to)codes[email]=code;
   await fs.writeFile(inbox,JSON.stringify(codes));

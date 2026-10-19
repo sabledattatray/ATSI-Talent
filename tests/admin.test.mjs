@@ -255,7 +255,7 @@ test("sitemap updates after publishing and excludes drafts, expired and archived
 });
 
 
-test("cold database startup batches article seeding in one round trip", async () => {
+test("cold database startup never publishes or re-seeds editorial content", async () => {
   let seedBatches = 0, seedExecutions = 0;
   const e = environment("production", { ATSAI_DATABASE_PATH: "seed-fixture", TURSO_DATABASE_URL: "libsql://fixture.turso.io", TURSO_AUTH_TOKEN: "fixture" }, () => {
     const connection = nativeRequire("@libsql/client").createClient({ url: ":memory:" });
@@ -273,9 +273,9 @@ test("cold database startup batches article seeding in one round trip", async ()
     } });
   });
   const records = await e.load("src/lib/admin/db.ts").records("post", true);
-  assert.ok(records.length > 0);
-  assert.equal(seedBatches, 1);
+  assert.equal(records.length, 0);
+  assert.equal(seedBatches, 0);
   assert.equal(seedExecutions, 0);
   await e.load("src/lib/admin/db.ts").records("post", true);
-  assert.equal(seedBatches, 1, "warm requests must not initialize again");
+  assert.equal(seedBatches, 0, "warm requests must not seed articles");
 });

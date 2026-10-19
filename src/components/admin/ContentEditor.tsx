@@ -6,8 +6,13 @@ import { ArrowLeft, ArrowUpRight, ChevronDown, ExternalLink, Globe2, ImagePlus, 
 import { slugify, type ContentRecord, type MediaRecord, type RichNode } from "@/lib/admin/types";
 import { toCountryCode } from "@/lib/countries";
 import { normalizeWorkModeValue, normalizeEmploymentTypeValue } from "@/lib/admin/validation";
-import { RichEditor } from "./RichEditor";
+import dynamic from "next/dynamic";
 import { RichContent } from "./RichContent";
+
+const RichEditor = dynamic(() => import("./RichEditor").then(module => module.RichEditor), {
+  ssr: false,
+  loading: () => <div role="status" style={{ minHeight: 260, padding: 24, border: "1px solid #dfe7f1", borderRadius: 10, background: "#f8fafc", color: "#536985" }}>Preparing editor...</div>,
+});
 
 function sanitizeDocumentText(text: string): string {
   if (!text) return "";

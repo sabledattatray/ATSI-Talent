@@ -1,18 +1,16 @@
-"use client";
 import Link from "next/link";
 import { ArrowRight, ArrowUpRight, BriefcaseBusiness, Building2, Globe2, MapPin, ShieldCheck, Sparkles } from "lucide-react";
-import { useDemoJobs } from "@/lib/useDemoJobs";
 import { compensation } from "@/lib/ats-types";
 import type { JobListing } from "@/lib/types";
 
 export function HomeJobs({ initialJobs }: { initialJobs: JobListing[] }) {
-  const jobs = useDemoJobs(initialJobs);
+  const jobs = initialJobs;
   return (<section className="platform-section platform-jobs-section">
       <div className="platform-section-heading">
         <div>
           <span className="platform-eyebrow"><i /> OPPORTUNITIES · OPEN NOW</span>
           <h2>Where your next chapter could begin.</h2>
-          <p>Real published roles. Clear requirements. Transparent compensation.</p>
+          <p>Explore published roles, requirements and compensation where disclosed.</p>
         </div>
         <Link href="/jobs" className="platform-heading-action">
           <span>View all roles</span>
@@ -75,13 +73,13 @@ export function HomeJobs({ initialJobs }: { initialJobs: JobListing[] }) {
                   </div>
 
                   {/* Job Title */}
-                  <h3 className="text-sm sm:text-base font-bold text-slate-900 group-hover:text-blue-600 transition-colors line-clamp-1 leading-snug">
+                  <h3 className="text-sm sm:text-base font-bold text-slate-900 group-hover:text-blue-600 transition-colors line-clamp-2 leading-snug">
                     {j.title}
                   </h3>
 
                   {/* Location & Tags Line */}
                   <div className="flex items-center gap-2 text-xs text-slate-500 flex-wrap mt-1">
-                    <span className="inline-flex items-center gap-1 text-slate-600 shrink-0">
+                    <span className="inline-flex items-center gap-1 text-slate-600 min-w-0">
                       <MapPin size={12} className="text-blue-500 shrink-0" />
                       <span className="truncate">
                         {j.location.city}
@@ -100,12 +98,12 @@ export function HomeJobs({ initialJobs }: { initialJobs: JobListing[] }) {
               </div>
 
               {/* Card Footer: Salary + View Action (Full Width) */}
-              <div className="flex items-center justify-between gap-2 mt-3.5 pt-2.5 border-t border-slate-100">
-                <div className="flex items-baseline gap-1 text-xs sm:text-[13px] font-bold text-slate-800 whitespace-nowrap min-w-0">
+              <div className="flex flex-wrap items-center justify-between gap-2 mt-3.5 pt-2.5 border-t border-slate-100">
+                <div className="flex items-baseline gap-1 text-xs sm:text-[13px] font-bold text-slate-800 min-w-0">
                   <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 shrink-0">
                     Pay:
                   </span>
-                  <span className="whitespace-nowrap">
+                  <span className="break-words">
                     {hasComp ? comp.replace(/\s*\/\s*/g, "\u00A0/\u00A0") : "Competitive pay · Disclosed on interview"}
                   </span>
                 </div>
@@ -137,20 +135,20 @@ export function HomeJobs({ initialJobs }: { initialJobs: JobListing[] }) {
                   </span>
                 </div>
 
-                <h3 className="text-sm sm:text-base font-bold text-slate-900 group-hover:text-purple-700 transition-colors line-clamp-1 leading-snug">
+                <h3 className="text-sm sm:text-base font-bold text-slate-900 group-hover:text-purple-700 transition-colors line-clamp-2 leading-snug">
                   Can’t find your preferred role?
                 </h3>
 
                 <div className="flex items-center gap-1.5 text-xs text-slate-500 mt-1">
                   <Globe2 size={12} className="text-purple-500 shrink-0" />
-                  <span className="truncate">Pan-India verified employers hiring weekly</span>
+                  <span className="truncate">Keep your profile ready for future opportunities</span>
                 </div>
               </div>
             </div>
 
             <div className="flex items-center justify-between gap-3 mt-3.5 pt-2.5 border-t border-purple-100">
               <span className="text-xs font-medium text-slate-600 hidden sm:inline">
-                Direct candidate matching
+                Your next step starts with a profile
               </span>
               <Link
                 href="/candidate/signup"

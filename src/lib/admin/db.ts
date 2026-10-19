@@ -96,29 +96,6 @@ function getClient(): Client {
   return client;
 }
 
-async function seedDefaultArticles(connection: Client): Promise<void> {
-  if (process.env.ATSAI_DATABASE_PATH === ":memory:" || process.env.NODE_ENV === "test") {
-    return;
-  }
-  try {
-    const { SEED_ARTICLES } = await import("@/lib/data/seedArticles");
-    await connection.batch(SEED_ARTICLES.map(article => ({
-        sql: `INSERT INTO content (id, kind, slug, status, document, createdAt, updatedAt, version)
-              VALUES (?, 'post', ?, 'published', ?, ?, ?, 1)
-              ON CONFLICT(kind, slug) DO NOTHING`,
-        args: [
-          article.id,
-          article.slug,
-          article.document,
-          article.createdAt,
-          article.updatedAt
-        ]
-    })), "write");
-  } catch (err) {
-    console.warn("Seed articles notice:", (err as Error)?.message || err);
-  }
-}
-
 async function initializedClient(): Promise<Client> {
   const connection = getClient();
   if (!initialization) {
@@ -127,7 +104,6 @@ async function initializedClient(): Promise<Client> {
       await connection.batch(schema, "write");
       try { await connection.execute("ALTER TABLE candidate_applications ADD COLUMN canonicalJobId TEXT"); } catch {}
       try { await connection.execute("ALTER TABLE candidate_applications ADD COLUMN postingId TEXT"); } catch {}
-      await seedDefaultArticles(connection);
     })().catch(error => { initialization = undefined; throw error; });
   }
   await initialization;

@@ -10,7 +10,6 @@ import { UserManagement } from "./UserManagement";
 import { RecruitmentInbox } from "@/components/recruitment/RecruitmentClient";
 import BrandLogo from "@/components/common/BrandLogo";
 import { blankRecord, slugify, type ContentRecord, type MediaRecord, type WorkspaceData } from "@/lib/admin/types";
-import { RichEditor } from "./RichEditor";
 import { RichContent } from "./RichContent";
 import { JobIntelligence } from "./JobIntelligence";
 const nav = [
