@@ -654,4 +654,55 @@ test("Country Normalization & Validation: Accepts country names and codes withou
   assert.equal(parsedUS.jobCountry, "US", "Full country name 'United States' must be normalized to 'US'");
 });
 
+test("SEO Title and Description Length Validation: Automatically trims strings exceeding limits without 'Too big: expected string to have <=70 characters' error", () => {
+  const { load } = createTestContext();
+  const validation = load("src/lib/admin/validation.ts");
+
+  const longSeoTitle = "Senior Cloud Infrastructure Engineer at Tata Consultancy Services | ATSAI Career Directory";
+  assert.ok(longSeoTitle.length > 70, "Test prerequisite: longSeoTitle must exceed 70 chars");
+  const longSeoDesc = "A".repeat(250);
+
+  const baseJob = {
+    id: "seo-test-job-id",
+    kind: "job",
+    title: "Senior Full Stack Engineer",
+    slug: "senior-full-stack-engineer",
+    status: "draft",
+    excerpt: "Summary excerpt for the role.",
+    category: "Engineering",
+    cover: "",
+    content: {
+      type: "doc",
+      content: [{ type: "paragraph", content: [{ type: "text", text: "Role content description." }] }]
+    },
+    seoTitle: longSeoTitle,
+    seoDescription: longSeoDesc,
+    author: "ATSAI Team",
+    featured: false,
+    company: "Example Tech",
+    location: "Bengaluru, India",
+    workMode: "Hybrid",
+    employmentType: "Full-time",
+    experienceMin: 3,
+    experienceMax: 8,
+    salaryMin: 2000000,
+    salaryMax: 4000000,
+    skills: "React, Node.js, TypeScript",
+    expiresAt: "",
+    applicationUrl: "",
+    version: 1,
+    googleJobs: false,
+    jobOriginalDate: "2026-10-18",
+    jobCity: "Bengaluru",
+    jobRegion: "Karnataka",
+    jobCountry: "IN"
+  };
+
+  const parsed = validation.contentSchema.parse(baseJob);
+  assert.ok(parsed.seoTitle.length <= 70, `seoTitle must be <= 70 chars, got ${parsed.seoTitle.length}`);
+  assert.equal(parsed.seoTitle, longSeoTitle.slice(0, 70).trim());
+  assert.ok(parsed.seoDescription.length <= 170, `seoDescription must be <= 170 chars, got ${parsed.seoDescription.length}`);
+  assert.equal(parsed.seoDescription, longSeoDesc.slice(0, 170).trim());
+});
+
 

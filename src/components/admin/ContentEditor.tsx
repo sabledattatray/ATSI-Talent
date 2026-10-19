@@ -61,8 +61,12 @@ export function sanitizeRecordForEditor(r: ContentRecord): ContentRecord {
   const isJob = r.kind === "job";
   const jobCountry = isJob && r.jobCountry ? toCountryCode(r.jobCountry, "IN") : (r.jobCountry || "");
   const content = r.content ? ((sanitizeRichNodes(r.content) as RichNode) || r.content) : r.content;
+  const seoTitle = r.seoTitle ? (r.seoTitle.length > 70 ? r.seoTitle.slice(0, 70).trim() : r.seoTitle) : (r.seoTitle || "");
+  const seoDescription = r.seoDescription ? (r.seoDescription.length > 170 ? r.seoDescription.slice(0, 170).trim() : r.seoDescription) : (r.seoDescription || "");
   return {
     ...r,
+    seoTitle,
+    seoDescription,
     jobCountry,
     content
   };

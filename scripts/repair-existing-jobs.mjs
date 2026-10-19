@@ -61,8 +61,22 @@ async function auditAndRepair() {
         ? "This vacancy is independently summarized from the employer's public career listing. ATSAI is not affiliated with or recruiting on behalf of the employer. Apply directly through the official employer website."
         : `Verified Career Listing: Sourced with permission from ${job.company}.`;
 
+      // 5. Ensure SEO title and description are within limits
+      let seoTitle = job.seoTitle || "";
+      let seoDescription = job.seoDescription || "";
+      if (seoTitle.length > 70) {
+        seoTitle = seoTitle.slice(0, 70).trim();
+        changed = true;
+      }
+      if (seoDescription.length > 170) {
+        seoDescription = seoDescription.slice(0, 170).trim();
+        changed = true;
+      }
+
       const updatedJob = {
         ...job,
+        seoTitle,
+        seoDescription,
         experienceMax: expMax !== undefined ? expMax : 0,
         employerPublishedAt,
         lastVerifiedAt,

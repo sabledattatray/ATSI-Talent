@@ -17,12 +17,13 @@ export interface GeneratedJobContent {
  * - Formats full overview, responsibilities, qualifications, benefits, and application instructions.
  */
 export function generateFactualJobContent(facts: ExtractedJobFacts): GeneratedJobContent {
-  const seoTitle = `${facts.title} at ${facts.company} | ATSAI Career Directory`;
+  const baseTitle = `${facts.title} at ${facts.company}`.trim();
+  const seoTitle = (baseTitle.length <= 70 ? baseTitle : facts.title).slice(0, 70).trim();
   const compText = facts.salaryDisclosed && facts.salaryMin && facts.salaryMax
     ? `Offering ${facts.salaryCurrency || "INR"} ${facts.salaryMin.toLocaleString("en-IN")}–${facts.salaryMax.toLocaleString("en-IN")}. `
     : "";
   const excerpt = cleanHtmlToText(`${facts.company} is seeking a ${facts.title} in ${facts.location} (${facts.workMode}). ${compText}Apply on the official employer website.`).slice(0, 180);
-  const seoDescription = excerpt;
+  const seoDescription = excerpt.slice(0, 160);
 
   const docNodes: RichNode[] = [];
 
