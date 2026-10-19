@@ -22,7 +22,8 @@ export function generateFactualJobContent(facts: ExtractedJobFacts): GeneratedJo
   const compText = facts.salaryDisclosed && facts.salaryMin && facts.salaryMax
     ? `Offering ${facts.salaryCurrency || "INR"} ${facts.salaryMin.toLocaleString("en-IN")}–${facts.salaryMax.toLocaleString("en-IN")}. `
     : "";
-  const excerpt = cleanHtmlToText(`${facts.company} is seeking a ${facts.title} in ${facts.location} (${facts.workMode}). ${compText}Apply on the official employer website.`).slice(0, 180);
+  const modeText = facts.workMode && facts.workMode !== "Unknown" ? ` (${facts.workMode})` : "";
+  const excerpt = cleanHtmlToText(`${facts.company} is seeking a ${facts.title} in ${facts.location}${modeText}. ${compText}Apply on the official employer website.`).slice(0, 180);
   const seoDescription = excerpt.slice(0, 160);
 
   const docNodes: RichNode[] = [];
@@ -65,8 +66,9 @@ export function generateFactualJobContent(facts: ExtractedJobFacts): GeneratedJo
     content: [{ type: "text", text: "Role Overview & Summary" }]
   });
 
+  const modeDesc = facts.workMode && facts.workMode !== "Unknown" ? ` under a ${facts.workMode.toLowerCase()} model` : "";
   const rawSummaryText = facts.descriptionSummary ||
-    `${facts.company} has announced an open position for a ${facts.title} based in ${facts.location}. This requisition operates under an ${facts.workMode.toLowerCase()} model on a ${facts.employmentType.toLowerCase()} basis.`;
+    `${facts.company} has announced an open position for a ${facts.title} based in ${facts.location}. This requisition operates${modeDesc} on a ${facts.employmentType.toLowerCase()} basis.`;
 
   const cleanSummary = cleanHtmlToText(rawSummaryText);
   let summaryParagraphs = cleanSummary

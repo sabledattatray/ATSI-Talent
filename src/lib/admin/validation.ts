@@ -25,12 +25,33 @@ function documentText(value: unknown): string {
   const node = value as { text?: string; content?: unknown[] };
   return node.text || (node.content || []).map(documentText).join(" ");
 }
+export function normalizeWorkModeValue(v: unknown): "Remote" | "Hybrid" | "On-site" {
+  if (!v || typeof v !== "string") return "Hybrid";
+  const s = v.toLowerCase().trim();
+  if (/hybrid|flexible/.test(s)) return "Hybrid";
+  if (/remote|telecommute|wfh|home/.test(s)) return "Remote";
+  if (/onsite|on-site|office|in-person|site|person/.test(s)) return "On-site";
+  return "Hybrid";
+}
+
+export function normalizeEmploymentTypeValue(v: unknown): "Full-time" | "Contract" | "Part-time" | "Executive" | "Temporary" | "Internship" | "Volunteer" {
+  if (!v || typeof v !== "string") return "Full-time";
+  const s = v.toLowerCase().trim();
+  if (/executive|leadership|director|c-level/.test(s)) return "Executive";
+  if (/volunteer/.test(s)) return "Volunteer";
+  if (/intern|trainee/.test(s)) return "Internship";
+  if (/contract|freelance|consultant|temp[- ]?to[- ]?hire/.test(s)) return "Contract";
+  if (/temporary|seasonal/.test(s)) return "Temporary";
+  if (/part[- ]?time/.test(s)) return "Part-time";
+  return "Full-time";
+}
+
 export const contentSchema = z.object({
   id: text(80), kind: z.enum(["job", "post"]), title: text(180).min(3, "Add a title of at least 3 characters."), slug: z.string().min(3).max(120).regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, "Use lowercase words separated by hyphens."), status: z.enum(["draft", "published", "archived"]),
-  salaryCurrency: text(3).regex(/^[A-Z]{3}$/).optional().default("INR"), salaryPeriod: z.enum(["YEAR","MONTH","WEEK","DAY","HOUR"]).optional().default("YEAR"), employerVerified: z.boolean().optional().default(false),
+  salaryCurrency: text(3).regex(/^[A-Z]{3}$/).optional().default("INR"), salaryPeriod: z.string().nullish().default("YEAR").transform(v => { const s = (v || "").toUpperCase().trim(); return (["YEAR", "MONTH", "WEEK", "DAY", "HOUR"].includes(s) ? s : "YEAR") as "YEAR" | "MONTH" | "WEEK" | "DAY" | "HOUR"; }), employerVerified: z.boolean().optional().default(false),
   googleJobs: z.boolean().optional().default(false), jobOriginalDate: text(10).optional().default(""), jobCity: text(120).optional().default(""), jobRegion: text(120).optional().default(""), jobCountry: z.string().trim().max(120).optional().default("").transform(v => v ? toCountryCode(v, v.length === 2 ? v.toUpperCase() : "IN") : ""),
 
-  excerpt: text(600), category: text(80).min(1), cover: mediaUrl, content: z.unknown().refine(validDocument, "Invalid editor document."), seoTitle: z.string().nullish().default("").transform(v => (v ?? "").trim().slice(0, 70)), seoDescription: z.string().nullish().default("").transform(v => (v ?? "").trim().slice(0, 170)), author: text(80).min(1), featured: z.boolean(), company: text(120), location: text(160), workMode: z.enum(["Remote", "Hybrid", "On-site"]), employmentType: z.enum(["Full-time", "Contract", "Part-time", "Executive", "Temporary", "Internship", "Volunteer"]), experienceMin: z.number().min(0).max(60), experienceMax: z.number().min(0).max(60), salaryMin: z.number().min(0).max(1e9), salaryMax: z.number().min(0).max(1e9), skills: z.string().nullish().default("").transform(v => (v ?? "").trim().slice(0, 1200)), expiresAt: z.string().refine(v => !v || Number.isFinite(Date.parse(v)), "Enter a valid expiry date."), applicationUrl: url, version: z.number().int().min(0), employerPublishedAt: z.string().optional().default(""), isExpired: z.boolean().optional().default(false), lastVerifiedAt: z.string().optional().default(""), requisitionId: text(100).optional().default(""), legalDisclaimer: text(1000).optional().default(""), isIndependentCurated: z.boolean().optional(),
+  excerpt: text(600), category: text(80).min(1), cover: mediaUrl, content: z.unknown().refine(validDocument, "Invalid editor document."), seoTitle: z.string().nullish().default("").transform(v => (v ?? "").trim().slice(0, 70)), seoDescription: z.string().nullish().default("").transform(v => (v ?? "").trim().slice(0, 170)), author: text(80).min(1), featured: z.boolean(), company: text(120), location: text(160), workMode: z.string().nullish().default("Hybrid").transform(normalizeWorkModeValue), employmentType: z.string().nullish().default("Full-time").transform(normalizeEmploymentTypeValue), experienceMin: z.number().min(0).max(60), experienceMax: z.number().min(0).max(60), salaryMin: z.number().min(0).max(1e9), salaryMax: z.number().min(0).max(1e9), skills: z.string().nullish().default("").transform(v => (v ?? "").trim().slice(0, 1200)), expiresAt: z.string().refine(v => !v || Number.isFinite(Date.parse(v)), "Enter a valid expiry date."), applicationUrl: url, version: z.number().int().min(0), employerPublishedAt: z.string().optional().default(""), isExpired: z.boolean().optional().default(false), lastVerifiedAt: z.string().optional().default(""), requisitionId: text(100).optional().default(""), legalDisclaimer: text(1000).optional().default(""), isIndependentCurated: z.boolean().optional(),
 }).superRefine((v, ctx) => {
   const issue = (path: string, message: string) => ctx.addIssue({ code: "custom", path: [path], message });
   if (v.kind === "job" && v.googleJobs) {

@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { ArrowLeft, ArrowUpRight, ChevronDown, ExternalLink, Globe2, ImagePlus, Search, ShieldCheck, Sparkles, X } from "lucide-react";
 import { slugify, type ContentRecord, type MediaRecord, type RichNode } from "@/lib/admin/types";
 import { toCountryCode } from "@/lib/countries";
+import { normalizeWorkModeValue, normalizeEmploymentTypeValue } from "@/lib/admin/validation";
 import { RichEditor } from "./RichEditor";
 import { RichContent } from "./RichContent";
 
@@ -60,6 +61,8 @@ function sanitizeRichNodes(node: RichNode): RichNode | null {
 export function sanitizeRecordForEditor(r: ContentRecord): ContentRecord {
   const isJob = r.kind === "job";
   const jobCountry = isJob && r.jobCountry ? toCountryCode(r.jobCountry, "IN") : (r.jobCountry || "");
+  const workMode = isJob ? normalizeWorkModeValue(r.workMode) : (r.workMode || "Hybrid");
+  const employmentType = isJob ? normalizeEmploymentTypeValue(r.employmentType) : (r.employmentType || "Full-time");
   const content = r.content ? ((sanitizeRichNodes(r.content) as RichNode) || r.content) : r.content;
   const seoTitle = r.seoTitle ? (r.seoTitle.length > 70 ? r.seoTitle.slice(0, 70).trim() : r.seoTitle) : (r.seoTitle || "");
   const seoDescription = r.seoDescription ? (r.seoDescription.length > 170 ? r.seoDescription.slice(0, 170).trim() : r.seoDescription) : (r.seoDescription || "");
@@ -68,6 +71,8 @@ export function sanitizeRecordForEditor(r: ContentRecord): ContentRecord {
     seoTitle,
     seoDescription,
     jobCountry,
+    workMode,
+    employmentType,
     content
   };
 }

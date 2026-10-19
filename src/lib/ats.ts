@@ -9,7 +9,7 @@ import { z } from "zod";
 import { db, transaction, audit, limit, media, records } from "@/lib/admin/db";
 import { assertOrigin, hashPassword, verifyPassword, tokenHash, currentUser } from "@/lib/admin/auth";
 import { blankRecord, slugify, type ContentRecord, type RichNode } from "@/lib/admin/types";
-import { contentSchema } from "@/lib/admin/validation";
+import { contentSchema, normalizeWorkModeValue, normalizeEmploymentTypeValue } from "@/lib/admin/validation";
 import { STAGES, type Employer, type Applicant, type EmployerWorkspace, type TrackingEvent, type Interview } from "@/lib/ats-types";
 import { findDuplicateJob } from "@/lib/job-intelligence/deduplication";
 import { syncContentToCanonical } from "@/lib/canonical-jobs";
@@ -159,7 +159,7 @@ export async function atsRequest(request:Request,route:string):Promise<Response>
           isExpired: isExp,
         };
       } else {
-        const input=z.object({id:text(80).default(""),version:z.number().int().min(0).default(0),title:text(180).min(3),description:text(30000).min(20),excerpt:text(600).min(20),category:text(80).min(2),location:text(160).min(2),jobCountry:z.string().trim().max(120).transform(v=>toCountryCode(v,"IN")).refine(isCountryCode,"Choose a valid country."),jobCity:text(120).default(""),jobRegion:text(120).default(""),workMode:z.enum(["Remote","Hybrid","On-site"]),employmentType:z.enum(["Full-time","Part-time","Contract","Executive","Temporary","Internship","Volunteer"]),salaryCurrency:text(3).regex(/^[A-Z]{3}$/),salaryPeriod:z.enum(["YEAR","MONTH","WEEK","DAY","HOUR"]),salaryMin:z.number().min(0).max(1e9),salaryMax:z.number().min(0).max(1e9),experienceMin:z.number().min(0).max(60),experienceMax:z.number().min(0).max(60),skills:text(1200).default(""),expiresAt:text(40).default(""),status:z.enum(["draft","published","archived"])}).parse(body);
+        const input=z.object({id:text(80).default(""),version:z.number().int().min(0).default(0),title:text(180).min(3),description:text(30000).min(20),excerpt:text(600).min(20),category:text(80).min(2),location:text(160).min(2),jobCountry:z.string().trim().max(120).transform(v=>toCountryCode(v,"IN")).refine(isCountryCode,"Choose a valid country."),jobCity:text(120).default(""),jobRegion:text(120).default(""),workMode:z.string().nullish().default("Hybrid").transform(normalizeWorkModeValue),employmentType:z.string().nullish().default("Full-time").transform(normalizeEmploymentTypeValue),salaryCurrency:text(3).regex(/^[A-Z]{3}$/),salaryPeriod:z.string().nullish().default("YEAR").transform(v=>{const s=(v||"").toUpperCase().trim();return (["YEAR","MONTH","WEEK","DAY","HOUR"].includes(s)?s:"YEAR") as "YEAR"|"MONTH"|"WEEK"|"DAY"|"HOUR";}),salaryMin:z.number().min(0).max(1e9),salaryMax:z.number().min(0).max(1e9),experienceMin:z.number().min(0).max(60),experienceMax:z.number().min(0).max(60),skills:z.string().nullish().default("").transform(v=>(v??"").trim().slice(0,1200)),expiresAt:text(40).default(""),status:z.enum(["draft","published","archived"])}).parse(body);
         try{new Intl.NumberFormat("en",{style:"currency",currency:input.salaryCurrency});}catch{fail("Choose a valid three-letter currency code.");}
         if(!Intl.supportedValuesOf("currency").includes(input.salaryCurrency))fail("Choose a supported ISO currency.");
         const previous=input.id?await ownedJob(input.id,user.organizationId):null;

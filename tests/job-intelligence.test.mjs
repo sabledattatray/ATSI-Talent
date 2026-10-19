@@ -705,4 +705,66 @@ test("SEO Title and Description Length Validation: Automatically trims strings e
   assert.equal(parsed.seoDescription, longSeoDesc.slice(0, 170).trim());
 });
 
+test("contentSchema and validation normalize workMode and employmentType automatically", () => {
+  const ctx = createTestContext();
+  const validation = ctx.load("src/lib/admin/validation.ts");
+
+  const jobWithNonStandardEnums = {
+    id: "job-norm-123",
+    kind: "job",
+    title: "Senior Full Stack Engineer",
+    slug: "senior-full-stack-engineer",
+    status: "draft",
+    excerpt: "Summary excerpt for the role.",
+    category: "Engineering",
+    cover: "",
+    content: {
+      type: "doc",
+      content: [{ type: "paragraph", content: [{ type: "text", text: "Role content description." }] }]
+    },
+    seoTitle: "Senior Full Stack Engineer",
+    seoDescription: "Join our team as a Senior Full Stack Engineer.",
+    author: "ATSAI Team",
+    featured: false,
+    company: "Example Tech",
+    location: "Bengaluru, India",
+    workMode: "Unknown",
+    employmentType: "Permanent",
+    experienceMin: 3,
+    experienceMax: 8,
+    salaryMin: 2000000,
+    salaryMax: 4000000,
+    salaryPeriod: "annual",
+    skills: "React, Node.js, TypeScript",
+    expiresAt: "",
+    applicationUrl: "",
+    version: 1,
+    googleJobs: false,
+    jobOriginalDate: "2026-10-18",
+    jobCity: "Bengaluru",
+    jobRegion: "Karnataka",
+    jobCountry: "IN"
+  };
+
+  const parsed = validation.contentSchema.parse(jobWithNonStandardEnums);
+  assert.equal(parsed.workMode, "Hybrid");
+  assert.equal(parsed.employmentType, "Full-time");
+  assert.equal(parsed.salaryPeriod, "YEAR");
+
+  // Test helper functions directly
+  assert.equal(validation.normalizeWorkModeValue("onsite"), "On-site");
+  assert.equal(validation.normalizeWorkModeValue("In-person / Office"), "On-site");
+  assert.equal(validation.normalizeWorkModeValue("wfh"), "Remote");
+  assert.equal(validation.normalizeWorkModeValue("telecommute"), "Remote");
+  assert.equal(validation.normalizeWorkModeValue("Unknown"), "Hybrid");
+  assert.equal(validation.normalizeWorkModeValue(null), "Hybrid");
+
+  assert.equal(validation.normalizeEmploymentTypeValue("Permanent"), "Full-time");
+  assert.equal(validation.normalizeEmploymentTypeValue("full-time"), "Full-time");
+  assert.equal(validation.normalizeEmploymentTypeValue("Contractor"), "Contract");
+  assert.equal(validation.normalizeEmploymentTypeValue("intern"), "Internship");
+  assert.equal(validation.normalizeEmploymentTypeValue(undefined), "Full-time");
+});
+
+
 

@@ -73,10 +73,38 @@ async function auditAndRepair() {
         changed = true;
       }
 
+      // 6. Ensure workMode and employmentType are valid enums
+      let workMode = job.workMode;
+      const wmLower = String(workMode || "").toLowerCase().trim();
+      let normWorkMode = "Hybrid";
+      if (/hybrid|flexible/.test(wmLower)) normWorkMode = "Hybrid";
+      else if (/remote|telecommute|wfh|home/.test(wmLower)) normWorkMode = "Remote";
+      else if (/onsite|on-site|office|in-person|site|person/.test(wmLower)) normWorkMode = "On-site";
+      if (workMode !== normWorkMode) {
+        workMode = normWorkMode;
+        changed = true;
+      }
+
+      let employmentType = job.employmentType;
+      const etLower = String(employmentType || "").toLowerCase().trim();
+      let normEmpType = "Full-time";
+      if (/executive|leadership|director|c-level/.test(etLower)) normEmpType = "Executive";
+      else if (/volunteer/.test(etLower)) normEmpType = "Volunteer";
+      else if (/intern|trainee/.test(etLower)) normEmpType = "Internship";
+      else if (/contract|freelance|consultant|temp[- ]?to[- ]?hire/.test(etLower)) normEmpType = "Contract";
+      else if (/temporary|seasonal/.test(etLower)) normEmpType = "Temporary";
+      else if (/part[- ]?time/.test(etLower)) normEmpType = "Part-time";
+      if (employmentType !== normEmpType) {
+        employmentType = normEmpType;
+        changed = true;
+      }
+
       const updatedJob = {
         ...job,
         seoTitle,
         seoDescription,
+        workMode,
+        employmentType,
         experienceMax: expMax !== undefined ? expMax : 0,
         employerPublishedAt,
         lastVerifiedAt,
