@@ -21,6 +21,7 @@ const services = [
   { title: "Start hiring", description: "Create a private workspace for your company.", href: "/employer/signup", icon: FileText },
 ];
 const company = [
+  { title: "Interview guides", description: "Prepare with role-based questions and a clear plan.", href: "/interview-guides", icon: FileText },
   { title: "About ATSAI", description: "Our approach to thoughtful recruitment.", href: "/about", icon: Building2 },
   { title: "For candidates", description: "Explore your next career move.", href: "/candidates", icon: UserRound },
   { title: "How it works", description: "A clearer path from search to opportunity.", href: "/candidates/how-it-works", icon: BriefcaseBusiness },

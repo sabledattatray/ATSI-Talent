@@ -20,7 +20,7 @@ export const PUBLIC_SITEMAP_PATHS = [
 
   "/candidates", "/candidates/how-it-works", "/employers", "/jobs",
 
-  "/blog", "/contact", "/faq", "/accessibility",
+  "/blog", "/interview-guides", "/contact", "/faq", "/accessibility",
 
 ] as const;
 
@@ -95,6 +95,8 @@ export const PAGE_SEO: Record<string, { title: string; description: string; keyw
   "/employers": { title: "Applicant Tracking Software for Hiring Teams | ATSAI Talent Solutions", description: "Create your company workspace. Publish jobs, track applications, schedule interviews and collaborate with recruiters using ATSAI Talent Solutions.", keywords: ["applicant tracking software", "company hiring workspace", "recruitment management"] },
 
   "/blog": { title: "Career Advice, Recruitment & Hiring Insights", description: "Read ATSAI articles on careers, job applications, analytics skills and hiring. Explore practical guidance for job seekers and employers.", keywords: ["career advice", "recruitment insights", "hiring advice"] },
+
+  "/interview-guides": { title: "Interview Guides, Practice Questions & Preparation", description: "Prepare for your next interview with role-based practice questions, the STAR answer framework and an interactive checklist. Free guides from ATSAI.", keywords: ["interview guides", "interview preparation", "interview questions", "STAR interview method", "data analyst interview"] },
 
   "/contact": { title: "Contact ATSAI for Recruitment & Career Enquiries", description: "Contact ATSAI Talent Solutions about hiring, job opportunities or your account. Email support@atsai.pro or send a message through our contact form.", keywords: ["contact ATSAI", "recruitment enquiry", "hiring enquiry"] },
 

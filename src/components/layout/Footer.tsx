@@ -11,6 +11,7 @@ export function Footer() {
         ["Create a profile", "/candidate/signup"],
         ["Your applications", "/candidate/dashboard"],
         ["Career insights", "/blog"],
+        ["Interview guides", "/interview-guides"],
       ],
     },
     {

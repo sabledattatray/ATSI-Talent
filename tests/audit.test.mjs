@@ -102,7 +102,8 @@ test("production job API is empty and status has no invented metrics",async()=>{
 test("sitemap lists canonical public routes and excludes duplicate resources", async () => {
   const { load } = app("production");
   const entries = await load("src/app/sitemap.ts").default();
-  assert.equal(entries.length, 16);
+  assert.equal(entries.length, 17);
+  assert.ok(entries.some(entry => entry.url === "https://www.atsai.pro/interview-guides"));
   assert.equal(new Set(entries.map(e => e.url)).size, entries.length);
   for (const entry of entries) {
     const url = new URL(entry.url);
