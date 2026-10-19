@@ -48,7 +48,7 @@ export function Footer() {
               <br />
               Recruitment Software & HR Technology Solutions.
             </p>
-            <p className="text-xs leading-6 mt-2 text-slate-500">
+            <p className="text-xs leading-6 mt-2 text-slate-400">
               Connecting opportunities and hiring teams across India.
             </p>
           </div>

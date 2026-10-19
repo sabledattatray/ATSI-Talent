@@ -1,4 +1,5 @@
 "use client";
+import "./portal.css";
 import { GoogleSignIn } from "@/components/auth/GoogleSignIn";
 import { EmailVerification } from "@/components/auth/EmailVerification";
 import { AuthenticationActivity } from "@/components/auth/AuthenticationActivity";

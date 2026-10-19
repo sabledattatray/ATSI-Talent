@@ -100,7 +100,7 @@ export function HomeJobs({ initialJobs }: { initialJobs: JobListing[] }) {
               {/* Card Footer: Salary + View Action (Full Width) */}
               <div className="flex flex-wrap items-center justify-between gap-2 mt-3.5 pt-2.5 border-t border-slate-100">
                 <div className="flex items-baseline gap-1 text-xs sm:text-[13px] font-bold text-slate-800 min-w-0">
-                  <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 shrink-0">
+                  <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 shrink-0">
                     Pay:
                   </span>
                   <span className="break-words">
